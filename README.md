@@ -42,6 +42,9 @@ streamline-ai/
 
 2. **Configure OpenAI API Key:**
    ```bash
+   # Copy the example environment file
+   cp backend/.env.example backend/.env
+   
    # Edit backend/.env and add your OpenAI API key
    OPENAI_API_KEY=your_openai_api_key_here
    ```

@@ -11,6 +11,7 @@ export default function Home() {
       <Hero />
       <Services />
       <HowItWorks />
+      
       <TechCredibility />
       <About />
       <Contact />

@@ -161,7 +161,7 @@ export default function ChatBot() {
     } else {
       // Fallback for offline mode
       setTimeout(() => {
-        addLocalMessage("Thanks for your message! Since I'm currently offline, please email us at hello@streamlinetech.solutions and we'll get back to you within 24 hours.", true)
+        addLocalMessage("Thanks for your message! Since I'm currently offline, please email us at hello@streamlineai.com and we'll get back to you within 24 hours.", true)
       }, 1000)
     }
   }

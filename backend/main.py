@@ -14,7 +14,7 @@ app = FastAPI(title="Streamline AI Backend", version="1.0.0")
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3004", "https://your-domain.com"],
+    allow_origins=["http://localhost:3000", "http://localhost:3004", "https://stream-lineai.com", "https://www.stream-lineai.com"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -188,7 +188,7 @@ async def chat_with_ai(chat_request: ChatMessage):
         
         # Get AI response
         if not client:
-            ai_response_text = "I'm sorry, but the AI service is currently unavailable. Please contact us directly at contact@streamlineai.com for assistance with your automation needs."
+            ai_response_text = "I'm sorry, but the AI service is currently unavailable. Please contact us directly at sales@stream-lineai.com for assistance with your automation needs."
         else:
             response = client.chat.completions.create(
                 model="gpt-4",  # Use GPT-4 for better responses
@@ -293,7 +293,7 @@ async def generate_proposal(session_id: str):
             
             Whether you need a mobile app to streamline customer interactions, automated workflows to reduce manual tasks, or AI-powered solutions to enhance your business operations, we have the expertise to deliver results.
             
-            Please contact us at contact@streamlineai.com to schedule your free consultation and discuss how we can help automate and scale your business.
+            Please contact us at sales@stream-lineai.com to schedule your free consultation and discuss how we can help automate and scale your business.
             """
         else:
             response = client.chat.completions.create(

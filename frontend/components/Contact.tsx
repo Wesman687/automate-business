@@ -68,7 +68,7 @@ export default function Contact() {
                 </div>
                 <div>
                   <div className="text-white font-semibold">Email Us</div>
-                  <div className="text-gray-300">hello@streamlineai.com</div>
+                  <div className="text-gray-300">sales@stream-lineai.com</div>
                 </div>
               </div>
 
@@ -97,7 +97,7 @@ export default function Contact() {
                   {'>'} Start AI Consultation
                 </button>
                 <a
-                  href="mailto:hello@streamlineai.com?subject=Automation Project Inquiry"
+                  href="mailto:sales@stream-lineai.com?subject=Automation Project Inquiry"
                   className="block w-full bg-dark-bg border border-neon-green text-neon-green px-4 py-3 rounded-lg font-mono hover:bg-neon-green hover:text-black transition-all duration-300"
                 >
                   {'>'} Send Direct Email

@@ -77,7 +77,7 @@ export default function ChatBot() {
 
   const startConversation = async () => {
     if (!isConnected) {
-      addLocalMessage("Sorry, I'm currently offline. Please try again later or contact us directly at hello@streamlineai.com", true)
+      addLocalMessage("Sorry, I'm currently offline. Please try again later or contact us directly at sales@stream-lineai.com", true)
       return
     }
 
@@ -161,7 +161,7 @@ export default function ChatBot() {
     } else {
       // Fallback for offline mode
       setTimeout(() => {
-        addLocalMessage("Thanks for your message! Since I'm currently offline, please email us at hello@streamlineai.com and we'll get back to you within 24 hours.", true)
+        addLocalMessage("Thanks for your message! Since I'm currently offline, please email us at sales@stream-lineai.com and we'll get back to you within 24 hours.", true)
       }, 1000)
     }
   }

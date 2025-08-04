@@ -1,42 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
-        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
-  
-  <!-- Homepage -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://stream-lineai.com</loc>
-    <lastmod>2025-08-04</lastmod>
+    <lastmod>2025-01-04</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
-    <image:image>
-      <image:loc>https://stream-lineai.com/og-banner-desktop.png</image:loc>
-      <image:title>Streamline AI - Business Automation Services</image:title>
-      <image:caption>AI-powered automation solutions for modern businesses</image:caption>
-    </image:image>
   </url>
-  
-  <!-- Services page (if you add one) -->
-  <url>
-    <loc>https://stream-lineai.com/services</loc>
-    <lastmod>2025-08-04</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  
-  <!-- About page (if you add one) -->
-  <url>
-    <loc>https://stream-lineai.com/about</loc>
-    <lastmod>2025-08-04</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  
-  <!-- Contact page (if you add one) -->
-  <url>
-    <loc>https://stream-lineai.com/contact</loc>
-    <lastmod>2025-08-04</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  
 </urlset>

@@ -11,6 +11,15 @@ __pycache__/
 /.pnp
 .pnp.js
 
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+backend/.env
+frontend/.env.local
+
 # Testing
 /coverage
 

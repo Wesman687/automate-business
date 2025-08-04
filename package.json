@@ -1,0 +1,39 @@
+{
+  "name": "streamline-tech-solutions",
+  "version": "1.0.0",
+  "description": "Professional website for Streamline Tech Solutions - AI and automation consulting",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "backend:install": "cd backend && pip install -r requirements.txt",
+    "backend:dev": "cd backend && python main.py",
+    "dev:full": "concurrently \"npm run dev\" \"npm run backend:dev\"",
+    "setup": "npm install && npm run backend:install"
+  },
+  "dependencies": {
+    "@next/font": "^14.0.0",
+    "@tsparticles/engine": "^3.0.0",
+    "@tsparticles/react": "^3.0.0",
+    "@tsparticles/slim": "^3.0.0",
+    "framer-motion": "^10.16.0",
+    "lucide-react": "^0.292.0",
+    "next": "^14.0.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "autoprefixer": "^10.0.0",
+    "concurrently": "^8.2.2",
+    "eslint": "^8.0.0",
+    "eslint-config-next": "^14.0.0",
+    "postcss": "^8.0.0",
+    "tailwindcss": "^3.3.0",
+    "typescript": "^5.0.0"
+  }
+}

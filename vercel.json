@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "name": "streamline-ai",
+  "builds": [
+    {
+      "src": "frontend/package.json",
+      "use": "@vercel/next",
+      "config": {
+        "projectSettings": {
+          "framework": "nextjs"
+        }
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "frontend/$1"
+    }
+  ]
+}

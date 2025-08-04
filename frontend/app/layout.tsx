@@ -12,7 +12,14 @@ export const metadata: Metadata = {
   description: 'Custom AI and automation tools built by expert developers. Streamline your business with intelligent automation solutions.',
   keywords: 'AI automation, business automation, custom software development, chatbots, workflow automation, API integrations',
   authors: [{ name: 'Streamline AI' }],
-  viewport: 'width=device-width, initial-scale=1',
+  icons: {
+    icon: '/favicon.svg',
+  },
+}
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
   themeColor: '#00D4FF',
 }
 

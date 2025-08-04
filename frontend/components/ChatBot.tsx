@@ -77,7 +77,7 @@ export default function ChatBot() {
 
   const startConversation = async () => {
     if (!isConnected) {
-      addLocalMessage("Sorry, I'm currently offline. Please try again later or contact us directly at hello@streamlinetech.solutions", true)
+      addLocalMessage("Sorry, I'm currently offline. Please try again later or contact us directly at hello@streamlineai.com", true)
       return
     }
 
@@ -99,7 +99,7 @@ export default function ChatBot() {
       }
     } catch (error) {
       console.error('Error starting conversation:', error)
-      addLocalMessage("Hi! I'm StreamlineBot. What does your business do?", true)
+      addLocalMessage("Hi! I'm StreamlineAI. What does your business do?", true)
     }
   }
 
@@ -255,7 +255,7 @@ export default function ChatBot() {
                   <Bot className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-white font-semibold">StreamlineBot</h3>
+                  <h3 className="text-white font-semibold">StreamlineAI</h3>
                   <p className="text-xs text-gray-400">
                     {isConnected ? 'AI Automation Assistant' : 'Offline Mode'}
                   </p>

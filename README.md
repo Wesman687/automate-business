@@ -1,4 +1,4 @@
-# Streamline Tech Solutions Website
+# Streamline AI Website
 
 A professional AI-powered website for automation consulting business with real OpenAI integration.
 
@@ -13,7 +13,7 @@ A professional AI-powered website for automation consulting business with real O
 ## 📁 Project Structure
 
 ```
-streamline-website/
+streamline-ai/
 ├── frontend/           # Next.js frontend application
 │   ├── app/           # Next.js app directory
 │   ├── components/    # React components
@@ -36,7 +36,7 @@ streamline-website/
 
 1. **Clone and setup the project:**
    ```bash
-   cd streamline-website
+   cd streamline-ai
    npm run setup
    ```
 

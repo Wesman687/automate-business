@@ -68,7 +68,7 @@ export default function Contact() {
                 </div>
                 <div>
                   <div className="text-white font-semibold">Email Us</div>
-                  <div className="text-gray-300">hello@streamlinetech.solutions</div>
+                  <div className="text-gray-300">hello@streamlineai.com</div>
                 </div>
               </div>
 
@@ -97,7 +97,7 @@ export default function Contact() {
                   {'>'} Start AI Consultation
                 </button>
                 <a
-                  href="mailto:hello@streamlinetech.solutions?subject=Automation Project Inquiry"
+                  href="mailto:hello@streamlineai.com?subject=Automation Project Inquiry"
                   className="block w-full bg-dark-bg border border-neon-green text-neon-green px-4 py-3 rounded-lg font-mono hover:bg-neon-green hover:text-black transition-all duration-300"
                 >
                   {'>'} Send Direct Email
@@ -201,7 +201,7 @@ export default function Contact() {
         >
           <div className="mb-6">
             <h3 className="text-2xl font-bold text-white mb-2">
-              Streamline Tech Solutions
+              Streamline AI
             </h3>
             <p className="text-gray-400 font-mono text-sm">
               We automate. You scale.
@@ -209,7 +209,7 @@ export default function Contact() {
           </div>
           
           <div className="text-gray-400 text-sm">
-            <p>&copy; 2024 Streamline Tech Solutions. All rights reserved.</p>
+            <p>&copy; 2024 Streamline AI. All rights reserved.</p>
             <p className="mt-2">
               Built with ❤️ using Next.js, TailwindCSS, and cutting-edge AI technology.
             </p>

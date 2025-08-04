@@ -60,7 +60,7 @@ CUSTOMERS_DIR.mkdir(exist_ok=True)
 
 # AI Prompt for the chatbot
 SYSTEM_PROMPT = """
-You are StreamlineBot, an AI assistant for Streamline Tech Solutions. Your role is to:
+You are StreamlineAI, an AI assistant for Streamline AI. Your role is to:
 
 1. QUALIFY LEADS: Gather key information about their business and automation needs
 2. PROVIDE VALUE: Offer immediate insights and suggestions
@@ -179,7 +179,7 @@ async def chat_with_ai(chat_request: ChatMessage):
         
         # Get AI response
         if not client:
-            ai_response_text = "I'm sorry, but the AI service is currently unavailable. Please contact us directly at contact@streamlinetech.solutions for assistance with your automation needs."
+            ai_response_text = "I'm sorry, but the AI service is currently unavailable. Please contact us directly at contact@streamlineai.com for assistance with your automation needs."
         else:
             response = client.chat.completions.create(
                 model="gpt-4",  # Use GPT-4 for better responses
@@ -280,7 +280,7 @@ async def generate_proposal(session_id: str):
             • Custom Software Solutions
             • Process Optimization
             
-            Please contact us at contact@streamlinetech.solutions to schedule your free consultation.
+            Please contact us at contact@streamlineai.com to schedule your free consultation.
             """
         else:
             response = client.chat.completions.create(

@@ -8,10 +8,10 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 const jetbrains = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono' })
 
 export const metadata: Metadata = {
-  title: 'Streamline Tech Solutions | We Automate. You Scale.',
+  title: 'Streamline AI | We Automate. You Scale.',
   description: 'Custom AI and automation tools built by expert developers. Streamline your business with intelligent automation solutions.',
   keywords: 'AI automation, business automation, custom software development, chatbots, workflow automation, API integrations',
-  authors: [{ name: 'Streamline Tech Solutions' }],
+  authors: [{ name: 'Streamline AI' }],
   viewport: 'width=device-width, initial-scale=1',
   themeColor: '#00D4FF',
 }

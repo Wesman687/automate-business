@@ -81,7 +81,7 @@ export default function Hero() {
                   <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
                   <div className="w-3 h-3 bg-green-500 rounded-full"></div>
                 </div>
-                <span className="ml-4 text-gray-400">~/streamline-solutions</span>
+                <span className="ml-4 text-gray-400">~/streamline-ai</span>
               </div>
               <div className="text-left">
                 <span className="text-electric-blue">$</span>{' '}

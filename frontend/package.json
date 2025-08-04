@@ -1,7 +1,7 @@
 {
-  "name": "streamline-tech-solutions",
+  "name": "streamline-ai-frontend",
   "version": "1.0.0",
-  "description": "Professional website for Streamline Tech Solutions - AI and automation consulting",
+  "description": "Professional website for Streamline AI - AI and automation consulting",
   "private": true,
   "scripts": {
     "dev": "next dev",

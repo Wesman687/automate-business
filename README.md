@@ -1,4 +1,133 @@
-# Streamline Tech Solutions - AI-Powered Business Website
+# Streamline Tech Solutions Website
+
+A professional AI-powered website for automation consulting business with real OpenAI integration.
+
+## 🚀 Features
+
+- **Modern Frontend**: Next.js 14 with TypeScript, TailwindCSS, and animations
+- **AI Chatbot**: Real OpenAI GPT-4 integration for lead qualification
+- **FastAPI Backend**: Python backend with customer data management
+- **Professional Design**: Responsive design with particle animations
+- **Lead Management**: Automatic customer info extraction and proposal generation
+
+## 📁 Project Structure
+
+```
+streamline-website/
+├── frontend/           # Next.js frontend application
+│   ├── app/           # Next.js app directory
+│   ├── components/    # React components
+│   └── public/        # Static assets
+├── backend/           # FastAPI backend
+│   ├── venv/          # Python virtual environment
+│   ├── main.py        # FastAPI application
+│   └── customer_data/ # Customer data storage
+└── package.json       # Root package.json with scripts
+```
+
+## 🛠️ Setup Instructions
+
+### Prerequisites
+- Node.js 18+ 
+- Python 3.8+
+- OpenAI API key
+
+### Installation
+
+1. **Clone and setup the project:**
+   ```bash
+   cd streamline-website
+   npm run setup
+   ```
+
+2. **Configure OpenAI API Key:**
+   ```bash
+   # Edit backend/.env and add your OpenAI API key
+   OPENAI_API_KEY=your_openai_api_key_here
+   ```
+
+### Development
+
+**Start both frontend and backend:**
+```bash
+npm run dev:full
+```
+
+**Or start individually:**
+```bash
+# Frontend only (http://localhost:3000+)
+npm run dev:frontend
+
+# Backend only (http://localhost:8001)
+npm run dev:backend
+```
+
+## 🔑 Environment Variables
+
+Create `backend/.env` with:
+```env
+OPENAI_API_KEY=your_openai_api_key_here
+ENVIRONMENT=development
+```
+
+## 🚀 Deployment
+
+### Frontend (Vercel)
+```bash
+cd frontend
+npm run build
+# Deploy to Vercel
+```
+
+### Backend (Railway/Render)
+```bash
+cd backend
+# Requirements are in requirements.txt
+# Set OPENAI_API_KEY environment variable
+```
+
+## 📊 API Endpoints
+
+- `POST /api/chat` - AI chat interaction
+- `POST /api/save-customer` - Save customer information  
+- `POST /api/generate-proposal` - Generate custom proposals
+- `GET /api/customers` - Get all customers (admin)
+- `GET /health` - Health check
+
+## 🤖 AI Features
+
+- **Lead Qualification**: Automatically extracts customer information
+- **Smart Responses**: GPT-4 powered conversational AI
+- **Custom Proposals**: Generates tailored automation proposals
+- **Email Capture**: Integrated email collection system
+
+## 🏗️ Tech Stack
+
+**Frontend:**
+- Next.js 14
+- TypeScript
+- TailwindCSS
+- Framer Motion
+- TSParticles
+
+**Backend:**
+- FastAPI
+- OpenAI GPT-4 API
+- Pydantic
+- Uvicorn
+
+## 📈 Business Features
+
+- Professional landing page with all key sections
+- AI chatbot for automated lead qualification
+- Customer data management and storage
+- Automated proposal generation
+- Contact form and email capture
+- Responsive design for all devices
+
+---
+
+Built with ❤️ for business automation success!
 
 A professional website with intelligent AI chatbot for Streamline Tech Solutions - specializing in AI automation and custom software development.
 

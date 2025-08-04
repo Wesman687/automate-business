@@ -22,7 +22,7 @@ interface CustomerInfo {
 
 const API_BASE_URL = process.env.NODE_ENV === 'production' 
   ? 'https://your-backend-domain.com' 
-  : 'http://localhost:8000'
+  : 'http://localhost:8001'
 
 export default function ChatBot() {
   const [isOpen, setIsOpen] = useState(false)

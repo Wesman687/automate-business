@@ -1,8 +1,8 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from typing import List, Optional
-import openai
+from openai import OpenAI
 import json
 import os
 from datetime import datetime
@@ -14,14 +14,20 @@ app = FastAPI(title="Streamline AI Backend", version="1.0.0")
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "https://your-domain.com"],
+    allow_origins=["http://localhost:3000", "http://localhost:3004", "https://your-domain.com"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Initialize OpenAI
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# Initialize OpenAI client
+openai_api_key = os.getenv("OPENAI_API_KEY")
+if not openai_api_key:
+    print("Warning: OPENAI_API_KEY not found in environment variables")
+    print("Please set your OpenAI API key in the .env file")
+    client = None
+else:
+    client = OpenAI(api_key=openai_api_key)
 
 # Data models
 class ChatMessage(BaseModel):
@@ -30,7 +36,7 @@ class ChatMessage(BaseModel):
     user_email: Optional[str] = None
 
 class CustomerInfo(BaseModel):
-    email: EmailStr
+    email: str
     name: Optional[str] = None
     business_type: Optional[str] = None
     pain_points: Optional[str] = None
@@ -115,10 +121,14 @@ def save_customer(customer_info: CustomerInfo, session_id: str):
 
 def extract_customer_info(messages: List[dict]) -> CustomerInfo:
     """Extract customer information from chat messages using AI"""
+    if not client:
+        print("OpenAI client not available - returning empty customer info")
+        return CustomerInfo(email="")
+    
     conversation = "\n".join([f"{'Bot' if msg['isBot'] else 'User'}: {msg['text']}" for msg in messages])
     
     try:
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
                 {
@@ -168,14 +178,16 @@ async def chat_with_ai(chat_request: ChatMessage):
             openai_messages.append({"role": role, "content": msg["text"]})
         
         # Get AI response
-        response = openai.ChatCompletion.create(
-            model="gpt-4",  # Use GPT-4 for better responses
-            messages=openai_messages,
-            temperature=0.7,
-            max_tokens=500
-        )
-        
-        ai_response_text = response.choices[0].message.content
+        if not client:
+            ai_response_text = "I'm sorry, but the AI service is currently unavailable. Please contact us directly at contact@streamlinetech.solutions for assistance with your automation needs."
+        else:
+            response = client.chat.completions.create(
+                model="gpt-4",  # Use GPT-4 for better responses
+                messages=openai_messages,
+                temperature=0.7,
+                max_tokens=500
+            )
+            ai_response_text = response.choices[0].message.content
         
         # Add AI response to session
         ai_message = {
@@ -253,17 +265,34 @@ async def generate_proposal(session_id: str):
         Make it professional and tailored to their specific needs.
         """
         
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": "You are a senior automation consultant creating detailed proposals."},
-                {"role": "user", "content": proposal_prompt}
-            ],
-            temperature=0.3,
-            max_tokens=1000
-        )
-        
-        proposal_text = response.choices[0].message.content
+        if not client:
+            proposal_text = """
+            CUSTOM AUTOMATION PROPOSAL
+            
+            Thank you for your interest in Streamline Tech Solutions!
+            
+            Based on our conversation, we understand you're looking for automation solutions to streamline your business processes. While our AI system is currently unavailable for generating a detailed proposal, we would love to schedule a consultation call to discuss your specific needs.
+            
+            Our services include:
+            • AI Chatbot Development
+            • Workflow Automation
+            • API Integrations
+            • Custom Software Solutions
+            • Process Optimization
+            
+            Please contact us at contact@streamlinetech.solutions to schedule your free consultation.
+            """
+        else:
+            response = client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": "You are a senior automation consultant creating detailed proposals."},
+                    {"role": "user", "content": proposal_prompt}
+                ],
+                temperature=0.3,
+                max_tokens=1000
+            )
+            proposal_text = response.choices[0].message.content
         
         # Save proposal to session
         session.messages.append({

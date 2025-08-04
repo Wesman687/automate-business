@@ -77,11 +77,20 @@ TONE: Professional but approachable, like an expert consultant who genuinely wan
 
 IMPORTANT: 
 - Always ask for their email before providing the final proposal
-- Be specific about automation solutions (AI chatbots, workflow automation, API integrations, etc.)
+- Be specific about automation solutions (AI chatbots, workflow automation, API integrations, mobile apps, etc.)
 - Provide time savings estimates and ROI projections when possible
 - End conversations by offering to schedule a consultation call
 
-Remember: You represent expert developers who specialize in AI and automation solutions.
+OUR SERVICES INCLUDE:
+- AI Chatbots & Virtual Assistants
+- Workflow Automation & Process Optimization
+- API Integrations & Data Synchronization
+- Mobile App Development (iOS & Android)
+- Custom Web Applications
+- Business Intelligence & Analytics
+- Cloud Infrastructure & DevOps
+
+Remember: You represent expert developers who specialize in AI, automation, and mobile app development solutions.
 """
 
 def save_session(session: ChatSession):
@@ -269,18 +278,22 @@ async def generate_proposal(session_id: str):
             proposal_text = """
             CUSTOM AUTOMATION PROPOSAL
             
-            Thank you for your interest in Streamline Tech Solutions!
+            Thank you for your interest in Streamline AI!
             
             Based on our conversation, we understand you're looking for automation solutions to streamline your business processes. While our AI system is currently unavailable for generating a detailed proposal, we would love to schedule a consultation call to discuss your specific needs.
             
-            Our services include:
-            • AI Chatbot Development
-            • Workflow Automation
-            • API Integrations
-            • Custom Software Solutions
-            • Process Optimization
+            Our comprehensive services include:
+            • AI Chatbot Development & Virtual Assistants
+            • Workflow Automation & Process Optimization
+            • API Integrations & Data Synchronization
+            • Mobile App Development (iOS & Android)
+            • Custom Web Applications & Dashboards
+            • Business Intelligence & Analytics
+            • Cloud Infrastructure & DevOps Solutions
             
-            Please contact us at contact@streamlineai.com to schedule your free consultation.
+            Whether you need a mobile app to streamline customer interactions, automated workflows to reduce manual tasks, or AI-powered solutions to enhance your business operations, we have the expertise to deliver results.
+            
+            Please contact us at contact@streamlineai.com to schedule your free consultation and discuss how we can help automate and scale your business.
             """
         else:
             response = client.chat.completions.create(

@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Bot, Cog, BarChart, Repeat } from 'lucide-react'
+import { Bot, Cog, BarChart, Repeat, Smartphone } from 'lucide-react'
 
 const services = [
   {
@@ -15,6 +15,12 @@ const services = [
     title: 'Workflow Automation & Scripting',
     description: 'Custom automation solutions that eliminate repetitive tasks and streamline your business processes.',
     features: ['Process optimization', 'Custom scripting', 'Task scheduling']
+  },
+  {
+    icon: Smartphone,
+    title: 'Mobile App Development',
+    description: 'Native iOS and Android apps that automate customer interactions and streamline business operations.',
+    features: ['iOS & Android development', 'API integrations', 'Real-time notifications']
   },
   {
     icon: BarChart,
@@ -46,12 +52,12 @@ export default function Services() {
             <span className="glow-text text-electric-blue">Build</span>
           </h2>
           <p className="text-xl text-gray-300 max-w-3xl mx-auto">
-            From AI-powered customer support to complex workflow automation, 
+            From AI-powered customer support to mobile apps and complex workflow automation, 
             we create solutions that work seamlessly with your existing systems.
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {services.map((service, index) => (
             <motion.div
               key={index}

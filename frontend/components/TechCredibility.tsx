@@ -7,9 +7,11 @@ const technologies = [
   { name: 'Python', description: 'Backend development & AI integration' },
   { name: 'FastAPI', description: 'High-performance API development' },
   { name: 'GPT-4', description: 'Advanced language model integration' },
-  { name: 'Whisper AI', description: 'Speech-to-text processing' },
+  { name: 'React Native', description: 'Cross-platform mobile development' },
+  { name: 'Swift/Kotlin', description: 'Native iOS and Android development' },
   { name: 'React/Next.js', description: 'Modern frontend development' },
-  { name: 'TailwindCSS', description: 'Responsive UI design' }
+  { name: 'TailwindCSS', description: 'Responsive UI design' },
+  { name: 'Whisper AI', description: 'Speech-to-text processing' }
 ]
 
 export default function TechCredibility() {

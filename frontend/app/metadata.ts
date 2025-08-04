@@ -1,13 +1,7 @@
 import type { Metadata } from 'next'
-import { Inter, JetBrains_Mono } from 'next/font/google'
-import './globals.css'
-import ChatBot from '@/components/ChatBot'
-import ParticleBackground from '@/components/ParticleBackground'
-
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
-const jetbrains = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono' })
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://stream-lineai.com'),
   title: {
     default: 'Streamline AI - Business Automation, Websites & Mobile Apps',
     template: '%s | Streamline AI'
@@ -15,8 +9,8 @@ export const metadata: Metadata = {
   description: 'We help businesses automate workflows, build custom websites, and develop powerful mobile apps using AI-powered tools. Save time, reduce costs, and scale your business with our expert automation services.',
   keywords: [
     'business automation',
-    'AI chatbot development',
-    'custom website design', 
+    'AI chatbot development', 
+    'custom website design',
     'mobile app development',
     'workflow automation',
     'AI consulting',
@@ -28,27 +22,31 @@ export const metadata: Metadata = {
   authors: [{ name: 'Streamline AI Team' }],
   creator: 'Streamline AI',
   publisher: 'Streamline AI',
-  metadataBase: new URL('https://stream-lineai.com'),
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
   openGraph: {
     type: 'website',
     locale: 'en_US',
     url: 'https://stream-lineai.com',
     siteName: 'Streamline AI',
     title: 'Streamline AI - Business Automation Experts | AI-Powered Solutions',
-    description: 'Transform your business with AI automation. Custom chatbots, mobile apps, and workflow solutions that save time and boost productivity.',
+    description: 'Transform your business with AI automation. Custom chatbots, mobile apps, and workflow solutions that save time and boost productivity. Free consultation available.',
     images: [
       {
         url: '/og-banner-desktop.png',
         width: 1200,
         height: 630,
-        alt: 'Streamline AI - Automate Your Business with AI-powered tools',
+        alt: 'Streamline AI - Automate Your Business with AI-powered tools and custom solutions',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Streamline AI - Automate Your Business with AI',
-    description: 'Custom AI tools, websites, and mobile apps to streamline your business.',
+    description: 'Custom AI tools, websites, and mobile apps to streamline your business. Get your free consultation today!',
     creator: '@StreamlineAI',
     images: ['/og-banner-mobile.png'],
   },
@@ -69,26 +67,7 @@ export const metadata: Metadata = {
     apple: '/apple-touch-icon.png',
   },
   manifest: '/site.webmanifest',
-}
-
-export const viewport = {
-  width: 'device-width',
-  initialScale: 1,
-  themeColor: '#0088CC',
-}
-
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  return (
-    <html lang="en" className={`${inter.variable} ${jetbrains.variable}`}>
-      <body className="bg-dark-bg text-white">
-        <ParticleBackground />
-        {children}
-        <ChatBot />
-      </body>
-    </html>
-  )
+  verification: {
+    google: 'your-google-verification-code',
+  },
 }

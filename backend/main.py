@@ -4,6 +4,8 @@ from database.models import Base
 from database import engine
 from api.chat import router as chat_router
 from api.customers import router as customers_router
+from api.contact import router as contact_router
+from api.admin import router as admin_router
 
 # Create FastAPI app
 app = FastAPI(
@@ -33,6 +35,8 @@ app.add_middleware(
 # Include routers
 app.include_router(chat_router)
 app.include_router(customers_router)
+app.include_router(contact_router)
+app.include_router(admin_router)
 
 @app.on_event("startup")
 async def startup_event():

@@ -74,8 +74,8 @@ async def send_sales_notification(customer: Customer, session_id: str):
             print("=" * 60)
             return True  # Return success for development
         
-        # Create chat log link - you can customize this URL to your admin panel
-        chat_log_url = f"https://admin.stream-lineai.com/chat-logs/{session_id}"
+        # Create chat log link - points to our admin interface
+        chat_log_url = f"http://localhost:8005/admin/chat-logs/{session_id}"
         
         # Create professional email content
         subject = f"🚀 New Lead: {customer.name or 'Customer'} from {customer.business_type or 'Unknown Company'}"

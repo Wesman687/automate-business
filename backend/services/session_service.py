@@ -1,7 +1,8 @@
 from sqlalchemy.orm import Session
 from database.models import ChatSession, ChatMessage, Customer
 from schemas.chat import ChatSessionCreate, ChatMessageCreate
-from typing import Optional, List
+from typing import Optional, List, Tuple
+from sqlalchemy import func
 import uuid
 from datetime import datetime
 
@@ -129,3 +130,22 @@ class SessionService:
             "status": getattr(session, 'status', 'active'),
             "messages": formatted_messages
         }
+
+    def get_all_sessions_with_customers(self) -> List[Tuple[ChatSession, Optional[Customer], int]]:
+        """Get all sessions with customer info and message count for admin dashboard"""
+        # Query sessions with left join to customers and count of messages
+        result = self.db.query(
+            ChatSession,
+            Customer,
+            func.count(ChatMessage.id).label('message_count')
+        ).outerjoin(
+            Customer, ChatSession.customer_id == Customer.id
+        ).outerjoin(
+            ChatMessage, ChatSession.id == ChatMessage.session_id
+        ).group_by(
+            ChatSession.id, Customer.id
+        ).order_by(
+            ChatSession.created_at.desc()
+        ).all()
+        
+        return result

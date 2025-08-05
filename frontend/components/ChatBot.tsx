@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
+import { MessageSquare, Send, Upload, X, User, Bot, Mail, Building, Phone, FileUp, MessageCircle, Paperclip } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { MessageCircle, X, Send, Bot, Mail, Paperclip, Upload } from 'lucide-react'
+import NotificationComponent from './NotificationComponent'
 
 interface CustomerInfo {
   email: string
@@ -45,6 +46,7 @@ export default function ChatBot() {
   const [uploadingFile, setUploadingFile] = useState(false)
   const [typingMessageId, setTypingMessageId] = useState<string | null>(null)
   const [showPreviewTyping, setShowPreviewTyping] = useState(false)
+  const [showCustomerNotification, setShowCustomerNotification] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
@@ -289,6 +291,10 @@ export default function ChatBot() {
 
       if (response.ok) {
         setShowInfoCapture(false)
+        
+        // Show professional notification
+        setShowCustomerNotification(true)
+        
         addInstantMessage(`Perfect! I've saved your information. ${customerInfo.name ? `Nice to meet you, ${customerInfo.name}!` : ''} Let me create a custom automation strategy for ${customerInfo.company || 'your business'}.`, true)
         
         // Follow up with services details
@@ -733,6 +739,17 @@ export default function ChatBot() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Customer Information Saved Notification */}
+      <NotificationComponent
+        show={showCustomerNotification}
+        onClose={() => setShowCustomerNotification(false)}
+        type="success"
+        title="Information Saved! 🎉"
+        message="Your details have been securely saved and our team has been notified. We'll follow up with a custom automation strategy within 24 hours."
+        duration={5000}
+        position="bottom"
+      />
     </>
   )
 }

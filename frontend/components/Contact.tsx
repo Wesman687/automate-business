@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion'
 import { Mail, MessageSquare, Github, Linkedin } from 'lucide-react'
 import { useState } from 'react'
+import NotificationComponent from './NotificationComponent'
 
 export default function Contact() {
   const [formData, setFormData] = useState({
@@ -11,6 +12,7 @@ export default function Contact() {
     message: ''
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showSuccessNotification, setShowSuccessNotification] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -22,7 +24,9 @@ export default function Contact() {
     // Reset form
     setFormData({ name: '', email: '', message: '' })
     setIsSubmitting(false)
-    alert('Thank you! We\'ll get back to you within 24 hours.')
+    
+    // Show professional success notification
+    setShowSuccessNotification(true)
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -216,6 +220,17 @@ export default function Contact() {
           </div>
         </motion.footer>
       </div>
+
+      {/* Professional Success Notification */}
+      <NotificationComponent
+        show={showSuccessNotification}
+        onClose={() => setShowSuccessNotification(false)}
+        type="success"
+        title="Message Sent Successfully! 🚀"
+        message="Thank you for reaching out! We'll get back to you within 24 hours with a custom automation strategy for your business."
+        duration={6000}
+        position="top"
+      />
     </section>
   )
 }

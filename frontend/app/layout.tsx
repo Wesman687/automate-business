@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   keywords: [
     'business automation',
     'AI chatbot development',
-    'custom website design', 
+    'custom website design',
     'mobile app development',
     'workflow automation',
     'AI consulting',
@@ -85,6 +85,10 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${jetbrains.variable}`}>
       <body className="bg-dark-bg text-white">
+        {/* Google Tag Manager (noscript) */}
+        <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-TX2RM6CL"
+          height="0" width="0" style={{ display: 'none', visibility: 'hidden' }}></iframe></noscript>
+        {/* End Google Tag Manager (noscript) */}
         <ParticleBackground />
         {children}
         <ChatBot />

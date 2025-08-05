@@ -65,13 +65,33 @@ export default function ChatBot() {
 
   const checkBackendConnection = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/health`)
+      // Add timeout and better error handling
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
+      
+      const response = await fetch(`${API_BASE_URL}/health`, {
+        signal: controller.signal,
+        mode: 'cors'
+      })
+      
+      clearTimeout(timeoutId)
+      
       if (response.ok) {
         setIsConnected(true)
+        console.log('Backend connected successfully')
+      } else {
+        console.warn('Backend responded but not healthy:', response.status)
+        setIsConnected(false)
       }
     } catch (error) {
-      console.error('Backend connection failed:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      console.warn('Backend connection failed (will use offline mode):', errorMessage)
       setIsConnected(false)
+      
+      // If it's an SSL error, we'll just work in offline mode
+      if (errorMessage.includes('certificate') || errorMessage.includes('SSL') || errorMessage.includes('CERT_')) {
+        console.log('SSL certificate issue detected - operating in offline mode')
+      }
     }
   }
 

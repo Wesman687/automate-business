@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from database.database import get_db
+from database import get_db
 from services.customer_service import CustomerService
 from services.session_service import SessionService
 from schemas.customer import Customer, CustomerCreate, CustomerUpdate

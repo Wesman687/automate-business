@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from database.database import create_tables
+from database.models import Base
+from database import engine
 from api.chat import router as chat_router
 from api.customers import router as customers_router
 
@@ -36,7 +37,7 @@ app.include_router(customers_router)
 @app.on_event("startup")
 async def startup_event():
     """Initialize database on startup"""
-    create_tables()
+    Base.metadata.create_all(bind=engine)
     print("✅ Database tables created/verified")
     print("🚀 Streamline AI Backend v2.0 is running!")
 

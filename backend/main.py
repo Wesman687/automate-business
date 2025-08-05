@@ -6,6 +6,7 @@ from api.chat import router as chat_router
 from api.customers import router as customers_router
 from api.contact import router as contact_router
 from api.admin import router as admin_router
+from api.auth import router as auth_router
 
 # Create FastAPI app
 app = FastAPI(
@@ -37,6 +38,7 @@ app.include_router(chat_router)
 app.include_router(customers_router)
 app.include_router(contact_router)
 app.include_router(admin_router)
+app.include_router(auth_router)
 
 @app.on_event("startup")
 async def startup_event():

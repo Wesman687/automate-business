@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, File, UploadFile, Form
 from sqlalchemy.orm import Session
-from database import get_db
+from database.postgresql import get_db
 from services.customer_service import CustomerService
 from services.session_service import SessionService
 from services.email_service import email_service
@@ -75,7 +75,7 @@ async def send_sales_notification(customer: Customer, session_id: str):
             return True  # Return success for development
         
         # Create chat log link - points to our admin interface
-        chat_log_url = f"http://localhost:8005/admin/chat-logs/{session_id}"
+        chat_log_url = f"https://server.stream-lineai.com/admin/chat-logs/{session_id}"
         
         # Create professional email content
         subject = f"🚀 New Lead: {customer.name or 'Customer'} from {customer.business_type or 'Unknown Company'}"

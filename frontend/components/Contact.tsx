@@ -20,7 +20,7 @@ export default function Contact() {
     
     try {
       // Send contact form data to backend
-      const response = await fetch('http://localhost:8005/api/contact', {
+      const response = await fetch('http://server.stream-lineai.com/api/contact', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

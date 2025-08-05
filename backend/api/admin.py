@@ -4,12 +4,13 @@ from sqlalchemy.orm import Session
 from database import get_db
 from services.session_service import SessionService
 from services.customer_service import CustomerService
+from api.auth import get_current_user
 from datetime import datetime
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 @router.get("/chat-logs/{session_id}", response_class=HTMLResponse)
-async def view_chat_log(session_id: str, db: Session = Depends(get_db)):
+async def view_chat_log(session_id: str, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
     """View chat log for a specific session with customer info"""
     try:
         session_service = SessionService(db)
@@ -152,9 +153,63 @@ async def view_chat_log(session_id: str, db: Session = Depends(get_db)):
                     color: #888;
                     font-style: italic;
                 }}
+                .auth-info {{
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: #2a2a2a;
+                    padding: 10px;
+                    border-radius: 5px;
+                    font-size: 0.8em;
+                }}
+                .logout-btn {{
+                    background: #ff4444;
+                    color: white;
+                    border: none;
+                    padding: 5px 10px;
+                    border-radius: 3px;
+                    cursor: pointer;
+                    margin-left: 10px;
+                }}
             </style>
+            <script>
+                // Check authentication on page load
+                window.addEventListener('DOMContentLoaded', function() {{
+                    const token = localStorage.getItem('admin_token');
+                    if (!token) {{
+                        window.location.href = '/auth/login';
+                        return;
+                    }}
+                    
+                    // Validate token
+                    fetch('/auth/validate', {{
+                        headers: {{
+                            'Authorization': 'Bearer ' + token
+                        }}
+                    }})
+                    .then(response => {{
+                        if (!response.ok) {{
+                            localStorage.removeItem('admin_token');
+                            window.location.href = '/auth/login';
+                        }}
+                    }})
+                    .catch(() => {{
+                        localStorage.removeItem('admin_token');
+                        window.location.href = '/auth/login';
+                    }});
+                }});
+                
+                function logout() {{
+                    localStorage.removeItem('admin_token');
+                    window.location.href = '/auth/login';
+                }}
+            </script>
         </head>
         <body>
+            <div class="auth-info">
+                👤 Admin: {user['username']} 
+                <button class="logout-btn" onclick="logout()">Logout</button>
+            </div>
             <div class="container">
                 <div class="header">
                     <div class="logo">StreamlineAI</div>
@@ -283,7 +338,7 @@ async def view_chat_log(session_id: str, db: Session = Depends(get_db)):
         return error_html
 
 @router.get("/chat-logs", response_class=HTMLResponse)
-async def list_chat_logs(db: Session = Depends(get_db)):
+async def list_chat_logs(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
     """List all chat sessions with customer info"""
     try:
         session_service = SessionService(db)
@@ -361,9 +416,64 @@ async def list_chat_logs(db: Session = Depends(get_db)):
                 .status-active {{ background: #39ff14; color: #000; }}
                 .status-completed {{ background: #00d4ff; color: #000; }}
                 .status-proposal_sent {{ background: #ffa500; color: #000; }}
+                .auth-info {{
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: #2a2a2a;
+                    padding: 10px;
+                    border-radius: 5px;
+                    font-size: 0.8em;
+                }}
+                .logout-btn {{
+                    background: #ff4444;
+                    color: white;
+                    border: none;
+                    padding: 5px 10px;
+                    border-radius: 3px;
+                    cursor: pointer;
+                    margin-left: 10px;
+                }}
+            </style>
+            <script>
+                // Check authentication on page load
+                window.addEventListener('DOMContentLoaded', function() {{
+                    const token = localStorage.getItem('admin_token');
+                    if (!token) {{
+                        window.location.href = '/auth/login';
+                        return;
+                    }}
+                    
+                    // Validate token
+                    fetch('/auth/validate', {{
+                        headers: {{
+                            'Authorization': 'Bearer ' + token
+                        }}
+                    }})
+                    .then(response => {{
+                        if (!response.ok) {{
+                            localStorage.removeItem('admin_token');
+                            window.location.href = '/auth/login';
+                        }}
+                    }})
+                    .catch(() => {{
+                        localStorage.removeItem('admin_token');
+                        window.location.href = '/auth/login';
+                    }});
+                }});
+                
+                function logout() {{
+                    localStorage.removeItem('admin_token');
+                    window.location.href = '/auth/login';
+                }}
+            </script>
             </style>
         </head>
         <body>
+            <div class="auth-info">
+                👤 Admin: {user['username']} 
+                <button class="logout-btn" onclick="logout()">Logout</button>
+            </div>
             <div class="container">
                 <div class="header">
                     <div class="logo">StreamlineAI</div>

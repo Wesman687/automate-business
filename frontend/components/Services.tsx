@@ -105,6 +105,15 @@ export default function Services() {
             </p>
             <button
               onClick={() => {
+                console.log('Start Your Project button clicked!')
+                
+                // Method 1: Direct window function call
+                if ((window as any).openStreamlineAIChatbot) {
+                  (window as any).openStreamlineAIChatbot()
+                  return
+                }
+                
+                // Method 2: Custom event fallback
                 const event = new CustomEvent('openChatbot')
                 window.dispatchEvent(event)
               }}

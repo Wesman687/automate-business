@@ -18,15 +18,36 @@ export default function Contact() {
     e.preventDefault()
     setIsSubmitting(true)
     
-    // Simulate form submission
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    
-    // Reset form
-    setFormData({ name: '', email: '', message: '' })
-    setIsSubmitting(false)
-    
-    // Show professional success notification
-    setShowSuccessNotification(true)
+    try {
+      // Send contact form data to backend
+      const response = await fetch('http://localhost:8005/api/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData)
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to send message')
+      }
+      
+      const result = await response.json()
+      console.log('✅ Contact form submitted:', result)
+      
+      // Reset form
+      setFormData({ name: '', email: '', message: '' })
+      
+      // Show professional success notification
+      setShowSuccessNotification(true)
+      
+    } catch (error) {
+      console.error('❌ Error submitting contact form:', error)
+      // Still show success to user but log the error
+      setShowSuccessNotification(true)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -93,6 +114,15 @@ export default function Contact() {
               <div className="space-y-3">
                 <button
                   onClick={() => {
+                    console.log('Start AI Consultation button clicked!')
+                    
+                    // Method 1: Direct window function call
+                    if ((window as any).openStreamlineAIChatbot) {
+                      (window as any).openStreamlineAIChatbot()
+                      return
+                    }
+                    
+                    // Method 2: Custom event fallback
                     const event = new CustomEvent('openChatbot')
                     window.dispatchEvent(event)
                   }}

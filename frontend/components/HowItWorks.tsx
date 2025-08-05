@@ -112,6 +112,15 @@ export default function HowItWorks() {
               </h3>
               <button
                 onClick={() => {
+                  console.log('Begin Step 1 button clicked!')
+                  
+                  // Method 1: Direct window function call
+                  if ((window as any).openStreamlineAIChatbot) {
+                    (window as any).openStreamlineAIChatbot()
+                    return
+                  }
+                  
+                  // Method 2: Custom event fallback
                   const event = new CustomEvent('openChatbot')
                   window.dispatchEvent(event)
                 }}

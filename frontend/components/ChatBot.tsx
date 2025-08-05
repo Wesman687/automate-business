@@ -57,6 +57,58 @@ export default function ChatBot() {
     scrollToBottom()
   }, [messages])
 
+  // Handle opening chatbot from external buttons
+  const handleOpenChatbot = () => {
+    setIsOpen(true)
+    setShowPreviewTyping(false) // Hide preview when chat opens
+    
+    // If the user opens chat while preview typing is showing, continue the typing inside
+    if (showPreviewTyping || messages.length === 0) {
+      // Start with typing indicator, then show the messages
+      setIsTyping(true)
+      
+      setTimeout(() => {
+        addInstantMessage("I'd like to see your services", false)
+      }, 1000)
+
+      setTimeout(() => {
+        addTypingMessage("Absolutely! At StreamlineAI, we specialize in providing the following services:", true)
+      }, 2000)
+
+      setTimeout(() => {
+        addTypingMessage("🤖 **AI Chatbots & Virtual Assistants**: We create intelligent chatbots that can handle customer inquiries, support tasks, and other interactions, saving your team valuable time.", true)
+      }, 5000)
+
+      setTimeout(() => {
+        addTypingMessage("⚡ **Process Automation**: Streamline repetitive tasks, data entry, and workflow management to boost efficiency.", true)
+      }, 8000)
+
+      setTimeout(() => {
+        addTypingMessage("📊 **Custom Integrations**: Connect your existing tools and systems for seamless data flow and automation.", true)
+      }, 11000)
+
+      setTimeout(() => {
+        addTypingMessage("How can we help you today? Please give us your email, and let us know how we can make automation work for you.", true)
+        setShowInfoCapture(true)
+      }, 14000)
+    }
+  }
+
+  // Set up event listener for external buttons (only once)
+  useEffect(() => {
+    // Add the function to window object for direct access
+    (window as any).openStreamlineAIChatbot = () => {
+      console.log('Opening StreamlineAI Chatbot...')
+      handleOpenChatbot()
+    }
+    
+    window.addEventListener('openChatbot', handleOpenChatbot)
+    return () => {
+      window.removeEventListener('openChatbot', handleOpenChatbot)
+      delete (window as any).openStreamlineAIChatbot
+    }
+  }, []) // Empty dependency array - only runs once
+
   useEffect(() => {
     // Generate unique session ID
     if (!sessionId) {
@@ -81,45 +133,6 @@ export default function ChatBot() {
         clearTimeout(hideTimer)
       }
     }
-
-    const handleOpenChatbot = () => {
-      setIsOpen(true)
-      setShowPreviewTyping(false) // Hide preview when chat opens
-      
-      // If the user opens chat while preview typing is showing, continue the typing inside
-      if (showPreviewTyping || messages.length === 0) {
-        // Start with typing indicator, then show the messages
-        setIsTyping(true)
-        
-        setTimeout(() => {
-          addInstantMessage("I'd like to see your services", false)
-        }, 1000)
-
-        setTimeout(() => {
-          addTypingMessage("Absolutely! At StreamlineAI, we specialize in providing the following services:", true)
-        }, 2000)
-
-        setTimeout(() => {
-          addTypingMessage("🤖 **AI Chatbots & Virtual Assistants**: We create intelligent chatbots that can handle customer inquiries, support tasks, and other interactions, saving your team valuable time.", true)
-        }, 5000)
-
-        setTimeout(() => {
-          addTypingMessage("⚡ **Process Automation**: Streamline repetitive tasks, data entry, and workflow management to boost efficiency.", true)
-        }, 8000)
-
-        setTimeout(() => {
-          addTypingMessage("📊 **Custom Integrations**: Connect your existing tools and systems for seamless data flow and automation.", true)
-        }, 11000)
-
-        setTimeout(() => {
-          addTypingMessage("How can we help you today? Please give us your email, and let us know how we can make automation work for you.", true)
-          setShowInfoCapture(true)
-        }, 14000)
-      }
-    }
-
-    window.addEventListener('openChatbot', handleOpenChatbot)
-    return () => window.removeEventListener('openChatbot', handleOpenChatbot)
   }, [messages.length, isConnected, sessionId])
 
   const checkBackendConnection = async () => {
@@ -292,9 +305,7 @@ export default function ChatBot() {
       if (response.ok) {
         setShowInfoCapture(false)
         
-        // Show professional notification
-        setShowCustomerNotification(true)
-        
+        // No popup notification - just continue the conversation naturally
         addInstantMessage(`Perfect! I've saved your information. ${customerInfo.name ? `Nice to meet you, ${customerInfo.name}!` : ''} Let me create a custom automation strategy for ${customerInfo.company || 'your business'}.`, true)
         
         // Follow up with services details
@@ -739,17 +750,6 @@ export default function ChatBot() {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Customer Information Saved Notification */}
-      <NotificationComponent
-        show={showCustomerNotification}
-        onClose={() => setShowCustomerNotification(false)}
-        type="success"
-        title="Information Saved! 🎉"
-        message="Your details have been securely saved and our team has been notified. We'll follow up with a custom automation strategy within 24 hours."
-        duration={5000}
-        position="bottom"
-      />
     </>
   )
 }

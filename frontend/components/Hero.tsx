@@ -57,9 +57,27 @@ export default function Hero() {
           >
             <button
               onClick={() => {
-                // This will trigger the chatbot
+                // Try multiple methods to open the chatbot
+                console.log('Get Started button clicked!')
+                
+                // Method 1: Direct window function call
+                if ((window as any).openStreamlineAIChatbot) {
+                  (window as any).openStreamlineAIChatbot()
+                  return
+                }
+                
+                // Method 2: Custom event
                 const event = new CustomEvent('openChatbot')
                 window.dispatchEvent(event)
+                
+                // Method 3: Direct DOM manipulation as fallback
+                setTimeout(() => {
+                  const chatbotButton = document.querySelector('[data-chatbot-toggle]') as HTMLElement
+                  if (chatbotButton && !document.querySelector('[data-chatbot-open="true"]')) {
+                    console.log('Fallback: Clicking chatbot button directly')
+                    chatbotButton.click()
+                  }
+                }, 100)
               }}
               className="btn-terminal text-lg px-8 py-4 rounded-lg font-mono hover:animate-glow"
             >

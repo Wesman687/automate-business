@@ -43,18 +43,20 @@ export default function Home() {
   <meta property="og:description" content="Transform your business with AI automation. Custom chatbots, mobile apps, and workflow solutions that save time and boost productivity. Free consultation available." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://stream-lineai.com" />
-  <meta property="og:image" content="https://stream-lineai.com/og-banner-desktop.png" />
+  <meta property="og:image" content="https://stream-lineai.com/og-banner-desktop.png?v=2025" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="Streamline AI - Automate Your Business with AI-powered tools and custom solutions" />
+  <meta property="og:image:type" content="image/png" />
   <meta property="og:site_name" content="Streamline AI" />
   <meta property="og:locale" content="en_US" />
+  <meta property="article:author" content="Streamline AI" />
 
   {/* ✅ Enhanced Twitter Card */}
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Streamline AI - Automate Your Business with AI" />
   <meta name="twitter:description" content="Custom AI tools, websites, and mobile apps to streamline your business. Get your free consultation today!" />
-  <meta name="twitter:image" content="https://stream-lineai.com/og-banner-mobile.png" />
+  <meta name="twitter:image" content="https://stream-lineai.com/og-banner-mobile.png?v=2025" />
   <meta name="twitter:image:alt" content="Streamline AI mobile banner with logo and automation solutions" />
   <meta name="twitter:creator" content="@StreamlineAI" />
   <meta name="twitter:site" content="@StreamlineAI" />
@@ -186,6 +188,31 @@ export default function Home() {
         "@type": "Organization",
         "name": "Streamline AI"
       }
+    })
+  }} />
+
+  {/* ✅ Article Structured Data for Better Social Sharing */}
+  <script type="application/ld+json" dangerouslySetInnerHTML={{
+    __html: JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "headline": "Streamline AI - Business Automation Experts",
+      "description": "Transform your business with AI automation. Custom chatbots, mobile apps, and workflow solutions that save time and boost productivity.",
+      "image": "https://stream-lineai.com/og-banner-desktop.png?v=2025",
+      "author": {
+        "@type": "Organization",
+        "name": "Streamline AI"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "Streamline AI",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://stream-lineai.com/logo.png"
+        }
+      },
+      "datePublished": "2025-01-04",
+      "dateModified": "2025-01-04"
     })
   }} />
 </Head>

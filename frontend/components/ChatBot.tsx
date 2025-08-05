@@ -21,7 +21,7 @@ interface CustomerInfo {
 }
 
 const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://your-backend-domain.com' 
+  ? 'https://server.stream-lineai.com' 
   : 'http://localhost:8001'
 
 export default function ChatBot() {

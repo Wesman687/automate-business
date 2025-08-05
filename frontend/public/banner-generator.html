@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Social Media Banner Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        .banner {
+            width: 1200px;
+            height: 630px;
+            background: linear-gradient(135deg, #0088CC 0%, #00CC44 100%);
+            position: relative;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 20px auto;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        .content {
+            text-align: center;
+            z-index: 2;
+        }
+        .logo {
+            font-size: 72px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .tagline {
+            font-size: 36px;
+            margin-bottom: 15px;
+            font-weight: 300;
+        }
+        .description {
+            font-size: 24px;
+            opacity: 0.9;
+            max-width: 800px;
+        }
+        .geometric {
+            position: absolute;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+        }
+        .circle1 { width: 300px; height: 300px; top: -100px; left: -100px; }
+        .circle2 { width: 200px; height: 200px; bottom: -50px; right: -50px; }
+        .circle3 { width: 150px; height: 150px; top: 100px; right: 150px; }
+        
+        canvas {
+            border: 2px solid #ddd;
+            margin: 10px;
+        }
+        .controls {
+            text-align: center;
+            margin: 20px 0;
+        }
+        button {
+            background: #0088CC;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 0 10px;
+        }
+        button:hover {
+            background: #0066AA;
+        }
+    </style>
+</head>
+<body>
+    <h1>Social Media Banner Generator for Streamline AI</h1>
+    
+    <div class="banner" id="bannerPreview">
+        <div class="geometric circle1"></div>
+        <div class="geometric circle2"></div>
+        <div class="geometric circle3"></div>
+        <div class="content">
+            <div class="logo">Streamline AI</div>
+            <div class="tagline">Business Automation Experts</div>
+            <div class="description">AI-powered tools, websites & mobile apps to streamline your business</div>
+        </div>
+    </div>
+    
+    <div class="controls">
+        <button onclick="downloadBanner('desktop')">Download Desktop Banner (1200x630)</button>
+        <button onclick="downloadBanner('mobile')">Download Mobile Banner (1200x630)</button>
+    </div>
+    
+    <canvas id="canvas" width="1200" height="630" style="display: none;"></canvas>
+    
+    <script>
+        function downloadBanner(type) {
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, 1200, 630);
+            
+            // Create gradient background
+            const gradient = ctx.createLinearGradient(0, 0, 1200, 630);
+            gradient.addColorStop(0, '#0088CC');
+            gradient.addColorStop(1, '#00CC44');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 1200, 630);
+            
+            // Add geometric shapes
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+            
+            // Circle 1
+            ctx.beginPath();
+            ctx.arc(-50, 50, 150, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // Circle 2
+            ctx.beginPath();
+            ctx.arc(1150, 580, 100, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // Circle 3
+            ctx.beginPath();
+            ctx.arc(1050, 150, 75, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // Add text
+            ctx.fillStyle = 'white';
+            ctx.textAlign = 'center';
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+            ctx.shadowBlur = 4;
+            ctx.shadowOffsetX = 2;
+            ctx.shadowOffsetY = 2;
+            
+            // Logo
+            ctx.font = 'bold 72px Arial';
+            ctx.fillText('Streamline AI', 600, 250);
+            
+            // Tagline
+            ctx.font = '36px Arial';
+            ctx.fillText('Business Automation Experts', 600, 320);
+            
+            // Description
+            ctx.font = '24px Arial';
+            ctx.fillText('AI-powered tools, websites & mobile apps to streamline your business', 600, 380);
+            
+            // Download
+            const link = document.createElement('a');
+            link.download = type === 'desktop' ? 'og-banner-desktop.png' : 'og-banner-mobile.png';
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+    </script>
+</body>
+</html>

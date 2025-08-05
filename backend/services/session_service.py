@@ -79,6 +79,14 @@ class SessionService:
             .order_by(ChatSession.created_at.desc())\
             .all()
     
+    def update_session_customer(self, session_id: str, customer_id: int) -> ChatSession:
+        """Link a session to a customer"""
+        session = self.get_or_create_session(session_id)
+        session.customer_id = customer_id
+        self.db.commit()
+        self.db.refresh(session)
+        return session
+    
     def get_conversation_history(self, session_id: str, last_n: int = 20) -> str:
         """Get conversation history as formatted string for AI processing"""
         messages = self.get_session_messages(session_id)
@@ -94,3 +102,30 @@ class SessionService:
             conversation.append(f"{role}: {msg.text}")
         
         return "\n".join(conversation)
+    
+    def get_session_with_messages(self, session_id: str):
+        """Get session data with all messages for admin/sales review"""
+        session = self.get_session(session_id)
+        if not session:
+            return None
+        
+        messages = self.get_session_messages(session_id)
+        
+        # Format messages for display
+        formatted_messages = []
+        for msg in messages:
+            formatted_messages.append({
+                "id": msg.message_id,
+                "text": msg.text,
+                "is_bot": msg.is_bot,
+                "timestamp": msg.timestamp.isoformat() if msg.timestamp else None,
+                "sender": "StreamlineAI" if msg.is_bot else "Customer"
+            })
+        
+        return {
+            "session_id": session_id,
+            "customer_id": session.customer_id,
+            "created_at": session.created_at.isoformat() if session.created_at else None,
+            "status": getattr(session, 'status', 'active'),
+            "messages": formatted_messages
+        }

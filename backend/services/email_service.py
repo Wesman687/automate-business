@@ -15,6 +15,9 @@ logger = logging.getLogger(__name__)
 
 class EmailService:
     def __init__(self):
+        # Check if we're in production environment
+        self.is_production = os.getenv('ENVIRONMENT', 'development').lower() in ['production', 'prod']
+        
         self.smtp_server = os.getenv('SMTP_SERVER', 'mail.stream-lineai.com')
         self.smtp_port = int(os.getenv('SMTP_PORT', 587))
         self.use_tls = os.getenv('SMTP_USE_TLS', 'true').lower() == 'true'
@@ -53,6 +56,19 @@ class EmailService:
             cc_emails: List of CC emails (optional)
             bcc_emails: List of BCC emails (optional)
         """
+        
+        # In development/local environment, just log what would be sent
+        if not self.is_production:
+            logger.info("📧 [DEVELOPMENT MODE] Email would be sent:")
+            logger.info(f"  From: {from_account}")
+            logger.info(f"  To: {to_emails}")
+            logger.info(f"  Subject: {subject}")
+            logger.info(f"  Body preview: {body[:100]}...")
+            print(f"📧 [DEV MODE] Would send email from {from_account} to {to_emails}")
+            print(f"   Subject: {subject}")
+            print(f"   Body: {body[:200]}...")
+            return True  # Return success for development
+        
         try:
             # Get account credentials
             if from_account == 'no-reply':

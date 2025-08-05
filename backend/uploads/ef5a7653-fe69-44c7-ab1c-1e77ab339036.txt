@@ -1,0 +1,2 @@
+This is a comprehensive test file for chatbot upload functionality.
+It contains multiple lines and special characters: @#$%

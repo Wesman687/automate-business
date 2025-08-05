@@ -2,27 +2,30 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { MessageCircle, X, Send, Bot, Mail } from 'lucide-react'
+import { MessageCircle, X, Send, Bot, Mail, Paperclip, Upload } from 'lucide-react'
+
+interface CustomerInfo {
+  email: string
+  name?: string
+  company?: string
+  phone?: string
+}
 
 interface Message {
   id: string
   text: string
   isBot: boolean
   timestamp: Date
-}
-
-interface CustomerInfo {
-  email: string
-  name?: string
-  business_type?: string
-  pain_points?: string
-  current_tools?: string
-  budget?: string
+  fileAttachment?: {
+    name: string
+    type: string
+    url?: string
+  }
 }
 
 const API_BASE_URL = process.env.NODE_ENV === 'production' 
   ? 'https://server.stream-lineai.com' 
-  : 'http://localhost:8001'
+  : 'http://localhost:8005'
 
 export default function ChatBot() {
   const [isOpen, setIsOpen] = useState(false)
@@ -30,9 +33,18 @@ export default function ChatBot() {
   const [currentInput, setCurrentInput] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const [sessionId, setSessionId] = useState('')
-  const [showEmailCapture, setShowEmailCapture] = useState(false)
-  const [customerEmail, setCustomerEmail] = useState('')
+  const [showInfoCapture, setShowInfoCapture] = useState(false)
+  const [customerInfo, setCustomerInfo] = useState<CustomerInfo>({
+    email: '',
+    name: '',
+    company: '',
+    phone: ''
+  })
   const [isConnected, setIsConnected] = useState(false)
+  const [showFileUpload, setShowFileUpload] = useState(false)
+  const [uploadingFile, setUploadingFile] = useState(false)
+  const [typingMessageId, setTypingMessageId] = useState<string | null>(null)
+  const [showPreviewTyping, setShowPreviewTyping] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
@@ -52,10 +64,55 @@ export default function ChatBot() {
     // Check backend connection
     checkBackendConnection()
 
+    // Show preview typing when page loads
+    if (!isOpen) {
+      const showTimer = setTimeout(() => {
+        setShowPreviewTyping(true)
+      }, 2000) // Show typing preview after 2 seconds
+
+      const hideTimer = setTimeout(() => {
+        setShowPreviewTyping(false)
+      }, 8000) // Hide typing preview after 8 seconds total
+
+      return () => {
+        clearTimeout(showTimer)
+        clearTimeout(hideTimer)
+      }
+    }
+
     const handleOpenChatbot = () => {
       setIsOpen(true)
-      if (messages.length === 0 && isConnected) {
-        startConversation()
+      setShowPreviewTyping(false) // Hide preview when chat opens
+      
+      // If the user opens chat while preview typing is showing, continue the typing inside
+      if (showPreviewTyping || messages.length === 0) {
+        // Start with typing indicator, then show the messages
+        setIsTyping(true)
+        
+        setTimeout(() => {
+          addInstantMessage("I'd like to see your services", false)
+        }, 1000)
+
+        setTimeout(() => {
+          addTypingMessage("Absolutely! At StreamlineAI, we specialize in providing the following services:", true)
+        }, 2000)
+
+        setTimeout(() => {
+          addTypingMessage("🤖 **AI Chatbots & Virtual Assistants**: We create intelligent chatbots that can handle customer inquiries, support tasks, and other interactions, saving your team valuable time.", true)
+        }, 5000)
+
+        setTimeout(() => {
+          addTypingMessage("⚡ **Process Automation**: Streamline repetitive tasks, data entry, and workflow management to boost efficiency.", true)
+        }, 8000)
+
+        setTimeout(() => {
+          addTypingMessage("📊 **Custom Integrations**: Connect your existing tools and systems for seamless data flow and automation.", true)
+        }, 11000)
+
+        setTimeout(() => {
+          addTypingMessage("How can we help you today? Please give us your email, and let us know how we can make automation work for you.", true)
+          setShowInfoCapture(true)
+        }, 14000)
       }
     }
 
@@ -96,31 +153,57 @@ export default function ChatBot() {
   }
 
   const startConversation = async () => {
-    if (!isConnected) {
-      addLocalMessage("Sorry, I'm currently offline. Please try again later or contact us directly at sales@stream-lineai.com", true)
-      return
+    // Always show the professional welcome sequence with typing effects
+    setTimeout(() => {
+      addInstantMessage("I'd like to see your services", false)
+    }, 500)
+
+    setTimeout(() => {
+      addTypingMessage("Absolutely! At StreamlineAI, we specialize in providing the following services:", true)
+    }, 1500)
+
+    setTimeout(() => {
+      addTypingMessage("🤖 **AI Chatbots & Virtual Assistants**: We create intelligent chatbots that can handle customer inquiries, support tasks, and other interactions, saving your team valuable time.", true)
+    }, 4000)
+
+    setTimeout(() => {
+      addTypingMessage("⚡ **Process Automation**: Streamline repetitive tasks, data entry, and workflow management to boost efficiency.", true)
+    }, 7000)
+
+    setTimeout(() => {
+      addTypingMessage("📊 **Custom Integrations**: Connect your existing tools and systems for seamless data flow and automation.", true)
+    }, 10000)
+
+    setTimeout(() => {
+      addTypingMessage("How can we help you today? Please give us your email, and let us know how we can make automation work for you.", true)
+      setShowInfoCapture(true)
+    }, 13000)
+  }
+
+  const addInstantMessage = (text: string, isBot: boolean) => {
+    const newMessage: Message = {
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      text,
+      isBot,
+      timestamp: new Date()
     }
+    setMessages(prev => [...prev, newMessage])
+  }
 
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: "start",
-          session_id: sessionId,
-        }),
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        addLocalMessage(data.response, true)
+  const addTypingMessage = (text: string, isBot: boolean) => {
+    setIsTyping(true)
+    
+    // Show typing indicator for a realistic amount of time
+    setTimeout(() => {
+      const newMessage: Message = {
+        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+        text,
+        isBot,
+        timestamp: new Date()
       }
-    } catch (error) {
-      console.error('Error starting conversation:', error)
-      addLocalMessage("Hi! I'm StreamlineAI. What does your business do?", true)
-    }
+      setMessages(prev => [...prev, newMessage])
+      setIsTyping(false)
+    }, 2000) // 2 seconds of typing time for realism
   }
 
   const addLocalMessage = (text: string, isBot: boolean) => {
@@ -145,16 +228,16 @@ export default function ChatBot() {
         body: JSON.stringify({
           message,
           session_id: sessionId,
-          user_email: customerEmail || undefined,
+          user_email: customerInfo.email || undefined,
         }),
       })
 
       if (response.ok) {
         const data = await response.json()
         
-        // Check if AI is asking for email
-        if (data.response.toLowerCase().includes('email') && !customerEmail) {
-          setShowEmailCapture(true)
+        // Check if AI is asking for more info
+        if (!customerInfo.email && data.response.toLowerCase().includes('email')) {
+          setShowInfoCapture(true)
         }
         
         addLocalMessage(data.response, true)
@@ -186,8 +269,8 @@ export default function ChatBot() {
     }
   }
 
-  const handleEmailSubmit = async () => {
-    if (!customerEmail.trim()) return
+  const handleInfoSubmit = async () => {
+    if (!customerInfo.email.trim()) return
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/save-customer`, {
@@ -196,22 +279,39 @@ export default function ChatBot() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email: customerEmail,
+          email: customerInfo.email,
+          name: customerInfo.name,
+          company: customerInfo.company,
+          phone: customerInfo.phone,
           session_id: sessionId,
         }),
       })
 
       if (response.ok) {
-        setShowEmailCapture(false)
-        addLocalMessage(`Perfect! I've saved your email (${customerEmail}). Let me generate a custom proposal for you based on our conversation.`, true)
+        setShowInfoCapture(false)
+        addInstantMessage(`Perfect! I've saved your information. ${customerInfo.name ? `Nice to meet you, ${customerInfo.name}!` : ''} Let me create a custom automation strategy for ${customerInfo.company || 'your business'}.`, true)
         
-        // Generate proposal
-        generateProposal()
+        // Follow up with services details
+        setTimeout(() => {
+          addTypingMessage(`Based on businesses like ${customerInfo.company || 'yours'}, here are the most impactful automation opportunities I see:`, true)
+        }, 2000)
+
+        setTimeout(() => {
+          addTypingMessage("🎯 **Customer Service Automation**: AI-powered chatbots can handle 80% of customer inquiries 24/7, reducing response times and freeing up your team for complex issues.", true)
+        }, 5000)
+
+        setTimeout(() => {
+          addTypingMessage("📈 **Lead Management**: Automated lead scoring, follow-up sequences, and CRM integration to never miss a potential customer.", true)
+        }, 8000)
+
+        setTimeout(() => {
+          addTypingMessage("Would you like to schedule a free 15-minute automation assessment call? I can show you exactly how these solutions would work for your business!", true)
+        }, 11000)
       }
     } catch (error) {
-      console.error('Error saving email:', error)
-      setShowEmailCapture(false)
-      addLocalMessage("Thanks for providing your email! Let me continue with your custom proposal.", true)
+      console.error('Error saving customer info:', error)
+      setShowInfoCapture(false)
+      addInstantMessage("Thanks for providing your information! Let me continue with your custom proposal.", true)
     }
   }
 
@@ -241,11 +341,155 @@ export default function ChatBot() {
     }
   }
 
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setUploadingFile(true)
+    
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('session_id', sessionId)
+      formData.append('customer_email', customerInfo.email)
+      formData.append('description', `File uploaded during chat: ${file.name}`)
+
+      const response = await fetch(`${API_BASE_URL}/api/upload-file`, {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        
+        // Add file message to chat
+        const fileMessage: Message = {
+          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+          text: `📎 Uploaded: ${file.name}`,
+          isBot: false,
+          timestamp: new Date(),
+          fileAttachment: {
+            name: file.name,
+            type: file.type,
+            url: data.filename
+          }
+        }
+        setMessages(prev => [...prev, fileMessage])
+        
+        addLocalMessage(`I've received your file "${file.name}". This will help me provide better automation recommendations for your business!`, true)
+      } else {
+        addLocalMessage("Sorry, there was an issue uploading your file. You can email it to us at sales@stream-lineai.com", true)
+      }
+    } catch (error) {
+      console.error('Error uploading file:', error)
+      addLocalMessage("Sorry, there was an issue uploading your file. You can email it to us at sales@stream-lineai.com", true)
+    } finally {
+      setUploadingFile(false)
+      // Reset file input
+      event.target.value = ''
+    }
+  }
+
   return (
     <>
+      {/* Preview Typing Notification */}
+      {showPreviewTyping && !isOpen && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.8, y: 20 }}
+          className="fixed bottom-24 right-6 z-40 bg-dark-bg border border-electric-blue rounded-lg p-3 shadow-lg max-w-sm cursor-pointer"
+          onClick={() => {
+            setIsOpen(true)
+            setShowPreviewTyping(false)
+            
+            // Continue the typing inside the chat
+            setIsTyping(true)
+            
+            setTimeout(() => {
+              setIsTyping(false)
+              addInstantMessage("I'd like to see your services", false)
+            }, 1500)
+
+            setTimeout(() => {
+              addTypingMessage("Absolutely! At StreamlineAI, we specialize in providing the following services:", true)
+            }, 2500)
+
+            setTimeout(() => {
+              addTypingMessage("🤖 **AI Chatbots & Virtual Assistants**: We create intelligent chatbots that can handle customer inquiries, support tasks, and other interactions, saving your team valuable time.", true)
+            }, 6500)
+
+            setTimeout(() => {
+              addTypingMessage("⚡ **Process Automation**: Streamline repetitive tasks, data entry, and workflow management to boost efficiency.", true)
+            }, 10500)
+
+            setTimeout(() => {
+              addTypingMessage("📊 **Custom Integrations**: Connect your existing tools and systems for seamless data flow and automation.", true)
+            }, 14500)
+
+            setTimeout(() => {
+              addTypingMessage("How can we help you today? Please give us your email, and let us know how we can make automation work for you.", true)
+              setShowInfoCapture(true)
+            }, 18500)
+          }}
+        >
+          <div className="flex items-start space-x-3">
+            <div className="w-8 h-8 bg-electric-blue text-black rounded-full flex items-center justify-center flex-shrink-0">
+              <Bot className="w-4 h-4" />
+            </div>
+            <div className="flex-1">
+              <div className="text-white text-sm font-medium mb-1">StreamlineAI</div>
+              <div className="flex items-center space-x-2">
+                <div className="flex space-x-1">
+                  <div className="w-2 h-2 bg-electric-blue rounded-full animate-bounce"></div>
+                  <div className="w-2 h-2 bg-electric-blue rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                  <div className="w-2 h-2 bg-electric-blue rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                </div>
+                <span className="text-gray-300 text-xs">is typing a message about automation services...</span>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       {/* Floating Chat Button */}
       <motion.button
-        onClick={() => setIsOpen(true)}
+        onClick={() => {
+          setIsOpen(true)
+          setShowPreviewTyping(false)
+          
+          // If the user opens chat while preview typing is showing, continue the typing inside
+          if (showPreviewTyping || messages.length === 0) {
+            // Start with typing indicator, then show the messages
+            setIsTyping(true)
+            
+            setTimeout(() => {
+              setIsTyping(false)
+              addInstantMessage("I'd like to see your services", false)
+            }, 1500)
+
+            setTimeout(() => {
+              addTypingMessage("Absolutely! At StreamlineAI, we specialize in providing the following services:", true)
+            }, 2500)
+
+            setTimeout(() => {
+              addTypingMessage("🤖 **AI Chatbots & Virtual Assistants**: We create intelligent chatbots that can handle customer inquiries, support tasks, and other interactions, saving your team valuable time.", true)
+            }, 6500)
+
+            setTimeout(() => {
+              addTypingMessage("⚡ **Process Automation**: Streamline repetitive tasks, data entry, and workflow management to boost efficiency.", true)
+            }, 10500)
+
+            setTimeout(() => {
+              addTypingMessage("📊 **Custom Integrations**: Connect your existing tools and systems for seamless data flow and automation.", true)
+            }, 14500)
+
+            setTimeout(() => {
+              addTypingMessage("How can we help you today? Please give us your email, and let us know how we can make automation work for you.", true)
+              setShowInfoCapture(true)
+            }, 18500)
+          }
+        }}
         className={`fixed bottom-6 right-6 z-50 w-16 h-16 bg-electric-blue text-black rounded-full shadow-lg hover:shadow-xl transition-all duration-300 ${
           isOpen ? 'scale-0' : 'scale-100'
         }`}
@@ -266,7 +510,7 @@ export default function ChatBot() {
             initial={{ opacity: 0, scale: 0.8, y: 100 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.8, y: 100 }}
-            className="fixed bottom-6 right-6 z-50 w-96 h-[500px] bg-dark-card border border-electric-blue rounded-lg shadow-2xl flex flex-col"
+            className="fixed bottom-6 right-6 z-50 w-[440px] h-[600px] bg-dark-card border border-electric-blue rounded-lg shadow-2xl flex flex-col"
           >
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-dark-border">
@@ -311,6 +555,16 @@ export default function ChatBot() {
                     }`}
                   >
                     <div className="whitespace-pre-wrap">{message.text}</div>
+                    {message.fileAttachment && (
+                      <div className={`mt-2 p-2 rounded border ${
+                        message.isBot ? 'border-gray-600' : 'border-black border-opacity-20'
+                      }`}>
+                        <div className="flex items-center space-x-2">
+                          <Paperclip className="w-3 h-3" />
+                          <span className="text-xs">{message.fileAttachment.name}</span>
+                        </div>
+                      </div>
+                    )}
                     <div className={`text-xs mt-1 ${
                       message.isBot ? 'text-gray-400' : 'text-black opacity-70'
                     }`}>
@@ -330,6 +584,26 @@ export default function ChatBot() {
                   animate={{ opacity: 1, y: 0 }}
                   className="flex justify-start"
                 >
+                  <div className="bg-dark-bg text-white border border-dark-border p-3 rounded-lg text-sm">
+                    <div className="flex items-center space-x-1">
+                      <div className="flex space-x-1">
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                      </div>
+                      <span className="text-gray-400 text-xs ml-2">StreamlineAI is typing...</span>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Typing Indicator */}
+              {isTyping && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex justify-start"
+                >
                   <div className="bg-dark-bg text-white border border-dark-border p-3 rounded-lg">
                     <div className="flex space-x-1">
                       <div className="w-2 h-2 bg-electric-blue rounded-full animate-bounce"></div>
@@ -340,8 +614,8 @@ export default function ChatBot() {
                 </motion.div>
               )}
 
-              {/* Email Capture Modal */}
-              {showEmailCapture && (
+              {/* Customer Info Capture Modal */}
+              {showInfoCapture && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -349,26 +623,52 @@ export default function ChatBot() {
                 >
                   <div className="flex items-center mb-3">
                     <Mail className="w-5 h-5 text-electric-blue mr-2" />
-                    <h4 className="text-white font-semibold">Get Your Custom Proposal</h4>
+                    <h4 className="text-white font-semibold">Let's Get Started!</h4>
                   </div>
                   <p className="text-gray-300 text-sm mb-3">
-                    Enter your email to receive a detailed automation proposal
+                    Please provide your contact information so we can customize our automation solutions for you:
                   </p>
-                  <div className="flex space-x-2">
+                  <div className="space-y-3">
                     <input
                       type="email"
-                      value={customerEmail}
-                      onChange={(e) => setCustomerEmail(e.target.value)}
-                      placeholder="your@email.com"
-                      className="flex-1 bg-dark-card border border-dark-border rounded px-3 py-2 text-white text-sm focus:border-electric-blue focus:outline-none"
-                      onKeyPress={(e) => e.key === 'Enter' && handleEmailSubmit()}
+                      value={customerInfo.email}
+                      onChange={(e) => setCustomerInfo({...customerInfo, email: e.target.value})}
+                      placeholder="Email Address *"
+                      className="w-full bg-dark-card border border-dark-border rounded px-3 py-2 text-white text-sm focus:border-electric-blue focus:outline-none"
+                      required
                     />
-                    <button
-                      onClick={handleEmailSubmit}
-                      className="bg-electric-blue text-black px-4 py-2 rounded text-sm hover:bg-opacity-80 transition-colors duration-200"
-                    >
-                      Submit
-                    </button>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        value={customerInfo.name}
+                        onChange={(e) => setCustomerInfo({...customerInfo, name: e.target.value})}
+                        placeholder="Your Name"
+                        className="bg-dark-card border border-dark-border rounded px-3 py-2 text-white text-sm focus:border-electric-blue focus:outline-none"
+                      />
+                      <input
+                        type="text"
+                        value={customerInfo.company}
+                        onChange={(e) => setCustomerInfo({...customerInfo, company: e.target.value})}
+                        placeholder="Company Name"
+                        className="bg-dark-card border border-dark-border rounded px-3 py-2 text-white text-sm focus:border-electric-blue focus:outline-none"
+                      />
+                    </div>
+                    <input
+                      type="tel"
+                      value={customerInfo.phone}
+                      onChange={(e) => setCustomerInfo({...customerInfo, phone: e.target.value})}
+                      placeholder="Phone Number"
+                      className="w-full bg-dark-card border border-dark-border rounded px-3 py-2 text-white text-sm focus:border-electric-blue focus:outline-none"
+                    />
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={handleInfoSubmit}
+                        disabled={!customerInfo.email.trim()}
+                        className="flex-1 bg-electric-blue text-black px-4 py-2 rounded text-sm hover:bg-opacity-80 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Start Automation Chat
+                      </button>
+                    </div>
                   </div>
                 </motion.div>
               )}
@@ -378,20 +678,45 @@ export default function ChatBot() {
 
             {/* Input */}
             <div className="p-4 border-t border-dark-border">
-              <div className="flex space-x-2">
+              <div className="flex items-center space-x-2">
                 <input
                   type="text"
                   value={currentInput}
                   onChange={(e) => setCurrentInput(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSendMessage())}
                   placeholder={isConnected ? "Type your message..." : "Backend offline - check connection"}
-                  className="flex-1 bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white text-sm focus:border-electric-blue focus:outline-none disabled:opacity-50"
-                  disabled={isTyping || showEmailCapture}
+                  className="flex-1 bg-dark-bg border border-dark-border rounded-lg px-3 py-2 h-10 text-white text-sm focus:border-electric-blue focus:outline-none disabled:opacity-50"
+                  disabled={isTyping || showInfoCapture}
                 />
+                
+                {/* File Upload Button */}
+                <div className="relative">
+                  <input
+                    type="file"
+                    id="file-upload"
+                    className="hidden"
+                    onChange={handleFileUpload}
+                    accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg,.gif,.xls,.xlsx,.csv"
+                    disabled={uploadingFile || showInfoCapture}
+                  />
+                  <label
+                    htmlFor="file-upload"
+                    className={`bg-gray-600 text-white w-10 h-10 rounded-lg hover:bg-gray-500 transition-colors duration-200 cursor-pointer inline-flex items-center justify-center ${
+                      uploadingFile || showInfoCapture ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    {uploadingFile ? (
+                      <Upload className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Paperclip className="w-4 h-4" />
+                    )}
+                  </label>
+                </div>
+                
                 <button
                   onClick={handleSendMessage}
-                  disabled={!currentInput.trim() || isTyping || showEmailCapture}
-                  className="bg-electric-blue text-black p-2 rounded-lg hover:bg-opacity-80 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={!currentInput.trim() || isTyping || showInfoCapture}
+                  className="bg-electric-blue text-black w-10 h-10 rounded-lg hover:bg-opacity-80 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                 >
                   <Send className="w-4 h-4" />
                 </button>
@@ -401,6 +726,9 @@ export default function ChatBot() {
                   AI features unavailable - messages will be forwarded to our team
                 </p>
               )}
+              <p className="text-xs text-gray-400 mt-1">
+                💡 Tip: Upload documents, spreadsheets, or images to help us understand your automation needs better
+              </p>
             </div>
           </motion.div>
         )}

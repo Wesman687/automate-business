@@ -41,6 +41,7 @@ export default function ChatBot() {
     company: '',
     phone: ''
   })
+  
   const [isConnected, setIsConnected] = useState(false)
   const [showFileUpload, setShowFileUpload] = useState(false)
   const [uploadingFile, setUploadingFile] = useState(false)

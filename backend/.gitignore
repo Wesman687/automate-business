@@ -3,6 +3,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.so
+start_main.sh
+start_webhook.sh
+logging_config.yaml
+post_deploy.sh
 
 # Virtual environments
 venv/

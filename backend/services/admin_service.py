@@ -166,3 +166,18 @@ class AdminService:
             full_name=full_name,
             is_super_admin=True
         )
+    
+    def update_admin_password(self, admin_id: int, new_password: str) -> bool:
+        """Update admin password"""
+        admin = self.get_admin_by_id(admin_id)
+        if not admin:
+            return False
+        
+        admin.password_hash = self._hash_password(new_password)
+        admin.updated_at = datetime.utcnow()
+        self.db.commit()
+        return True
+    
+    def get_admin_by_email(self, email: str) -> Optional[Admin]:
+        """Get admin by email"""
+        return self.db.query(Admin).filter(Admin.email == email).first()

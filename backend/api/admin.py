@@ -9,6 +9,23 @@ from datetime import datetime
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
+@router.get("/", response_class=HTMLResponse)
+async def admin_root(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+    """Admin root - redirect to chat logs"""
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>StreamlineAI Admin</title>
+        <meta http-equiv="refresh" content="0; url=/admin/chat-logs">
+    </head>
+    <body>
+        <p>Redirecting to admin panel...</p>
+        <script>window.location.href='/admin/chat-logs';</script>
+    </body>
+    </html>
+    """
+
 @router.get("/chat-logs/{session_id}", response_class=HTMLResponse)
 async def view_chat_log(session_id: str, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
     """View chat log for a specific session with customer info"""

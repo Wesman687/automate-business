@@ -100,6 +100,7 @@ async def login_page():
             }
             .form-group {
                 margin-bottom: 20px;
+                position: relative;
             }
             label {
                 display: block;
@@ -116,11 +117,26 @@ async def login_page():
                 color: #fff;
                 font-size: 16px;
                 box-sizing: border-box;
+                padding-right: 45px;
             }
             input[type="text"]:focus, input[type="password"]:focus {
                 outline: none;
                 border-color: #00d4ff;
                 box-shadow: 0 0 5px rgba(0, 212, 255, 0.3);
+            }
+            .password-toggle {
+                position: absolute;
+                right: 10px;
+                top: 35px;
+                background: none;
+                border: none;
+                color: #888;
+                cursor: pointer;
+                font-size: 14px;
+                padding: 5px;
+            }
+            .password-toggle:hover {
+                color: #00d4ff;
             }
             .login-btn {
                 width: 100%;
@@ -133,6 +149,7 @@ async def login_page():
                 font-weight: bold;
                 cursor: pointer;
                 transition: background 0.3s;
+                margin-bottom: 15px;
             }
             .login-btn:hover {
                 background: #0099cc;
@@ -141,6 +158,18 @@ async def login_page():
                 background: #555;
                 color: #888;
                 cursor: not-allowed;
+            }
+            .forgot-password {
+                text-align: center;
+                margin-top: 15px;
+            }
+            .forgot-password a {
+                color: #00d4ff;
+                text-decoration: none;
+                font-size: 14px;
+            }
+            .forgot-password a:hover {
+                text-decoration: underline;
             }
             .error {
                 background: #ff4444;
@@ -185,11 +214,18 @@ async def login_page():
                 <div class="form-group">
                     <label for="password">Password</label>
                     <input type="password" id="password" name="password" required>
+                    <button type="button" class="password-toggle" onclick="togglePassword('password')">
+                        👁️ Show
+                    </button>
                 </div>
                 
                 <button type="submit" class="login-btn" id="loginBtn">
                     Login to Admin Portal
                 </button>
+                
+                <div class="forgot-password">
+                    <a href="/auth/forgot-password">Forgot your password?</a>
+                </div>
                 
                 <div class="loading" id="loading">
                     Authenticating...
@@ -198,6 +234,19 @@ async def login_page():
         </div>
 
         <script>
+            function togglePassword(fieldId) {
+                const field = document.getElementById(fieldId);
+                const button = field.nextElementSibling;
+                
+                if (field.type === 'password') {
+                    field.type = 'text';
+                    button.textContent = '🙈 Hide';
+                } else {
+                    field.type = 'password';
+                    button.textContent = '👁️ Show';
+                }
+            }
+            
             document.getElementById('loginForm').addEventListener('submit', async (e) => {
                 e.preventDefault();
                 
@@ -257,24 +306,33 @@ async def login_page():
 async def login(request: LoginRequest, db: Session = Depends(get_db)):
     """Authenticate user and return token"""
     admin_service = AdminService(db)
-    admin_data = auth_service.authenticate_user(request.username, request.password, admin_service)
+    admin = admin_service.get_admin_by_email(request.email)
     
-    if not admin_data:
-        raise HTTPException(status_code=401, detail="Invalid username or password")
+    if not admin or not admin_service.verify_password(request.password, admin.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
     
-    token = auth_service.generate_token(admin_data)
+    if not admin.is_active:
+        raise HTTPException(status_code=403, detail="Account is deactivated")
+    
+    # Generate token
+    token = auth_service.create_token(admin.email)
     
     return LoginResponse(
         token=token,
-        expires_at="24 hours",
-        message="Login successful",
-        admin_info={
-            'username': admin_data['username'],
-            'email': admin_data['email'],
-            'full_name': admin_data['full_name'],
-            'is_super_admin': admin_data['is_super_admin']
+        user={
+            "id": admin.id,
+            "email": admin.email,
+            "username": admin.username,
+            "full_name": admin.full_name,
+            "is_super_admin": admin.is_super_admin,
+            "is_active": admin.is_active
         }
     )
+
+@router.get("/validate")
+async def validate_token(current_user: dict = Depends(get_current_user)):
+    """Validate authentication token and return user info"""
+    return {"user": current_user}
 
 @router.get("/validate")
 async def validate_token(user_info: dict = Depends(get_current_user)):

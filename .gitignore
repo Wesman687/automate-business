@@ -7,6 +7,11 @@ backend/backups/
 backend/logs/
 backend/venv/
 backend/env/
+backend/webhook.py
+backend/logging_config.yaml
+backend/start_main.sh
+backend/start_webhook.sh
+backend/post_deplloy.sh
 *.pyc
 *.pyo
 *.pyd

@@ -1,0 +1,72 @@
+        <!-- Favicon Generator -->
+        <div style="text-align: center; padding: 50px; background: #1a1a1a; color: white; font-family: Arial;">
+            <h1>Favicon Generator</h1>
+            <p>Convert your SVG to ICO format</p>
+            
+            <div id="converter" style="margin: 30px 0; padding: 30px; background: #2a2a2a; border-radius: 10px;">
+                <canvas id="canvas" width="32" height="32" style="border: 1px solid #444; background: white;"></canvas>
+                <br><br>
+                <button onclick="generateFavicon()" style="padding: 10px 20px; background: #00d4ff; color: black; border: none; border-radius: 5px; cursor: pointer;">Generate favicon.ico</button>
+                <br><br>
+                <a id="downloadLink" style="display: none; color: #00d4ff;">Download favicon.ico</a>
+            </div>
+        </div>
+
+        <script>
+            function generateFavicon() {
+                const canvas = document.getElementById('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Clear canvas
+                ctx.clearRect(0, 0, 32, 32);
+                
+                // Draw background with rounded corners
+                ctx.fillStyle = '#00D4FF';
+                ctx.beginPath();
+                ctx.roundRect(0, 0, 32, 32, 6);
+                ctx.fill();
+                
+                // Draw the layered diamond/pyramid design
+                ctx.fillStyle = 'white';
+                ctx.beginPath();
+                ctx.moveTo(8, 12);
+                ctx.lineTo(16, 8);
+                ctx.lineTo(24, 12);
+                ctx.lineTo(16, 16);
+                ctx.closePath();
+                ctx.fill();
+                
+                ctx.fillStyle = '#E0E0E0';
+                ctx.beginPath();
+                ctx.moveTo(8, 16);
+                ctx.lineTo(16, 12);
+                ctx.lineTo(24, 16);
+                ctx.lineTo(16, 20);
+                ctx.closePath();
+                ctx.fill();
+                
+                ctx.fillStyle = '#C0C0C0';
+                ctx.beginPath();
+                ctx.moveTo(8, 20);
+                ctx.lineTo(16, 16);
+                ctx.lineTo(24, 20);
+                ctx.lineTo(16, 24);
+                ctx.closePath();
+                ctx.fill();
+                
+                // Convert to blob and create download link
+                canvas.toBlob(function(blob) {
+                    const url = URL.createObjectURL(blob);
+                    const link = document.getElementById('downloadLink');
+                    link.href = url;
+                    link.download = 'favicon.ico';
+                    link.style.display = 'inline';
+                    link.textContent = 'Download favicon.ico';
+                }, 'image/png');
+            }
+            
+            // Auto-generate on page load
+            window.onload = function() {
+                generateFavicon();
+            };
+        </script>

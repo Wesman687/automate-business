@@ -1,3 +1,4 @@
+
 from fastapi import FastAPI, Request, HTTPException
 import subprocess
 import logging
@@ -52,6 +53,15 @@ async def github_webhook(request: Request):
             raise HTTPException(status_code=500, detail="Git pull failed")
         
         logger.info(f"Git pull output: {pull_result.stdout}")
+        
+        # Fix script permissions after git pull
+        logger.info("Fixing script permissions...")
+        chmod_result = subprocess.run([
+            "chmod", "+x", f"{backend_path}/start_main.sh"
+        ], capture_output=True, text=True)
+        
+        if chmod_result.returncode != 0:
+            logger.warning(f"Failed to fix permissions: {chmod_result.stderr}")
         
         # Activate virtual environment and install/update requirements
         logger.info("Installing/updating requirements...")

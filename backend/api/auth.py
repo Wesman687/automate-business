@@ -1,7 +1,10 @@
 from fastapi import APIRouter, HTTPException, Depends, Header
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
+from database import get_db
 from services.auth_service import auth_service
+from services.admin_service import AdminService
 from typing import Optional
 import os
 
@@ -15,8 +18,15 @@ class LoginResponse(BaseModel):
     token: str
     expires_at: str
     message: str
+    admin_info: dict
 
-def get_current_user(authorization: str = Header(None)):
+class CreateAdminRequest(BaseModel):
+    email: str
+    username: str
+    password: str
+    full_name: Optional[str] = None
+
+def get_current_user(authorization: str = Header(None), db: Session = Depends(get_db)):
     """Dependency to validate authentication token"""
     if not authorization:
         raise HTTPException(status_code=401, detail="Authorization header required")
@@ -31,7 +41,19 @@ def get_current_user(authorization: str = Header(None)):
     if not user_info:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
     
+    # Verify admin still exists and is active
+    admin_service = AdminService(db)
+    admin = admin_service.get_admin_by_id(user_info['admin_id'])
+    if not admin or not admin.is_active:
+        raise HTTPException(status_code=401, detail="Admin account no longer active")
+    
     return user_info
+
+def get_super_admin(current_user: dict = Depends(get_current_user)):
+    """Dependency to ensure current user is a super admin"""
+    if not current_user.get('is_super_admin', False):
+        raise HTTPException(status_code=403, detail="Super admin access required")
+    return current_user
 
 @router.get("/login", response_class=HTMLResponse)
 async def login_page():
@@ -232,17 +254,26 @@ async def login_page():
     """
 
 @router.post("/login", response_model=LoginResponse)
-async def login(request: LoginRequest):
+async def login(request: LoginRequest, db: Session = Depends(get_db)):
     """Authenticate user and return token"""
-    if not auth_service.authenticate_user(request.username, request.password):
+    admin_service = AdminService(db)
+    admin_data = auth_service.authenticate_user(request.username, request.password, admin_service)
+    
+    if not admin_data:
         raise HTTPException(status_code=401, detail="Invalid username or password")
     
-    token = auth_service.generate_token(request.username)
+    token = auth_service.generate_token(admin_data)
     
     return LoginResponse(
         token=token,
         expires_at="24 hours",
-        message="Login successful"
+        message="Login successful",
+        admin_info={
+            'username': admin_data['username'],
+            'email': admin_data['email'],
+            'full_name': admin_data['full_name'],
+            'is_super_admin': admin_data['is_super_admin']
+        }
     )
 
 @router.get("/validate")
@@ -258,3 +289,120 @@ async def validate_token(user_info: dict = Depends(get_current_user)):
 async def logout():
     """Logout (client should delete token)"""
     return {"message": "Logout successful. Please delete your token."}
+
+@router.get("/setup", response_class=HTMLResponse)
+async def setup_page():
+    """Setup page for creating initial super admin"""
+    setup_html_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "setup_admin.html")
+    try:
+        with open(setup_html_path, "r", encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        return """
+        <html><body style="font-family: Arial; padding: 50px; background: #1a1a1a; color: white;">
+            <h1>Setup Not Available</h1>
+            <p>Setup file not found. Please use the API endpoint directly.</p>
+        </body></html>
+        """
+
+@router.post("/setup-super-admin")
+async def setup_super_admin(request: CreateAdminRequest, db: Session = Depends(get_db)):
+    """Setup initial super admin (only works if no super admin exists)"""
+    admin_service = AdminService(db)
+    
+    try:
+        # Use your email as default
+        super_admin = admin_service.setup_initial_super_admin(
+            email=request.email or "wesman687@gmail.com",
+            username=request.username,
+            password=request.password,
+            full_name=request.full_name or "Wesley Wesman"
+        )
+        
+        return {
+            "message": "Super admin created successfully",
+            "admin": {
+                "id": super_admin.id,
+                "email": super_admin.email,
+                "username": super_admin.username,
+                "full_name": super_admin.full_name,
+                "is_super_admin": super_admin.is_super_admin
+            }
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/create-admin")
+async def create_admin(
+    request: CreateAdminRequest, 
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_super_admin)
+):
+    """Create new admin (super admin only)"""
+    admin_service = AdminService(db)
+    
+    try:
+        new_admin = admin_service.create_admin(
+            email=request.email,
+            username=request.username,
+            password=request.password,
+            full_name=request.full_name,
+            is_super_admin=False
+        )
+        
+        return {
+            "message": "Admin created successfully",
+            "admin": {
+                "id": new_admin.id,
+                "email": new_admin.email,
+                "username": new_admin.username,
+                "full_name": new_admin.full_name,
+                "is_super_admin": new_admin.is_super_admin,
+                "is_active": new_admin.is_active
+            }
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/admins")
+async def list_admins(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_super_admin)
+):
+    """List all admins (super admin only)"""
+    admin_service = AdminService(db)
+    admins = admin_service.get_all_admins()
+    
+    return {
+        "admins": [
+            {
+                "id": admin.id,
+                "email": admin.email,
+                "username": admin.username,
+                "full_name": admin.full_name,
+                "is_super_admin": admin.is_super_admin,
+                "is_active": admin.is_active,
+                "created_at": admin.created_at.isoformat() if admin.created_at else None,
+                "last_login": admin.last_login.isoformat() if admin.last_login else None
+            }
+            for admin in admins
+        ]
+    }
+
+@router.delete("/admins/{admin_id}")
+async def delete_admin(
+    admin_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_super_admin)
+):
+    """Delete admin (super admin only)"""
+    admin_service = AdminService(db)
+    
+    try:
+        success = admin_service.delete_admin(admin_id)
+        if success:
+            return {"message": "Admin deactivated successfully"}
+        else:
+            raise HTTPException(status_code=404, detail="Admin not found")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))

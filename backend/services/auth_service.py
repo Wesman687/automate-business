@@ -14,10 +14,6 @@ class AuthService:
         self.encryption_key = self._get_or_create_encryption_key()
         self.fernet = Fernet(self.encryption_key)
         
-        # Admin credentials from environment or defaults
-        self.admin_username = os.getenv('ADMIN_USERNAME', 'streamline_admin')
-        self.admin_password_hash = self._hash_password(os.getenv('ADMIN_PASSWORD', 'StreamlineAI2024!'))
-        
         # Token expiration time (24 hours)
         self.token_expiration_hours = 24
         
@@ -41,26 +37,35 @@ class AuthService:
         salt = os.getenv('PASSWORD_SALT', 'streamline_salt_2024')
         return hashlib.pbkdf2_hmac('sha256', password.encode(), salt.encode(), 100000).hex()
     
-    def authenticate_user(self, username: str, password: str) -> bool:
-        """Authenticate user credentials"""
-        if username != self.admin_username:
-            return False
-        
-        password_hash = self._hash_password(password)
-        return hmac.compare_digest(password_hash, self.admin_password_hash)
+    def authenticate_user(self, username: str, password: str, admin_service) -> Optional[dict]:
+        """Authenticate user credentials using admin service"""
+        admin = admin_service.authenticate_admin(username, password)
+        if admin:
+            return {
+                'id': admin.id,
+                'username': admin.username,
+                'email': admin.email,
+                'full_name': admin.full_name,
+                'is_super_admin': admin.is_super_admin,
+                'is_active': admin.is_active
+            }
+        return None
     
-    def generate_token(self, username: str) -> str:
+    def generate_token(self, admin_data: dict) -> str:
         """Generate encrypted authentication token"""
         # Create token payload
         payload = {
-            'username': username,
+            'admin_id': admin_data['id'],
+            'username': admin_data['username'],
+            'email': admin_data['email'],
+            'is_super_admin': admin_data['is_super_admin'],
             'issued_at': time.time(),
             'expires_at': time.time() + (self.token_expiration_hours * 3600),
             'random': secrets.token_hex(16)  # Add randomness
         }
         
         # Convert to string and encrypt
-        payload_str = f"{payload['username']}|{payload['issued_at']}|{payload['expires_at']}|{payload['random']}"
+        payload_str = f"{payload['admin_id']}|{payload['username']}|{payload['email']}|{payload['is_super_admin']}|{payload['issued_at']}|{payload['expires_at']}|{payload['random']}"
         encrypted_token = self.fernet.encrypt(payload_str.encode())
         
         return base64.urlsafe_b64encode(encrypted_token).decode()
@@ -74,21 +79,20 @@ class AuthService:
             
             # Parse payload
             parts = decrypted_payload.split('|')
-            if len(parts) != 4:
+            if len(parts) != 7:
                 return None
             
-            username, issued_at, expires_at, random_part = parts
+            admin_id, username, email, is_super_admin, issued_at, expires_at, random_part = parts
             
             # Check if token has expired
             if time.time() > float(expires_at):
                 return None
             
-            # Validate username
-            if username != self.admin_username:
-                return None
-            
             return {
+                'admin_id': int(admin_id),
                 'username': username,
+                'email': email,
+                'is_super_admin': is_super_admin.lower() == 'true',
                 'issued_at': float(issued_at),
                 'expires_at': float(expires_at),
                 'valid': True

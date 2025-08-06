@@ -536,9 +536,390 @@ async def list_chat_logs(db: Session = Depends(get_db), user: dict = Depends(get
         return html_content
         
     except Exception as e:
+        return f"<html><body><h1>Error</h1><p>{str(e)}</p></body></html>"
+
+@router.get("/admins", response_class=HTMLResponse)
+async def admin_management_page(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+    """Admin management page (super admin only)"""
+    if not user.get('is_super_admin', False):
+        return """
+        <html><body style="font-family: Arial; padding: 50px; background: #1a1a1a; color: white; text-align: center;">
+            <h1>Access Denied</h1>
+            <p>Only super administrators can access this page.</p>
+            <a href="/admin/chat-logs" style="color: #00d4ff;">← Back to Chat Logs</a>
+        </body></html>
+        """
+    
+    try:
+        from services.admin_service import AdminService
+        admin_service = AdminService(db)
+        admins = admin_service.get_all_admins()
+        
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>StreamlineAI - Admin Management</title>
+            <meta charset="UTF-8">
+            <style>
+                body {{
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    margin: 0;
+                    padding: 20px;
+                    background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+                    color: #ffffff;
+                }}
+                .container {{
+                    max-width: 1200px;
+                    margin: 0 auto;
+                    background: #1e1e1e;
+                    border-radius: 10px;
+                    padding: 30px;
+                }}
+                .header {{
+                    text-align: center;
+                    margin-bottom: 30px;
+                    padding-bottom: 20px;
+                    border-bottom: 2px solid #00d4ff;
+                }}
+                .logo {{
+                    font-size: 2.5em;
+                    font-weight: bold;
+                    color: #00d4ff;
+                }}
+                .auth-info {{
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: #2a2a2a;
+                    padding: 10px;
+                    border-radius: 5px;
+                    font-size: 0.8em;
+                }}
+                .logout-btn {{
+                    background: #ff4444;
+                    color: white;
+                    border: none;
+                    padding: 5px 10px;
+                    border-radius: 3px;
+                    cursor: pointer;
+                    margin-left: 10px;
+                }}
+                .nav-links {{
+                    text-align: center;
+                    margin-bottom: 30px;
+                }}
+                .nav-links a {{
+                    color: #00d4ff;
+                    text-decoration: none;
+                    margin: 0 15px;
+                    padding: 10px 20px;
+                    border: 1px solid #00d4ff;
+                    border-radius: 5px;
+                    transition: all 0.3s;
+                }}
+                .nav-links a:hover {{
+                    background: #00d4ff;
+                    color: #000;
+                }}
+                .create-admin-form {{
+                    background: #2a2a2a;
+                    padding: 20px;
+                    border-radius: 8px;
+                    margin-bottom: 30px;
+                    border-left: 4px solid #39ff14;
+                }}
+                .form-group {{
+                    margin-bottom: 15px;
+                }}
+                .form-group label {{
+                    display: block;
+                    margin-bottom: 5px;
+                    color: #ccc;
+                }}
+                .form-group input {{
+                    width: 100%;
+                    padding: 8px;
+                    border: 1px solid #444;
+                    border-radius: 4px;
+                    background: #1a1a1a;
+                    color: #fff;
+                    box-sizing: border-box;
+                }}
+                .btn {{
+                    padding: 10px 20px;
+                    border: none;
+                    border-radius: 5px;
+                    cursor: pointer;
+                    font-weight: bold;
+                }}
+                .btn-primary {{
+                    background: #00d4ff;
+                    color: #000;
+                }}
+                .btn-danger {{
+                    background: #ff4444;
+                    color: #fff;
+                }}
+                table {{
+                    width: 100%;
+                    border-collapse: collapse;
+                    background: #2a2a2a;
+                    border-radius: 8px;
+                    overflow: hidden;
+                }}
+                th, td {{
+                    padding: 12px;
+                    text-align: left;
+                    border-bottom: 1px solid #444;
+                }}
+                th {{
+                    background: #00d4ff;
+                    color: #000;
+                    font-weight: bold;
+                }}
+                tr:hover {{
+                    background: #333;
+                }}
+                .status-badge {{
+                    padding: 4px 8px;
+                    border-radius: 4px;
+                    font-size: 0.8em;
+                    font-weight: bold;
+                }}
+                .status-active {{
+                    background: #39ff14;
+                    color: #000;
+                }}
+                .status-inactive {{
+                    background: #ff4444;
+                    color: #fff;
+                }}
+                .super-admin {{
+                    background: #ffa500;
+                    color: #000;
+                }}
+                .message {{
+                    padding: 10px;
+                    border-radius: 5px;
+                    margin-bottom: 20px;
+                    display: none;
+                }}
+                .message.success {{
+                    background: #39ff14;
+                    color: #000;
+                }}
+                .message.error {{
+                    background: #ff4444;
+                    color: #fff;
+                }}
+            </style>
+            <script>
+                // Check authentication on page load
+                window.addEventListener('DOMContentLoaded', function() {{
+                    const token = localStorage.getItem('admin_token');
+                    if (!token) {{
+                        window.location.href = '/auth/login';
+                        return;
+                    }}
+                    
+                    // Validate token
+                    fetch('/auth/validate', {{
+                        headers: {{
+                            'Authorization': 'Bearer ' + token
+                        }}
+                    }})
+                    .then(response => {{
+                        if (!response.ok) {{
+                            localStorage.removeItem('admin_token');
+                            window.location.href = '/auth/login';
+                        }}
+                    }})
+                    .catch(() => {{
+                        localStorage.removeItem('admin_token');
+                        window.location.href = '/auth/login';
+                    }});
+                }});
+                
+                function logout() {{
+                    localStorage.removeItem('admin_token');
+                    window.location.href = '/auth/login';
+                }}
+                
+                function showMessage(text, type) {{
+                    const message = document.getElementById('message');
+                    message.textContent = text;
+                    message.className = 'message ' + type;
+                    message.style.display = 'block';
+                    setTimeout(() => {{
+                        message.style.display = 'none';
+                    }}, 5000);
+                }}
+                
+                async function createAdmin(event) {{
+                    event.preventDefault();
+                    
+                    const token = localStorage.getItem('admin_token');
+                    const formData = new FormData(event.target);
+                    
+                    const data = {{
+                        email: formData.get('email'),
+                        username: formData.get('username'),
+                        password: formData.get('password'),
+                        full_name: formData.get('full_name')
+                    }};
+                    
+                    try {{
+                        const response = await fetch('/auth/create-admin', {{
+                            method: 'POST',
+                            headers: {{
+                                'Content-Type': 'application/json',
+                                'Authorization': 'Bearer ' + token
+                            }},
+                            body: JSON.stringify(data)
+                        }});
+                        
+                        const result = await response.json();
+                        
+                        if (response.ok) {{
+                            showMessage('Admin created successfully!', 'success');
+                            event.target.reset();
+                            setTimeout(() => location.reload(), 2000);
+                        }} else {{
+                            showMessage(result.detail || 'Error creating admin', 'error');
+                        }}
+                    }} catch (error) {{
+                        showMessage('Network error: ' + error.message, 'error');
+                    }}
+                }}
+                
+                async function deleteAdmin(adminId) {{
+                    if (!confirm('Are you sure you want to deactivate this admin?')) {{
+                        return;
+                    }}
+                    
+                    const token = localStorage.getItem('admin_token');
+                    
+                    try {{
+                        const response = await fetch(`/auth/admins/${{adminId}}`, {{
+                            method: 'DELETE',
+                            headers: {{
+                                'Authorization': 'Bearer ' + token
+                            }}
+                        }});
+                        
+                        const result = await response.json();
+                        
+                        if (response.ok) {{
+                            showMessage('Admin deactivated successfully', 'success');
+                            setTimeout(() => location.reload(), 2000);
+                        }} else {{
+                            showMessage(result.detail || 'Error deactivating admin', 'error');
+                        }}
+                    }} catch (error) {{
+                        showMessage('Network error: ' + error.message, 'error');
+                    }}
+                }}
+            </script>
+        </head>
+        <body>
+            <div class="auth-info">
+                👤 Admin: {user['username']} 
+                <button class="logout-btn" onclick="logout()">Logout</button>
+            </div>
+            <div class="container">
+                <div class="header">
+                    <div class="logo">StreamlineAI</div>
+                    <h1>Admin Management</h1>
+                    <p>Super Admin Portal</p>
+                </div>
+                
+                <div class="nav-links">
+                    <a href="/admin/chat-logs">Chat Logs</a>
+                    <a href="/admin/admins">Admin Management</a>
+                </div>
+                
+                <div id="message" class="message"></div>
+                
+                <div class="create-admin-form">
+                    <h3>Create New Admin</h3>
+                    <form onsubmit="createAdmin(event)">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" name="email" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Username</label>
+                                <input type="text" name="username" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Password</label>
+                                <input type="password" name="password" required minlength="8">
+                            </div>
+                            <div class="form-group">
+                                <label>Full Name</label>
+                                <input type="text" name="full_name">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Create Admin</button>
+                    </form>
+                </div>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Email</th>
+                            <th>Username</th>
+                            <th>Full Name</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Last Login</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        """
+        
+        for admin in admins:
+            admin_type = "Super Admin" if admin.is_super_admin else "Admin"
+            admin_type_class = "super-admin" if admin.is_super_admin else "status-active"
+            status_class = "status-active" if admin.is_active else "status-inactive"
+            status_text = "Active" if admin.is_active else "Inactive"
+            last_login = admin.last_login.strftime('%Y-%m-%d %H:%M') if admin.last_login else 'Never'
+            
+            delete_btn = ""
+            if not admin.is_super_admin:
+                delete_btn = f'<button class="btn btn-danger" onclick="deleteAdmin({admin.id})" style="font-size: 0.8em; padding: 5px 10px;">Deactivate</button>'
+            
+            html_content += f"""
+                        <tr>
+                            <td>{admin.id}</td>
+                            <td>{admin.email}</td>
+                            <td>{admin.username}</td>
+                            <td>{admin.full_name or 'N/A'}</td>
+                            <td><span class="status-badge {admin_type_class}">{admin_type}</span></td>
+                            <td><span class="status-badge {status_class}">{status_text}</span></td>
+                            <td>{last_login}</td>
+                            <td>{delete_btn}</td>
+                        </tr>
+            """
+        
+        html_content += """
+                    </tbody>
+                </table>
+            </div>
+        </body>
+        </html>
+        """
+        
+        return html_content
+        
+    except Exception as e:
         error_html = f"""
         <html><body style="font-family: Arial; padding: 50px; background: #1a1a1a; color: white;">
-            <h1>Error Loading Chat Logs</h1>
+            <h1>Error Loading Admin Management</h1>
             <p>Error: {str(e)}</p>
         </body></html>
         """

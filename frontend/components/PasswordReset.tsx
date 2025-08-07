@@ -5,10 +5,12 @@ import { motion } from 'framer-motion'
 import { Eye, EyeOff, Lock, AlertCircle, CheckCircle } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
-export default function PasswordReset() {
+interface PasswordResetFormProps {
+  token: string | null
+}
+
+function PasswordResetForm({ token }: PasswordResetFormProps) {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const token = searchParams.get('token')
   
   const [formData, setFormData] = useState({
     password: '',
@@ -231,4 +233,12 @@ export default function PasswordReset() {
       </motion.div>
     </div>
   )
+}
+
+// Wrapper component that handles search params
+export default function PasswordReset() {
+  const searchParams = useSearchParams()
+  const token = searchParams.get('token')
+  
+  return <PasswordResetForm token={token} />
 }

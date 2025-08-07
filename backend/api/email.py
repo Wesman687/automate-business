@@ -69,7 +69,12 @@ async def send_notification(subject: str, body: str, to_emails: Optional[List[Em
 
 @router.post("/forgot-password")
 async def forgot_password(request: PasswordResetRequest, db: Session = Depends(get_db)):
-    """Send password reset email"""
+    """
+    Send password reset email
+    
+    IMPORTANT: Email functionality only works on production server!
+    In development, emails are logged but not actually sent.
+    """
     admin_service = AdminService(db)
     
     # Check if admin exists
@@ -90,7 +95,7 @@ async def forgot_password(request: PasswordResetRequest, db: Session = Depends(g
     }
     
     # Create reset link
-    reset_link = f"https://stream-lineai.com/auth/reset-password?token={reset_token}"
+    reset_link = f"https://stream-lineai.com/reset-password?token={reset_token}"
     
     # Email content
     email_subject = "Password Reset Request"
@@ -220,3 +225,40 @@ async def test_email():
             
     except Exception as e:
         return {"message": f"Email test failed: {str(e)}", "status": "error"}
+
+@router.post("/test-forgot-password")
+async def test_forgot_password(request: PasswordResetRequest, db: Session = Depends(get_db)):
+    """
+    Test password reset flow - for development testing
+    Returns the reset link that would be sent via email
+    """
+    admin_service = AdminService(db)
+    
+    # Check if admin exists
+    admin = admin_service.get_admin_by_email(request.email)
+    if not admin:
+        return {"message": "Admin not found", "test_mode": True}
+    
+    # Generate reset token
+    reset_token = secrets.token_urlsafe(32)
+    
+    # Store token with expiration (1 hour)
+    password_reset_tokens[reset_token] = {
+        'email': request.email,
+        'admin_id': admin.id,
+        'expires_at': time.time() + 3600,  # 1 hour
+        'used': False
+    }
+    
+    # Create reset link
+    reset_link = f"https://stream-lineai.com/reset-password?token={reset_token}"
+    
+    return {
+        "message": "Test mode - here's the reset link that would be emailed",
+        "reset_link": reset_link,
+        "token": reset_token,
+        "expires_in": "1 hour",
+        "test_mode": True,
+        "admin_email": admin.email,
+        "admin_name": admin.full_name or admin.username
+    }

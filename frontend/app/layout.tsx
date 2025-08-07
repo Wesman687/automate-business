@@ -3,6 +3,7 @@ import { Inter, JetBrains_Mono } from 'next/font/google'
 import './globals.css'
 import ChatBot from '@/components/ChatBot'
 import ParticleBackground from '@/components/ParticleBackground'
+import { AuthProvider } from '@/hooks/useAuth'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 const jetbrains = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono' })
@@ -95,8 +96,10 @@ export default function RootLayout({
           height="0" width="0" style={{ display: 'none', visibility: 'hidden' }}></iframe></noscript>
         {/* End Google Tag Manager (noscript) */}
         <ParticleBackground />
-        {children}
-        <ChatBot />
+        <AuthProvider>
+          {children}
+          <ChatBot />
+        </AuthProvider>
       </body>
     </html>
   )

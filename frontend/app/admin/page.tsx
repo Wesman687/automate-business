@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Users, MessageSquare, TrendingUp, Download } from 'lucide-react'
+import ProtectedRoute from '@/components/ProtectedRoute'
 
 interface Customer {
   email: string
@@ -103,7 +104,8 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-dark-bg p-6">
+    <ProtectedRoute>
+      <div className="min-h-screen bg-dark-bg p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <motion.div
@@ -240,6 +242,7 @@ export default function AdminDashboard() {
           </div>
         </motion.div>
       </div>
-    </div>
+      </div>
+    </ProtectedRoute>
   )
 }

@@ -58,6 +58,7 @@ class EmailService:
         """
         
         # In development/local environment, just log what would be sent
+        # IMPORTANT: Actual email sending only works on the production server!
         if not self.is_production:
             logger.info("📧 [DEVELOPMENT MODE] Email would be sent:")
             logger.info(f"  From: {from_account}")
@@ -67,6 +68,7 @@ class EmailService:
             print(f"📧 [DEV MODE] Would send email from {from_account} to {to_emails}")
             print(f"   Subject: {subject}")
             print(f"   Body: {body[:200]}...")
+            print("   ⚠️  NOTE: Actual emails are only sent on production server!")
             return True  # Return success for development
         
         try:

@@ -13,13 +13,15 @@ export default function Contact() {
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showSuccessNotification, setShowSuccessNotification] = useState(false)
+  const [error, setError] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
+    setError('') // Clear any previous errors
     
     try {
-      // Send contact form data to backend
+      // Always use production server for contact form (emails only work on server)
       const response = await fetch('https://server.stream-lineai.com/api/contact', {
         method: 'POST',
         headers: {
@@ -43,7 +45,10 @@ export default function Contact() {
       
     } catch (error) {
       console.error('❌ Error submitting contact form:', error)
-      // Still show success to user but log the error
+      // If server is down, still show success to user but log the error
+      // In production, you might want to show a different message
+      setError('Contact server is currently down. Please email us directly at sales@stream-lineai.com')
+      // Still show success notification for better UX
       setShowSuccessNotification(true)
     } finally {
       setIsSubmitting(false)
@@ -220,6 +225,13 @@ export default function Contact() {
                     '> Send Message'
                   )}
                 </button>
+
+                {/* Error Message */}
+                {error && (
+                  <div className="bg-red-900/50 border border-red-500 rounded-lg p-3 mt-4">
+                    <span className="text-red-300 text-sm">{error}</span>
+                  </div>
+                )}
               </form>
             </div>
           </motion.div>

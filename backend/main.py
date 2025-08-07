@@ -1,7 +1,7 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from database.models import Base
-from database.postgresql import engine
+from database import engine
 from api.chat import router as chat_router
 from api.customers import router as customers_router
 from api.contact import router as contact_router
@@ -77,23 +77,82 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS middleware
+# CORS middleware - Environment-based configuration
+cors_origins = [
+    "http://localhost:3000", 
+    "http://localhost:3001",
+    "http://localhost:3002",
+    "http://localhost:3003",
+    "http://localhost:3004",
+    "http://localhost:3005",
+    "https://stream-lineai.com", 
+    "https://www.stream-lineai.com",
+    "https://server.stream-lineai.com",
+    # Add your current IP
+    "http://67.190.222.150",
+    "https://67.190.222.150",
+    "http://67.190.222.150:3000",
+    "http://67.190.222.150:3001",
+    "http://67.190.222.150:3002",
+    "http://67.190.222.150:3003",
+]
+
+# Check if development mode should allow all origins
+if os.getenv('CORS_ALLOW_ALL', 'false').lower() == 'true':
+    cors_origins = ["*"]  # Allow all origins in development
+
+# Custom CORS configuration for IP ranges
+def is_allowed_ip_range(origin: str) -> bool:
+    """Check if origin matches allowed IP patterns"""
+    import re
+    # Pattern for your IP range (67.190.222.*)
+    ip_patterns = [
+        r"https?://67\.190\.222\.\d+",  # Matches 67.190.222.* 
+        r"https?://67\.190\.222\.\d+:\d+",  # With port numbers
+    ]
+    
+    for pattern in ip_patterns:
+        if re.match(pattern, origin):
+            return True
+    return False
+
+
+async def custom_cors_handler(request: Request, call_next):
+    """Custom CORS handler that supports IP ranges"""
+    origin = request.headers.get("origin")
+    
+    # Check if origin is allowed
+    allowed = False
+    if origin:
+        # Check standard CORS origins
+        if origin in cors_origins or "*" in cors_origins:
+            allowed = True
+        # Check IP range patterns
+        elif is_allowed_ip_range(origin):
+            allowed = True
+    
+    response = await call_next(request)
+    
+    if allowed and origin:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+    
+    return response
+
+# Add the custom middleware
+app.middleware("http")(custom_cors_handler)
+
+# Also add the standard CORS middleware as backup
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000", 
-        "http://localhost:3001",
-        "http://localhost:3002",
-        "http://localhost:3003",
-        "http://localhost:3004",
-        "http://localhost:3005",
-        "https://stream-lineai.com", 
-        "https://www.stream-lineai.com"
-    ],
+    allow_origins=cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
+
 
 # Include routers
 app.include_router(chat_router)

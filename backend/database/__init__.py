@@ -7,14 +7,17 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Database URL - can be PostgreSQL for production or SQLite for development
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./streamline_ai.db")
+# Database URL - PostgreSQL ONLY (no SQLite fallback)
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-# Create engine
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL environment variable is required. No SQLite fallback allowed.")
+
 if DATABASE_URL.startswith("sqlite"):
-    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
-else:
-    engine = create_engine(DATABASE_URL)
+    raise ValueError("SQLite is not allowed. Please use PostgreSQL DATABASE_URL.")
+
+# Create PostgreSQL engine
+engine = create_engine(DATABASE_URL)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()

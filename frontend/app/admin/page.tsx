@@ -18,8 +18,8 @@ interface Customer {
 }
 
 const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://your-backend-domain.com' 
-  : 'http://localhost:8000'
+  ? 'https://server.stream-lineai.com' 
+  : 'http://localhost:8005'
 
 export default function AdminDashboard() {
   const [customers, setCustomers] = useState<Customer[]>([])
@@ -40,17 +40,36 @@ export default function AdminDashboard() {
       const response = await fetch(`${API_BASE_URL}/api/customers`)
       if (response.ok) {
         const data = await response.json()
-        setCustomers(data.customers)
-        calculateStats(data.customers)
+        // Ensure we have a valid customers array
+        const customers = data?.customers || []
+        setCustomers(customers)
+        calculateStats(customers)
+      } else {
+        console.error('Failed to fetch customers:', response.status, response.statusText)
+        setCustomers([])
+        calculateStats([])
       }
     } catch (error) {
       console.error('Error fetching customers:', error)
+      setCustomers([])
+      calculateStats([])
     } finally {
       setLoading(false)
     }
   }
 
   const calculateStats = (customerData: Customer[]) => {
+    // Handle case where customerData might be undefined or not an array
+    if (!customerData || !Array.isArray(customerData)) {
+      setStats({
+        totalLeads: 0,
+        todayLeads: 0,
+        completedSessions: 0,
+        conversionRate: 0
+      })
+      return
+    }
+
     const today = new Date().toDateString()
     const todayLeads = customerData.filter(c => 
       new Date(c.created_at).toDateString() === today
@@ -190,7 +209,7 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {customers.map((customer, index) => (
+                {customers?.map((customer, index) => (
                   <motion.tr
                     key={customer.email}
                     initial={{ opacity: 0, x: -20 }}
@@ -234,7 +253,7 @@ export default function AdminDashboard() {
               </tbody>
             </table>
 
-            {customers.length === 0 && (
+            {customers?.length === 0 && (
               <div className="p-8 text-center text-gray-400">
                 No customer data available yet. Start promoting your chatbot to generate leads!
               </div>

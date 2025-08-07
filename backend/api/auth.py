@@ -11,7 +11,7 @@ import os
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
 class LoginRequest(BaseModel):
-    username: str
+    email: str  # Changed from username to email
     password: str
 
 class LoginResponse(BaseModel):

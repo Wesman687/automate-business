@@ -15,9 +15,7 @@ logger = logging.getLogger(__name__)
 
 class EmailService:
     def __init__(self):
-        # Check if we're in production environment
-        self.is_production = os.getenv('ENVIRONMENT', 'development').lower() in ['production', 'prod']
-        
+        # ALWAYS use production email server - emails MUST be sent to server, never locally
         self.smtp_server = os.getenv('SMTP_SERVER', 'mail.stream-lineai.com')
         self.smtp_port = int(os.getenv('SMTP_PORT', 587))
         self.use_tls = os.getenv('SMTP_USE_TLS', 'true').lower() == 'true'
@@ -44,7 +42,7 @@ class EmailService:
         bcc_emails: Optional[List[str]] = None
     ) -> bool:
         """
-        Send email from specified account
+        Send email from specified account - ALWAYS sends to production server
         
         Args:
             from_account: 'no-reply', 'sales', or 'tech'
@@ -57,19 +55,8 @@ class EmailService:
             bcc_emails: List of BCC emails (optional)
         """
         
-        # In development/local environment, just log what would be sent
-        # IMPORTANT: Actual email sending only works on the production server!
-        if not self.is_production:
-            logger.info("📧 [DEVELOPMENT MODE] Email would be sent:")
-            logger.info(f"  From: {from_account}")
-            logger.info(f"  To: {to_emails}")
-            logger.info(f"  Subject: {subject}")
-            logger.info(f"  Body preview: {body[:100]}...")
-            print(f"📧 [DEV MODE] Would send email from {from_account} to {to_emails}")
-            print(f"   Subject: {subject}")
-            print(f"   Body: {body[:200]}...")
-            print("   ⚠️  NOTE: Actual emails are only sent on production server!")
-            return True  # Return success for development
+        logger.info(f"📧 Sending email from {from_account} to {to_emails}")
+        logger.info(f"   Subject: {subject}")
         
         try:
             # Get account credentials

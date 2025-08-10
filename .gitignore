@@ -12,6 +12,8 @@ backend/logging_config.yaml
 backend/start_main.sh
 backend/start_webhook.sh
 backend/post_deplloy.sh
+backend/sync_db_logs.sh
+streamlineai-badge-npm/node_modules/
 *.pyc
 *.pyo
 *.pyd
@@ -99,3 +101,8 @@ env/
 .local/
 tmp/
 temp/
+
+# Database files (SQLite)
+*.db
+*.sqlite
+*.sqlite3

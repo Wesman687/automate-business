@@ -1,17 +1,30 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from database import get_db
 from services.session_service import SessionService
 from services.customer_service import CustomerService
-from api.auth import get_current_user
+from api.auth import get_current_user, get_current_user_or_redirect
 from datetime import datetime
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 @router.get("/", response_class=HTMLResponse)
-async def admin_root(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+async def admin_root(request: Request, db: Session = Depends(get_db)):
     """Admin root - redirect to chat logs"""
+    from fastapi.responses import RedirectResponse
+    
+    # Check authentication
+    token = request.cookies.get('admin_token')
+    if not token:
+        return RedirectResponse(url="/auth/login", status_code=302)
+    
+    # Validate token
+    from services.auth_service import auth_service
+    user_info = auth_service.validate_token(token)
+    if not user_info:
+        return RedirectResponse(url="/auth/login", status_code=302)
+    
     return f"""
     <!DOCTYPE html>
     <html>
@@ -190,41 +203,14 @@ async def view_chat_log(session_id: str, db: Session = Depends(get_db), user: di
                 }}
             </style>
             <script>
-                // Check authentication on page load
-                window.addEventListener('DOMContentLoaded', function() {{
-                    const token = localStorage.getItem('admin_token');
-                    if (!token) {{
-                        window.location.href = '/auth/login';
-                        return;
-                    }}
-                    
-                    // Validate token
-                    fetch('/auth/validate', {{
-                        headers: {{
-                            'Authorization': 'Bearer ' + token
-                        }}
-                    }})
-                    .then(response => {{
-                        if (!response.ok) {{
-                            localStorage.removeItem('admin_token');
-                            window.location.href = '/auth/login';
-                        }}
-                    }})
-                    .catch(() => {{
-                        localStorage.removeItem('admin_token');
-                        window.location.href = '/auth/login';
-                    }});
-                }});
-                
                 function logout() {{
-                    localStorage.removeItem('admin_token');
-                    window.location.href = '/auth/login';
+                    window.location.href = '/auth/logout';
                 }}
             </script>
         </head>
         <body>
             <div class="auth-info">
-                👤 Admin: {user['username']} 
+                👤 Admin: {user['email']} 
                 <button class="logout-btn" onclick="logout()">Logout</button>
             </div>
             <div class="container">
@@ -355,8 +341,34 @@ async def view_chat_log(session_id: str, db: Session = Depends(get_db), user: di
         return error_html
 
 @router.get("/chat-logs", response_class=HTMLResponse)
-async def list_chat_logs(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+async def list_chat_logs(request: Request, db: Session = Depends(get_db)):
     """List all chat sessions with customer info"""
+    from fastapi.responses import RedirectResponse
+    from services.auth_service import auth_service
+    from services.admin_service import AdminService
+    
+    # Check authentication
+    token = request.cookies.get('admin_token')
+    if not token:
+        return RedirectResponse(url="/auth/login", status_code=302)
+    
+    # Validate token
+    user_info = auth_service.validate_token(token)
+    if not user_info:
+        return RedirectResponse(url="/auth/login", status_code=302)
+    
+    # Get admin details
+    admin_service = AdminService(db)
+    admin = admin_service.get_admin_by_id(user_info['admin_id'])
+    if not admin or not admin.is_active:
+        return RedirectResponse(url="/auth/login", status_code=302)
+    
+    user = {
+        'username': admin.username,
+        'is_super_admin': admin.is_super_admin,
+        'email': admin.email
+    }
+    
     try:
         session_service = SessionService(db)
         customer_service = CustomerService(db)
@@ -453,42 +465,15 @@ async def list_chat_logs(db: Session = Depends(get_db), user: dict = Depends(get
                 }}
             </style>
             <script>
-                // Check authentication on page load
-                window.addEventListener('DOMContentLoaded', function() {{
-                    const token = localStorage.getItem('admin_token');
-                    if (!token) {{
-                        window.location.href = '/auth/login';
-                        return;
-                    }}
-                    
-                    // Validate token
-                    fetch('/auth/validate', {{
-                        headers: {{
-                            'Authorization': 'Bearer ' + token
-                        }}
-                    }})
-                    .then(response => {{
-                        if (!response.ok) {{
-                            localStorage.removeItem('admin_token');
-                            window.location.href = '/auth/login';
-                        }}
-                    }})
-                    .catch(() => {{
-                        localStorage.removeItem('admin_token');
-                        window.location.href = '/auth/login';
-                    }});
-                }});
-                
                 function logout() {{
-                    localStorage.removeItem('admin_token');
-                    window.location.href = '/auth/login';
+                    // Redirect to logout endpoint which will clear the cookie
+                    window.location.href = '/auth/logout';
                 }}
             </script>
-            </style>
         </head>
         <body>
             <div class="auth-info">
-                👤 Admin: {user['username']} 
+                👤 Admin: {user['email']} 
                 <button class="logout-btn" onclick="logout()">Logout</button>
             </div>
             <div class="container">
@@ -496,6 +481,11 @@ async def list_chat_logs(db: Session = Depends(get_db), user: dict = Depends(get
                     <div class="logo">StreamlineAI</div>
                     <h1>All Chat Sessions</h1>
                     <p>Sales Team Dashboard</p>
+                </div>
+                
+                <div class="nav-links">
+                    <a href="/admin/chat-logs">Chat Logs</a>
+                    {f'<a href="/admin/admins">Admin Management</a>' if user.get('is_super_admin', False) else ''}
                 </div>
                 
                 <table>
@@ -556,8 +546,34 @@ async def list_chat_logs(db: Session = Depends(get_db), user: dict = Depends(get
         return f"<html><body><h1>Error</h1><p>{str(e)}</p></body></html>"
 
 @router.get("/admins", response_class=HTMLResponse)
-async def admin_management_page(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+async def admin_management_page(request: Request, db: Session = Depends(get_db)):
     """Admin management page (super admin only)"""
+    from fastapi.responses import RedirectResponse
+    from services.auth_service import auth_service
+    from services.admin_service import AdminService
+    
+    # Check authentication
+    token = request.cookies.get('admin_token')
+    if not token:
+        return RedirectResponse(url="/auth/login", status_code=302)
+    
+    # Validate token
+    user_info = auth_service.validate_token(token)
+    if not user_info:
+        return RedirectResponse(url="/auth/login", status_code=302)
+    
+    # Get admin details
+    admin_service = AdminService(db)
+    admin = admin_service.get_admin_by_id(user_info['admin_id'])
+    if not admin or not admin.is_active:
+        return RedirectResponse(url="/auth/login", status_code=302)
+    
+    user = {
+        'username': admin.username,
+        'is_super_admin': admin.is_super_admin,
+        'email': admin.email
+    }
+    
     if not user.get('is_super_admin', False):
         return """
         <html><body style="font-family: Arial; padding: 50px; background: #1a1a1a; color: white; text-align: center;">
@@ -659,8 +675,8 @@ async def admin_management_page(db: Session = Depends(get_db), user: dict = Depe
                     padding: 8px;
                     border: 1px solid #444;
                     border-radius: 4px;
-                    background: #1a1a1a;
-                    color: #fff;
+                    background: #ffffff;
+                    color: #000;
                     box-sizing: border-box;
                 }}
                 .btn {{
@@ -732,35 +748,8 @@ async def admin_management_page(db: Session = Depends(get_db), user: dict = Depe
                 }}
             </style>
             <script>
-                // Check authentication on page load
-                window.addEventListener('DOMContentLoaded', function() {{
-                    const token = localStorage.getItem('admin_token');
-                    if (!token) {{
-                        window.location.href = '/auth/login';
-                        return;
-                    }}
-                    
-                    // Validate token
-                    fetch('/auth/validate', {{
-                        headers: {{
-                            'Authorization': 'Bearer ' + token
-                        }}
-                    }})
-                    .then(response => {{
-                        if (!response.ok) {{
-                            localStorage.removeItem('admin_token');
-                            window.location.href = '/auth/login';
-                        }}
-                    }})
-                    .catch(() => {{
-                        localStorage.removeItem('admin_token');
-                        window.location.href = '/auth/login';
-                    }});
-                }});
-                
                 function logout() {{
-                    localStorage.removeItem('admin_token');
-                    window.location.href = '/auth/login';
+                    window.location.href = '/auth/logout';
                 }}
                 
                 function showMessage(text, type) {{
@@ -776,12 +765,10 @@ async def admin_management_page(db: Session = Depends(get_db), user: dict = Depe
                 async function createAdmin(event) {{
                     event.preventDefault();
                     
-                    const token = localStorage.getItem('admin_token');
                     const formData = new FormData(event.target);
                     
                     const data = {{
                         email: formData.get('email'),
-                        username: formData.get('username'),
                         password: formData.get('password'),
                         full_name: formData.get('full_name')
                     }};
@@ -790,8 +777,7 @@ async def admin_management_page(db: Session = Depends(get_db), user: dict = Depe
                         const response = await fetch('/auth/create-admin', {{
                             method: 'POST',
                             headers: {{
-                                'Content-Type': 'application/json',
-                                'Authorization': 'Bearer ' + token
+                                'Content-Type': 'application/json'
                             }},
                             body: JSON.stringify(data)
                         }});
@@ -815,14 +801,9 @@ async def admin_management_page(db: Session = Depends(get_db), user: dict = Depe
                         return;
                     }}
                     
-                    const token = localStorage.getItem('admin_token');
-                    
                     try {{
                         const response = await fetch(`/auth/admins/${{adminId}}`, {{
-                            method: 'DELETE',
-                            headers: {{
-                                'Authorization': 'Bearer ' + token
-                            }}
+                            method: 'DELETE'
                         }});
                         
                         const result = await response.json();
@@ -837,11 +818,89 @@ async def admin_management_page(db: Session = Depends(get_db), user: dict = Depe
                         showMessage('Network error: ' + error.message, 'error');
                     }}
                 }}
+                
+                async function makeSuperAdmin(adminId) {{
+                    if (!confirm('Are you sure you want to make this admin a super admin? This will give them full administrative privileges.')) {{
+                        return;
+                    }}
+                    
+                    try {{
+                        const response = await fetch(`/auth/admins/${{adminId}}/make-super-admin`, {{
+                            method: 'POST'
+                        }});
+                        
+                        const result = await response.json();
+                        
+                        if (response.ok) {{
+                            showMessage('Admin promoted to super admin successfully!', 'success');
+                            setTimeout(() => location.reload(), 2000);
+                        }} else {{
+                            showMessage(result.detail || 'Error promoting admin', 'error');
+                        }}
+                    }} catch (error) {{
+                        showMessage('Network error: ' + error.message, 'error');
+                    }}
+                }}
+                
+                async function removeSuperAdmin(adminId) {{
+                    if (!confirm('Are you sure you want to remove super admin status from this admin?')) {{
+                        return;
+                    }}
+                    
+                    try {{
+                        const response = await fetch(`/auth/admins/${{adminId}}/remove-super-admin`, {{
+                            method: 'POST'
+                        }});
+                        
+                        const result = await response.json();
+                        
+                        if (response.ok) {{
+                            showMessage('Super admin status removed successfully!', 'success');
+                            setTimeout(() => location.reload(), 2000);
+                        }} else {{
+                            showMessage(result.detail || 'Error removing super admin status', 'error');
+                        }}
+                    }} catch (error) {{
+                        showMessage('Network error: ' + error.message, 'error');
+                    }}
+                }}
+                
+                function editAdmin(adminId, email, fullName) {{
+                    const newEmail = prompt('Edit Email:', email);
+                    const newFullName = prompt('Edit Full Name:', fullName);
+                    
+                    if (newEmail !== null && newFullName !== null) {{
+                        updateAdmin(adminId, {{ email: newEmail, full_name: newFullName }});
+                    }}
+                }}
+                
+                async function updateAdmin(adminId, updateData) {{
+                    try {{
+                        const response = await fetch(`/auth/admins/${{adminId}}`, {{
+                            method: 'PUT',
+                            headers: {{
+                                'Content-Type': 'application/json'
+                            }},
+                            body: JSON.stringify(updateData)
+                        }});
+                        
+                        const result = await response.json();
+                        
+                        if (response.ok) {{
+                            showMessage('Admin updated successfully!', 'success');
+                            setTimeout(() => location.reload(), 2000);
+                        }} else {{
+                            showMessage(result.detail || 'Error updating admin', 'error');
+                        }}
+                    }} catch (error) {{
+                        showMessage('Network error: ' + error.message, 'error');
+                    }}
+                }}
             </script>
         </head>
         <body>
             <div class="auth-info">
-                👤 Admin: {user['username']} 
+                👤 Admin: {user['email']} 
                 <button class="logout-btn" onclick="logout()">Logout</button>
             </div>
             <div class="container">
@@ -853,7 +912,7 @@ async def admin_management_page(db: Session = Depends(get_db), user: dict = Depe
                 
                 <div class="nav-links">
                     <a href="/admin/chat-logs">Chat Logs</a>
-                    <a href="/admin/admins">Admin Management</a>
+                    {f'<a href="/admin/admins">Admin Management</a>' if user.get('is_super_admin', False) else ''}
                 </div>
                 
                 <div id="message" class="message"></div>
@@ -865,10 +924,6 @@ async def admin_management_page(db: Session = Depends(get_db), user: dict = Depe
                             <div class="form-group">
                                 <label>Email</label>
                                 <input type="email" name="email" required>
-                            </div>
-                            <div class="form-group">
-                                <label>Username</label>
-                                <input type="text" name="username" required>
                             </div>
                             <div class="form-group">
                                 <label>Password</label>
@@ -888,7 +943,6 @@ async def admin_management_page(db: Session = Depends(get_db), user: dict = Depe
                         <tr>
                             <th>ID</th>
                             <th>Email</th>
-                            <th>Username</th>
                             <th>Full Name</th>
                             <th>Type</th>
                             <th>Status</th>
@@ -906,20 +960,39 @@ async def admin_management_page(db: Session = Depends(get_db), user: dict = Depe
             status_text = "Active" if admin.is_active else "Inactive"
             last_login = admin.last_login.strftime('%Y-%m-%d %H:%M') if admin.last_login else 'Never'
             
-            delete_btn = ""
-            if not admin.is_super_admin:
-                delete_btn = f'<button class="btn btn-danger" onclick="deleteAdmin({admin.id})" style="font-size: 0.8em; padding: 5px 10px;">Deactivate</button>'
+            # Build action buttons
+            actions = []
+            
+            # Edit button (for self or super admins)
+            if user.get('is_super_admin') or user.get('admin_id') == admin.id:
+                full_name_escaped = (admin.full_name or '').replace("'", "\\'")
+                edit_btn = f'<button class="btn btn-primary" onclick="editAdmin({admin.id}, \'{admin.email}\', \'{full_name_escaped}\')" '
+                edit_btn += 'style="font-size: 0.8em; padding: 5px 10px; margin-right: 5px; background: #00d4ff;">Edit</button>'
+                actions.append(edit_btn)
+            
+            # Delete button (super admin only, not for super admins)
+            if user.get('is_super_admin') and not admin.is_super_admin:
+                actions.append(f'<button class="btn btn-danger" onclick="deleteAdmin({admin.id})" style="font-size: 0.8em; padding: 5px 10px; margin-right: 5px;">Deactivate</button>')
+            
+            # Make super admin button (super admin only, not for super admins)
+            if user.get('is_super_admin') and not admin.is_super_admin:
+                actions.append(f'<button class="btn btn-primary" onclick="makeSuperAdmin({admin.id})" style="font-size: 0.8em; padding: 5px 10px; margin-right: 5px; background: #ffa500;">Make Super Admin</button>')
+            
+            # Remove super admin button (owner only, for super admins except owner)
+            if user.get('email', '').lower() == 'wesman687@gmail.com' and admin.is_super_admin and admin.email.lower() != 'wesman687@gmail.com':
+                actions.append(f'<button class="btn btn-danger" onclick="removeSuperAdmin({admin.id})" style="font-size: 0.8em; padding: 5px 10px; margin-right: 5px; background: #ff6600;">Remove Super Admin</button>')
+            
+            actions_html = ''.join(actions)
             
             html_content += f"""
                         <tr>
                             <td>{admin.id}</td>
                             <td>{admin.email}</td>
-                            <td>{admin.username}</td>
                             <td>{admin.full_name or 'N/A'}</td>
                             <td><span class="status-badge {admin_type_class}">{admin_type}</span></td>
                             <td><span class="status-badge {status_class}">{status_text}</span></td>
                             <td>{last_login}</td>
-                            <td>{delete_btn}</td>
+                            <td>{actions_html}</td>
                         </tr>
             """
         

@@ -1,0 +1,52 @@
+{
+  "name": "streamlineai-badge",
+  "version": "1.2.0",
+  "description": "Professional embed badges for StreamlineAI-powered applications",
+  "main": "dist/index.js",
+  "module": "dist/index.esm.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.esm.js",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "rollup -c",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "react",
+    "badge",
+    "streamlineai",
+    "embed",
+    "component",
+    "ui",
+    "javascript",
+    "typescript"
+  ],
+  "author": "StreamlineAI <support@stream-lineai.com>",
+  "license": "MIT",
+  "homepage": "https://stream-lineai.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/streamlineai/badge"
+  },
+  "peerDependencies": {
+    "react": ">=16.8.0"
+  },
+  "devDependencies": {
+    "@rollup/plugin-node-resolve": "^15.0.0",
+    "@rollup/plugin-typescript": "^11.0.0",
+    "@types/react": "^18.0.0",
+    "react": "^18.0.0",
+    "rollup": "^3.0.0",
+    "tslib": "^2.6.0",
+    "typescript": "^5.0.0"
+  }
+}

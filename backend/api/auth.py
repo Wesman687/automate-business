@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Header
+from fastapi import APIRouter, HTTPException, Depends, Header, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -16,36 +16,84 @@ class LoginRequest(BaseModel):
 
 class LoginResponse(BaseModel):
     token: str
-    expires_at: str
-    message: str
-    admin_info: dict
+    user: dict
 
 class CreateAdminRequest(BaseModel):
     email: str
-    username: str
+    username: Optional[str] = None  # Made optional, will auto-generate if not provided
     password: str
     full_name: Optional[str] = None
 
-def get_current_user(authorization: str = Header(None), db: Session = Depends(get_db)):
-    """Dependency to validate authentication token"""
-    if not authorization:
-        raise HTTPException(status_code=401, detail="Authorization header required")
+def get_current_user(authorization: str = Header(None), request: Request = None, db: Session = Depends(get_db)):
+    """Dependency to validate authentication token from header or cookie"""
+    token = None
     
-    # Extract token from "Bearer <token>" format
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Invalid authorization format")
+    # Try to get token from Authorization header first
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization.replace("Bearer ", "")
+        print(f"🔑 Found token in header: {token[:20]}...")
     
-    token = authorization.replace("Bearer ", "")
+    # If no header token, try to get from cookie
+    if not token and request:
+        print(f"🍪 Checking cookies: {dict(request.cookies)}")
+        token = request.cookies.get('admin_token')
+        if token:
+            print(f"🍪 Found token in cookie: {token[:20]}...")
+        else:
+            print("🚫 No token found in cookie")
+    
+    if not token:
+        print("❌ No authentication token found")
+        raise HTTPException(status_code=401, detail="Authorization required")
+    
+    try:
+        user_info = auth_service.validate_token(token)
+        
+        if not user_info:
+            print("❌ Invalid token")
+            raise HTTPException(status_code=401, detail="Invalid or expired token")
+        
+        print(f"✅ Authenticated user: {user_info.get('email', 'unknown')}")
+        
+        # Verify admin still exists and is active
+        admin_service = AdminService(db)
+        admin = admin_service.get_admin_by_id(user_info['admin_id'])
+        if not admin or not admin.is_active:
+            raise HTTPException(status_code=401, detail="Admin account no longer active")
+        
+        return user_info
+    except Exception as e:
+        print(f"❌ Token validation error: {str(e)}")
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+def get_current_user_or_redirect(request: Request, db: Session = Depends(get_db)):
+    """Dependency for browser routes - redirects to login if not authenticated"""
+    from fastapi.responses import RedirectResponse
+    from fastapi import HTTPException
+    
+    token = None
+    
+    # Try to get token from cookie
+    token = request.cookies.get('admin_token')
+    
+    if not token:
+        print("🚫 No authentication cookie found, redirecting to login")
+        raise HTTPException(status_code=302, headers={"Location": "/auth/login"})
+    
     user_info = auth_service.validate_token(token)
     
     if not user_info:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
+        print("❌ Invalid token, redirecting to login")
+        raise HTTPException(status_code=302, headers={"Location": "/auth/login"})
+    
+    print(f"✅ Authenticated user: {user_info.get('email', 'unknown')}")
     
     # Verify admin still exists and is active
     admin_service = AdminService(db)
     admin = admin_service.get_admin_by_id(user_info['admin_id'])
     if not admin or not admin.is_active:
-        raise HTTPException(status_code=401, detail="Admin account no longer active")
+        print("❌ Admin account inactive, redirecting to login")
+        raise HTTPException(status_code=302, headers={"Location": "/auth/login"})
     
     return user_info
 
@@ -108,7 +156,7 @@ async def login_page():
                 color: #ccc;
                 font-weight: bold;
             }
-            input[type="text"], input[type="password"] {
+            input[type="email"], input[type="text"], input[type="password"] {
                 width: 100%;
                 padding: 12px;
                 border: 1px solid #444;
@@ -119,7 +167,7 @@ async def login_page():
                 box-sizing: border-box;
                 padding-right: 45px;
             }
-            input[type="text"]:focus, input[type="password"]:focus {
+            input[type="email"]:focus, input[type="text"]:focus, input[type="password"]:focus {
                 outline: none;
                 border-color: #00d4ff;
                 box-shadow: 0 0 5px rgba(0, 212, 255, 0.3);
@@ -205,10 +253,10 @@ async def login_page():
             <div id="error" class="error"></div>
             <div id="success" class="success"></div>
             
-            <form id="loginForm">
+            <form id="loginForm" method="POST" action="/auth/login-browser">
                 <div class="form-group">
-                    <label for="username">Username</label>
-                    <input type="text" id="username" name="username" required>
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" required>
                 </div>
                 
                 <div class="form-group">
@@ -246,57 +294,6 @@ async def login_page():
                     button.textContent = '👁️ Show';
                 }
             }
-            
-            document.getElementById('loginForm').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                
-                const username = document.getElementById('username').value;
-                const password = document.getElementById('password').value;
-                const errorDiv = document.getElementById('error');
-                const successDiv = document.getElementById('success');
-                const loadingDiv = document.getElementById('loading');
-                const loginBtn = document.getElementById('loginBtn');
-                
-                // Reset messages
-                errorDiv.style.display = 'none';
-                successDiv.style.display = 'none';
-                
-                // Show loading
-                loadingDiv.style.display = 'block';
-                loginBtn.disabled = true;
-                
-                try {
-                    const response = await fetch('/auth/login', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ username, password })
-                    });
-                    
-                    const data = await response.json();
-                    
-                    if (response.ok) {
-                        // Store token and redirect
-                        localStorage.setItem('admin_token', data.token);
-                        successDiv.textContent = 'Login successful! Redirecting...';
-                        successDiv.style.display = 'block';
-                        
-                        setTimeout(() => {
-                            window.location.href = '/admin/chat-logs';
-                        }, 1000);
-                    } else {
-                        errorDiv.textContent = data.detail || 'Login failed';
-                        errorDiv.style.display = 'block';
-                    }
-                } catch (error) {
-                    errorDiv.textContent = 'Network error. Please try again.';
-                    errorDiv.style.display = 'block';
-                } finally {
-                    loadingDiv.style.display = 'none';
-                    loginBtn.disabled = false;
-                }
-            });
         </script>
     </body>
     </html>
@@ -306,16 +303,19 @@ async def login_page():
 async def login(request: LoginRequest, db: Session = Depends(get_db)):
     """Authenticate user and return token"""
     admin_service = AdminService(db)
-    admin = admin_service.get_admin_by_email(request.email)
+    admin = admin_service.authenticate_admin(request.email, request.password)
     
-    if not admin or not admin_service.verify_password(request.password, admin.password_hash):
+    if not admin:
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
-    if not admin.is_active:
-        raise HTTPException(status_code=403, detail="Account is deactivated")
-    
-    # Generate token
-    token = auth_service.create_token(admin.email)
+    # Create authentication token
+    admin_data = {
+        'id': admin.id,
+        'username': admin.username,
+        'email': admin.email,
+        'is_super_admin': admin.is_super_admin
+    }
+    token = auth_service.generate_token(admin_data)
     
     return LoginResponse(
         token=token,
@@ -329,18 +329,166 @@ async def login(request: LoginRequest, db: Session = Depends(get_db)):
         }
     )
 
-@router.get("/validate")
-async def validate_token(current_user: dict = Depends(get_current_user)):
-    """Validate authentication token and return user info"""
-    return {"user": current_user}
+@router.post("/login-browser")
+async def login_browser(request: Request, db: Session = Depends(get_db)):
+    """Login endpoint that sets an admin cookie for browser access"""
+    # Get form data
+    form = await request.form()
+    email = form.get("email")
+    password = form.get("password")
+    
+    if not email or not password:
+        raise HTTPException(status_code=400, detail="Email and password required")
+    
+    admin_service = AdminService(db)
+    admin = admin_service.authenticate_admin(email, password)
+    
+    if not admin:
+        # Return error page
+        error_html = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Login Failed</title>
+            <style>
+                body {
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    background: linear-gradient(135deg, #0c0c0c 0%, #1a1a1a 100%);
+                    color: #e0e0e0;
+                    margin: 0;
+                    padding: 20px;
+                    text-align: center;
+                }
+                h1 { color: #ff4444; }
+                a { color: #00d4ff; text-decoration: none; }
+                a:hover { text-decoration: underline; }
+            </style>
+        </head>
+        <body>
+            <h1>Login Failed</h1>
+            <p>Invalid email or password. Please try again.</p>
+            <a href="/auth/login">← Back to Login</a>
+        </body>
+        </html>
+        """
+        return HTMLResponse(content=error_html, status_code=401)
+    
+    # Create authentication token
+    admin_data = {
+        'id': admin.id,
+        'username': admin.username,
+        'email': admin.email,
+        'is_super_admin': admin.is_super_admin
+    }
+    token = auth_service.generate_token(admin_data)
+    
+    # Create response with HTML redirect
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Login Success</title>
+        <style>
+            body {{
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                background: linear-gradient(135deg, #0c0c0c 0%, #1a1a1a 100%);
+                color: #e0e0e0;
+                margin: 0;
+                padding: 20px;
+                text-align: center;
+            }}
+            h1 {{ color: #00d4ff; }}
+        </style>
+        <script>
+            // Redirect to admin dashboard after 2 seconds
+            setTimeout(function() {{
+                window.location.href = '/admin/';
+            }}, 2000);
+        </script>
+    </head>
+    <body>
+        <h1>Login Successful!</h1>
+        <p>Welcome, {admin.full_name}! Redirecting to admin dashboard...</p>
+    </body>
+    </html>
+    """
+    
+    response = HTMLResponse(content=html_content)
+    # Set cookie with token
+    print(f"🍪 Setting cookie with token: {token[:20]}...")
+    response.set_cookie(
+        key="admin_token",
+        value=token,
+        httponly=False,  # Allow JavaScript access for debugging
+        max_age=86400,  # 24 hours
+        path="/",
+        secure=False,  # Set to True in production with HTTPS
+        samesite="lax"  # Allow cookie to be sent on same-site requests
+    )
+    
+    return response
+
+@router.post("/logout")
+async def logout():
+    """Logout and clear authentication cookie"""
+    html_content = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Logged Out</title>
+        <style>
+            body {
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                background: linear-gradient(135deg, #0c0c0c 0%, #1a1a1a 100%);
+                color: #e0e0e0;
+                margin: 0;
+                padding: 20px;
+                text-align: center;
+            }
+            h1 { color: #00d4ff; }
+            a { color: #00d4ff; text-decoration: none; }
+            a:hover { text-decoration: underline; }
+        </style>
+        <script>
+            // Redirect to login after 3 seconds
+            setTimeout(function() {
+                window.location.href = '/auth/login';
+            }, 3000);
+        </script>
+    </head>
+    <body>
+        <h1>Logged Out Successfully</h1>
+        <p>You have been logged out. Redirecting to login page...</p>
+        <a href="/auth/login">← Back to Login</a>
+    </body>
+    </html>
+    """
+    
+    response = HTMLResponse(content=html_content)
+    # Clear the authentication cookie
+    response.delete_cookie(key="admin_token", path="/")
+    return response
 
 @router.get("/validate")
-async def validate_token(user_info: dict = Depends(get_current_user)):
-    """Validate current token"""
+async def validate_token(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Validate authentication token and return user info"""
+    # Get full admin details for frontend
+    admin_service = AdminService(db)
+    admin = admin_service.get_admin_by_id(current_user['admin_id'])
+    
+    if not admin:
+        raise HTTPException(status_code=401, detail="Admin not found")
+    
     return {
-        "valid": True,
-        "user": user_info['username'],
-        "expires_at": user_info['expires_at']
+        "valid": True, 
+        "user": {
+            "id": admin.id,
+            "email": admin.email,
+            "username": admin.username,
+            "full_name": admin.full_name,
+            "is_super_admin": admin.is_super_admin,
+            "is_active": admin.is_active
+        }
     }
 
 @router.post("/logout")
@@ -400,9 +548,20 @@ async def create_admin(
     admin_service = AdminService(db)
     
     try:
+        # Auto-generate username from email if not provided
+        username = request.username
+        if not username:
+            username = request.email.split('@')[0]
+            # Ensure uniqueness by appending numbers if needed
+            counter = 1
+            original_username = username
+            while admin_service.get_admin_by_username(username):
+                username = f"{original_username}{counter}"
+                counter += 1
+        
         new_admin = admin_service.create_admin(
             email=request.email,
-            username=request.username,
+            username=username,
             password=request.password,
             full_name=request.full_name,
             is_super_admin=False
@@ -462,5 +621,81 @@ async def delete_admin(
             return {"message": "Admin deactivated successfully"}
         else:
             raise HTTPException(status_code=404, detail="Admin not found")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/admins/{admin_id}/make-super-admin")
+async def make_super_admin(
+    admin_id: int,
+    current_user: dict = Depends(get_super_admin),
+    db: Session = Depends(get_db)
+):
+    """Make an admin a super admin - only super admins can do this"""
+    admin_service = AdminService(db)
+    
+    success = admin_service.make_super_admin(admin_id, current_user["admin_id"])
+    
+    if success:
+        return {"message": "Admin promoted to super admin successfully"}
+    else:
+        raise HTTPException(status_code=400, detail="Failed to promote admin")
+
+@router.post("/admins/{admin_id}/remove-super-admin")
+async def remove_super_admin(
+    admin_id: int,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Remove super admin status - only the owner can do this"""
+    # Only allow wesman687@gmail.com to remove super admin status
+    if current_user["email"].lower() != "wesman687@gmail.com":
+        raise HTTPException(status_code=403, detail="Only the owner can remove super admin status")
+    
+    admin_service = AdminService(db)
+    admin = admin_service.get_admin_by_id(admin_id)
+    
+    if not admin:
+        raise HTTPException(status_code=404, detail="Admin not found")
+    
+    if not admin.is_super_admin:
+        raise HTTPException(status_code=400, detail="Admin is not a super admin")
+    
+    # Don't allow removing owner's super admin status
+    if admin.email.lower() == "wesman687@gmail.com":
+        raise HTTPException(status_code=400, detail="Cannot remove owner's super admin status")
+    
+    success = admin_service.remove_super_admin(admin_id)
+    
+    if success:
+        return {"message": "Super admin status removed successfully"}
+    else:
+        raise HTTPException(status_code=400, detail="Failed to remove super admin status")
+
+@router.put("/admins/{admin_id}")
+async def update_admin_details(
+    admin_id: int,
+    update_data: dict,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update admin details - admins can update their own info, super admins can update any"""
+    admin_service = AdminService(db)
+    
+    # Check permissions
+    if not current_user.get("is_super_admin", False) and current_user["admin_id"] != admin_id:
+        raise HTTPException(status_code=403, detail="Can only update your own information")
+    
+    try:
+        updated_admin = admin_service.update_admin(
+            admin_id=admin_id,
+            email=update_data.get("email"),
+            full_name=update_data.get("full_name")
+        )
+        
+        if updated_admin:
+            return {"message": "Admin updated successfully"}
+        else:
+            raise HTTPException(status_code=404, detail="Admin not found")
+            
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

@@ -1,0 +1,27 @@
+<!-- StreamlineAI Badge - Professional Card Style -->
+<a href="https://stream-lineai.com" target="_blank" style="display: inline-block; padding: 12px 20px; background: white; color: #333; text-decoration: none; border-radius: 8px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 13px; border: 1px solid #e0e0e0; box-shadow: 0 2px 12px rgba(0,0,0,0.1); transition: all 0.3s ease; position: relative; overflow: hidden;">
+    <div style="display: flex; align-items: center; justify-content: center;">
+        <div style="width: 3px; height: 20px; background: linear-gradient(135deg, #00d4ff, #0099cc); border-radius: 2px; margin-right: 10px;"></div>
+        <div>
+            <div style="font-weight: 600; color: #333; margin-bottom: 2px;">Powered by</div>
+            <div style="font-weight: 700; color: #00d4ff; font-size: 15px;">StreamlineAI</div>
+        </div>
+    </div>
+</a>
+
+<script>
+// Add hover effect
+document.addEventListener('DOMContentLoaded', function() {
+    const badge = document.querySelector('a[href*="stream-lineai.com"]');
+    if (badge) {
+        badge.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-2px) scale(1.02)';
+            this.style.boxShadow = '0 4px 20px rgba(0,0,0,0.15)';
+        });
+        badge.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0) scale(1)';
+            this.style.boxShadow = '0 2px 12px rgba(0,0,0,0.1)';
+        });
+    }
+});
+</script>

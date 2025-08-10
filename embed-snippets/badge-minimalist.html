@@ -1,0 +1,22 @@
+<!-- StreamlineAI Badge - Minimalist Style -->
+<a href="https://stream-lineai.com" target="_blank" style="display: inline-flex; align-items: center; padding: 8px 16px; background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%); color: white; text-decoration: none; border-radius: 25px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; font-weight: 500; box-shadow: 0 2px 8px rgba(0, 212, 255, 0.3); transition: all 0.3s ease; border: none;">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="margin-right: 6px;">
+        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+    </svg>
+    Designed by StreamlineAI
+</a>
+
+<script>
+// Add hover effect
+document.addEventListener('DOMContentLoaded', function() {
+    const badge = document.querySelector('a[href*="stream-lineai.com"]');
+    if (badge) {
+        badge.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-2px) scale(1.05)';
+        });
+        badge.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0) scale(1)';
+        });
+    }
+});
+</script>

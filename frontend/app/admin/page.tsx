@@ -58,6 +58,14 @@ export default function AdminDashboard() {
     }
   }
 
+    const openBackendAdmin = (path: string) => {
+    // First check if user is already authenticated with backend (by trying a simple request)
+    const backendUrl = `${API_BASE_URL}/admin${path}`
+    
+    // Open backend admin directly - if not authenticated, it will redirect to login
+    window.open(backendUrl, '_blank')
+  }
+
   const calculateStats = (customerData: Customer[]) => {
     // Handle case where customerData might be undefined or not an array
     if (!customerData || !Array.isArray(customerData)) {
@@ -134,6 +142,29 @@ export default function AdminDashboard() {
         >
           <h1 className="text-4xl font-bold text-white mb-2">Admin Dashboard</h1>
           <p className="text-gray-400">Streamline Tech Solutions - Lead Management</p>
+        </motion.div>
+
+        {/* Navigation Links */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="mb-8 flex flex-wrap gap-4 justify-center"
+        >
+          <button
+            onClick={() => openBackendAdmin('/chat-logs')}
+            className="bg-electric-blue text-black px-6 py-3 rounded-lg font-mono hover:bg-opacity-80 transition-colors duration-300 flex items-center space-x-2"
+          >
+            <MessageSquare className="w-4 h-4" />
+            <span>Chat Logs</span>
+          </button>
+          <button
+            onClick={() => openBackendAdmin('/admins')}
+            className="bg-neon-green text-black px-6 py-3 rounded-lg font-mono hover:bg-opacity-80 transition-colors duration-300 flex items-center space-x-2"
+          >
+            <Users className="w-4 h-4" />
+            <span>Admin Management</span>
+          </button>
         </motion.div>
 
         {/* Stats Cards */}

@@ -44,7 +44,8 @@ class AdminService:
     
     def get_admin_by_email(self, email: str) -> Optional[Admin]:
         """Get admin by email"""
-        return self.db.query(Admin).filter(Admin.email == email).first()
+        from sqlalchemy import func
+        return self.db.query(Admin).filter(func.lower(Admin.email) == func.lower(email)).first()
     
     def get_admin_by_username(self, username: str) -> Optional[Admin]:
         """Get admin by username"""
@@ -151,6 +152,17 @@ class AdminService:
         self.db.commit()
         return True
     
+    def remove_super_admin(self, admin_id: int) -> bool:
+        """Remove super admin status from an admin"""
+        admin = self.get_admin_by_id(admin_id)
+        if not admin:
+            return False
+        
+        admin.is_super_admin = False
+        admin.updated_at = datetime.utcnow()
+        self.db.commit()
+        return True
+    
     def setup_initial_super_admin(self, email: str, username: str, password: str, full_name: str = None) -> Admin:
         """Setup the initial super admin (only if no super admin exists)"""
         # Check if any super admin exists
@@ -180,4 +192,5 @@ class AdminService:
     
     def get_admin_by_email(self, email: str) -> Optional[Admin]:
         """Get admin by email"""
-        return self.db.query(Admin).filter(Admin.email == email).first()
+        from sqlalchemy import func
+        return self.db.query(Admin).filter(func.lower(Admin.email) == func.lower(email)).first()

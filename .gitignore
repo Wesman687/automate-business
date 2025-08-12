@@ -106,3 +106,15 @@ temp/
 *.db
 *.sqlite
 *.sqlite3
+
+# OAuth and API credentials (sensitive)
+backend/streamline-oauthcredentials.json
+backend/gdrive_token.json
+*oauthcredentials*.json
+*token*.json
+credentials.json
+service-account*.json
+
+# Google API credentials
+google-credentials.json
+gcp-credentials.json

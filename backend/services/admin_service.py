@@ -14,7 +14,7 @@ class AdminService:
         salt = os.getenv('PASSWORD_SALT', 'streamline_salt_2024')
         return hashlib.pbkdf2_hmac('sha256', password.encode(), salt.encode(), 100000).hex()
     
-    def create_admin(self, email: str, username: str, password: str, full_name: str = None, is_super_admin: bool = False) -> Admin:
+    def create_admin(self, email: str, username: str, password: str, full_name: str = None, phone: str = None, address: str = None, is_super_admin: bool = False) -> Admin:
         """Create a new admin user"""
         # Check if admin already exists
         existing_admin = self.get_admin_by_email(email)
@@ -33,6 +33,8 @@ class AdminService:
             username=username,
             password_hash=password_hash,
             full_name=full_name,
+            phone=phone,
+            address=address,
             is_super_admin=is_super_admin,
             is_active=True
         )
@@ -80,7 +82,8 @@ class AdminService:
         return self.db.query(Admin).order_by(Admin.created_at.desc()).all()
     
     def update_admin(self, admin_id: int, email: str = None, username: str = None, 
-                    full_name: str = None, is_active: bool = None) -> Optional[Admin]:
+                    full_name: str = None, phone: str = None, address: str = None, 
+                    password: str = None, is_active: bool = None) -> Optional[Admin]:
         """Update admin details"""
         admin = self.get_admin_by_id(admin_id)
         if not admin:
@@ -102,6 +105,15 @@ class AdminService:
         
         if full_name is not None:
             admin.full_name = full_name
+        
+        if phone is not None:
+            admin.phone = phone
+        
+        if address is not None:
+            admin.address = address
+        
+        if password:
+            admin.password_hash = self._hash_password(password)
         
         if is_active is not None:
             admin.is_active = is_active

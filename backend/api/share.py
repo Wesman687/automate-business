@@ -1186,7 +1186,6 @@ async def share_badges_page(request: Request):
                 
                 // Generate React code
                 let reactProps = [];
-                if (currentConfig.size !== 'medium') reactProps.push(`size="${{currentConfig.size}}"`);
                 if (currentConfig.animation !== 'none') reactProps.push(`animation="${{currentConfig.animation}}"`);
                 if (currentConfig.position === 'fixed' || currentConfig.style === 'corner') {{
                     if (currentConfig.style !== 'corner') reactProps.push(`position="fixed"`);

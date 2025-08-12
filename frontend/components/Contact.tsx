@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion'
 import { Mail, MessageSquare, Github, Linkedin } from 'lucide-react'
 import { useState } from 'react'
+import Link from 'next/link'
 import NotificationComponent from './NotificationComponent'
 
 export default function Contact() {
@@ -256,6 +257,15 @@ export default function Contact() {
           
           <div className="text-gray-400 text-sm">
             <p>&copy; 2024 Streamline AI. All rights reserved.</p>
+            <div className="flex justify-center items-center gap-4 mt-2">
+              <Link href="/privacy-policy" className="hover:text-cyan-400 transition-colors">
+                Privacy Policy
+              </Link>
+              <span>•</span>
+              <Link href="/terms-of-service" className="hover:text-cyan-400 transition-colors">
+                Terms of Service
+              </Link>
+            </div>
             <p className="mt-2">
               Built with ❤️ using Next.js, TailwindCSS, and cutting-edge AI technology.
             </p>

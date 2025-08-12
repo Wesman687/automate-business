@@ -8,8 +8,11 @@ from api.customers import router as customers_router
 from api.contact import router as contact_router
 from api.admin import router as admin_router
 from api.auth import router as auth_router
+from api.customer_auth import router as customer_auth_router
 from api.email import router as email_router
 from api.share import router as share_router
+from api.api_endpoints import router as api_router
+from api.financial import router as financial_router
 import logging
 import os
 from datetime import datetime
@@ -162,8 +165,11 @@ app.include_router(customers_router)
 app.include_router(contact_router)
 app.include_router(admin_router)
 app.include_router(auth_router)
+app.include_router(customer_auth_router)
 app.include_router(email_router)
 app.include_router(share_router)
+app.include_router(api_router)
+app.include_router(financial_router, prefix="/api")
 
 @app.get("/health")
 async def health_check():

@@ -13,7 +13,16 @@ class CustomerService:
         if existing:
             return existing
         
-        db_customer = Customer(**customer_data.dict())
+        # Create customer with default authentication values
+        customer_dict = customer_data.dict()
+        customer_dict.update({
+            'is_authenticated': False,
+            'password_hash': None,
+            'reset_code': None,
+            # 'reset_code_expires': None  # Temporarily disabled
+        })
+        
+        db_customer = Customer(**customer_dict)
         self.db.add(db_customer)
         self.db.commit()
         self.db.refresh(db_customer)
@@ -27,6 +36,14 @@ class CustomerService:
     
     def get_customers(self, skip: int = 0, limit: int = 100) -> List[Customer]:
         return self.db.query(Customer).offset(skip).limit(limit).all()
+    
+    def get_all_customers(self) -> List[Customer]:
+        """Get all customers with their chat sessions"""
+        return self.db.query(Customer).all()
+    
+    def get_customer(self, customer_id: int) -> Optional[Customer]:
+        """Get customer by ID - alias for get_customer_by_id"""
+        return self.get_customer_by_id(customer_id)
     
     def update_customer(self, customer_id: int, customer_data: CustomerUpdate) -> Optional[Customer]:
         customer = self.get_customer_by_id(customer_id)
@@ -55,6 +72,17 @@ class CustomerService:
         self.db.commit()
         self.db.refresh(customer)
         return customer
+    
+    def delete_customer(self, customer_id: int) -> bool:
+        """Delete a customer and all associated data"""
+        customer = self.get_customer_by_id(customer_id)
+        if not customer:
+            return False
+        
+        # Note: This will cascade delete chat sessions due to foreign key constraints
+        self.db.delete(customer)
+        self.db.commit()
+        return True
     
     def update_customer_from_chat(self, email: str, extracted_info: dict) -> Customer:
         """Update or create customer from extracted chat information"""

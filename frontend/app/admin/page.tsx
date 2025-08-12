@@ -37,11 +37,17 @@ export default function AdminDashboard() {
 
   const fetchCustomers = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/customers`)
+      const token = localStorage.getItem('admin_token')
+      const response = await fetch(`${API_BASE_URL}/api/customers`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
       if (response.ok) {
         const data = await response.json()
-        // Ensure we have a valid customers array
-        const customers = data?.customers || []
+        // The API returns the customers array directly
+        const customers = Array.isArray(data) ? data : []
         setCustomers(customers)
         calculateStats(customers)
       } else {

@@ -4,74 +4,21 @@ import HowItWorks from '@/components/HowItWorks'
 import TechCredibility from '@/components/TechCredibility'
 import About from '@/components/About'
 import Contact from '@/components/Contact'
-import Head from 'next/head'
 import Script from 'next/script'
 
 export default function Home() {
   return (
     <main className="min-h-screen">
-<Head>
-
-  {/* ✅ Primary Meta Tags */}
-  <Script id="google-tag-manager" strategy="afterInteractive">
-    {`
-      (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-      new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-      j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-      'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-      })(window,document,'script','dataLayer','GTM-TX2RM6CL');
-    `}
-  </Script>
-
-  <title>Streamline AI - Business Automation, Websites & Mobile Apps</title>
-  <meta
-    name="description"
-    content="We help businesses automate workflows, build custom websites, and develop powerful mobile apps using AI-powered tools. Save time, reduce costs, and scale your business with our expert automation services."
-  />
-  <meta
-    name="keywords"
-    content="business automation, website design, ai chatbots, mobile app development, custom dashboards, ai automation, streamlineai, workflow optimization, small business apps, real-time analytics, professional automation services, AI consulting, process automation, digital transformation"
-  />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta charSet="UTF-8" />
-  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
-  <meta name="author" content="Streamline AI" />
-  <meta name="language" content="English" />
-  <meta name="revisit-after" content="7 days" />
-  
-  {/* ✅ Canonical URL */}
-  <link rel="canonical" href="https://stream-lineai.com" />
-  
-  {/* ✅ Favicon and App Icons */}
-  <link rel="icon" href="/favicon.ico" />
-  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
-  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-  <link rel="manifest" href="/site.webmanifest" />
-  <meta name="theme-color" content="#0088CC" />
-
-  {/* ✅ Enhanced Open Graph (Facebook, LinkedIn) */}
-  <meta property="og:title" content="Streamline AI - Business Automation Experts | AI-Powered Solutions" />
-  <meta property="og:description" content="Transform your business with AI automation. Custom chatbots, mobile apps, and workflow solutions that save time and boost productivity. Free consultation available." />
-  <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://stream-lineai.com" />
-  <meta property="og:image" content="https://stream-lineai.com/og-banner-desktop.png?v=2025" />
-  <meta property="og:image:width" content="1200" />
-  <meta property="og:image:height" content="630" />
-  <meta property="og:image:alt" content="Streamline AI - Automate Your Business with AI-powered tools and custom solutions" />
-  <meta property="og:image:type" content="image/png" />
-  <meta property="og:site_name" content="Streamline AI" />
-  <meta property="og:locale" content="en_US" />
-  <meta property="article:author" content="Streamline AI" />
-
-  {/* ✅ Enhanced Twitter Card */}
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Streamline AI - Automate Your Business with AI" />
-  <meta name="twitter:description" content="Custom AI tools, websites, and mobile apps to streamline your business. Get your free consultation today!" />
-  <meta name="twitter:image" content="https://stream-lineai.com/og-banner-mobile.png?v=2025" />
-  <meta name="twitter:image:alt" content="Streamline AI mobile banner with logo and automation solutions" />
-  <meta name="twitter:creator" content="@StreamlineAI" />
-  <meta name="twitter:site" content="@StreamlineAI" />
+      {/* Google Tag Manager Script */}
+      <Script id="google-tag-manager" strategy="afterInteractive">
+        {`
+          (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+          new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+          j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+          'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+          })(window,document,'script','dataLayer','GTM-TX2RM6CL');
+        `}
+      </Script>
 
   {/* ✅ Enhanced JSON-LD Structured Data for SEO */}
   <script type="application/ld+json" dangerouslySetInnerHTML={{
@@ -227,7 +174,6 @@ export default function Home() {
       "dateModified": "2025-01-04"
     })
   }} />
-</Head>
 
       <Hero />
       <Services />

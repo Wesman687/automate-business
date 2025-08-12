@@ -39,10 +39,11 @@ export const metadata: Metadata = {
     description: 'Transform your business with AI automation. Custom chatbots, mobile apps, and workflow solutions that save time and boost productivity.',
     images: [
       {
-        url: '/og-banner-desktop.png',
+        url: 'https://stream-lineai.com/og-banner-desktop.png',
         width: 1200,
         height: 630,
         alt: 'Streamline AI - Automate Your Business with AI-powered tools',
+        type: 'image/png',
       },
     ],
   },
@@ -51,7 +52,7 @@ export const metadata: Metadata = {
     title: 'Streamline AI - Automate Your Business with AI',
     description: 'Custom AI tools, websites, and mobile apps to streamline your business.',
     creator: '@StreamlineAI',
-    images: ['/og-banner-mobile.png'],
+    images: ['https://stream-lineai.com/og-banner-mobile.png'],
   },
   robots: {
     index: true,

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StreamlineAI Badge Test</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // StreamlineAI Badge Component for React Apps
+        const StreamlineAIBadge = ({ 
+          style = 'minimalist', 
+          size = 'medium',
+          animation = 'none',
+          position = 'inline',
+          fixedPosition = 'bottom-right',
+          textColor = 'default',
+          customUrl = 'https://streamlineai.com',
+          text = 'Powered by StreamlineAI'
+        }) => {
+          // Handle SSR hydration issues
+          const [mounted, setMounted] = useState(false);
+          
+          useEffect(() => {
+            setMounted(true);
+          }, []);
+          
+          // Size configurations
+          const sizeConfig = {
+            small: { padding: '4px 8px', fontSize: '10px', iconSize: '11px' },
+            medium: { padding: '8px 16px', fontSize: '14px', iconSize: '16px' },
+            large: { padding: '12px 20px', fontSize: '16px', iconSize: '18px' },
+            xl: { padding: '16px 24px', fontSize: '18px', iconSize: '20px' }
+          };
+          
+          const currentSize = sizeConfig[size] || sizeConfig.medium;
+          
+          // Fixed position helper
+          const getFixedPosition = (pos) => {
+            const positions = {
+              'top-left': { top: '20px', left: '20px' },
+              'top-right': { top: '20px', right: '20px' },
+              'bottom-left': { bottom: '20px', left: '20px' },
+              'bottom-right': { bottom: '20px', right: '20px' }
+            };
+            return positions[pos] || positions['bottom-right'];
+          };
+          
+          // Animation styles
+          const getAnimationStyle = () => {
+            if (!mounted || animation === 'none') return {};
+            
+            const animations = {
+              pulse: {
+                animation: 'streamline-pulse 2s infinite'
+              },
+              bounce: {
+                animation: 'streamline-bounce 2s infinite'
+              },
+              glow: {
+                animation: 'streamline-glow 2s ease-in-out infinite alternate'
+              },
+              float: {
+                animation: 'streamline-float 3s ease-in-out infinite'
+              },
+              shake: {
+                animation: 'streamline-shake 0.5s infinite'
+              },
+              gradient: style === 'gradient' ? {
+                animation: 'streamline-gradientShift 3s ease infinite'
+              } : {}
+            };
+            
+            return animations[animation] || {};
+          };
+
+          const styles = {
+            minimalist: {
+              display: 'inline-flex',
+              alignItems: 'center',
+              padding: currentSize.padding,
+              background: 'linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)',
+              color: textColor === 'default' ? 'white' : textColor,
+              textDecoration: 'none',
+              borderRadius: '25px',
+              fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+              fontSize: currentSize.fontSize,
+              fontWeight: '500',
+              boxShadow: '0 2px 8px rgba(0, 212, 255, 0.3)',
+              transition: 'all 0.3s ease',
+              border: 'none',
+              cursor: 'pointer'
+            },
+            gradient: {
+              display: 'inline-flex',
+              alignItems: 'center',
+              padding: currentSize.padding,
+              background: 'linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4, #ffeaa7)',
+              backgroundSize: '300% 300%',
+              color: textColor === 'default' ? 'white' : textColor,
+              textDecoration: 'none',
+              borderRadius: '25px',
+              fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+              fontSize: currentSize.fontSize,
+              fontWeight: '600',
+              boxShadow: '0 4px 15px rgba(0, 0, 0, 0.2)',
+              transition: 'all 0.3s ease',
+              cursor: 'pointer'
+            }
+          };
+
+          // SSR placeholder
+          if (!mounted) {
+            return React.createElement('span', {style: {opacity: 0, visibility: 'hidden'}}, text);
+          }
+
+          const currentStyle = {
+            ...styles[style] || styles.minimalist,
+            ...getAnimationStyle()
+          };
+          
+          return React.createElement(
+            React.Fragment,
+            null,
+            React.createElement('style', null, `
+              @keyframes streamline-pulse {
+                0%, 100% { transform: scale(1); }
+                50% { transform: scale(1.05); }
+              }
+              
+              @keyframes streamline-gradientShift {
+                0% { background-position: 0% 50%; }
+                50% { background-position: 100% 50%; }
+                100% { background-position: 0% 50%; }
+              }
+            `),
+            React.createElement(
+              'a',
+              {
+                href: customUrl,
+                target: '_blank',
+                rel: 'noopener noreferrer',
+                style: currentStyle
+              },
+              '⚡ ' + text
+            )
+          );
+        };
+
+        const App = () => {
+          return React.createElement(
+            'div',
+            { style: { padding: '20px', fontFamily: 'Arial, sans-serif' } },
+            React.createElement('h1', null, 'StreamlineAI Badge Test'),
+            React.createElement('h2', null, 'Fixed Issues:'),
+            React.createElement('p', null, '✅ No duplicate size attributes'),
+            React.createElement('p', null, '✅ SSR-safe with hydration protection'),
+            React.createElement('p', null, '✅ Proper animation handling'),
+            React.createElement('br'),
+            React.createElement('h3', null, 'Large Size (no duplicates):'),
+            React.createElement(StreamlineAIBadge, { size: 'large', style: 'minimalist' }),
+            React.createElement('br'),
+            React.createElement('br'),
+            React.createElement('h3', null, 'XL Size (no duplicates):'),
+            React.createElement(StreamlineAIBadge, { size: 'xl', style: 'minimalist' }),
+            React.createElement('br'),
+            React.createElement('br'),
+            React.createElement('h3', null, 'Gradient with Animation (no hydration errors):'),
+            React.createElement(StreamlineAIBadge, { 
+              style: 'gradient', 
+              animation: 'pulse',
+              size: 'large'
+            })
+          );
+        };
+
+        ReactDOM.render(React.createElement(App), document.getElementById('root'));
+    </script>
+</body>
+</html>

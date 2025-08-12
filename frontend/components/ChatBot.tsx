@@ -48,6 +48,16 @@ export default function ChatBot() {
   const [typingMessageId, setTypingMessageId] = useState<string | null>(null)
   const [showPreviewTyping, setShowPreviewTyping] = useState(false)
   const [showCustomerNotification, setShowCustomerNotification] = useState(false)
+  const [showAuthModal, setShowAuthModal] = useState(false)
+  const [isExistingCustomer, setIsExistingCustomer] = useState(false)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [authMode, setAuthMode] = useState<'login' | 'register' | 'reset'>('login')
+  const [customerData, setCustomerData] = useState<any>(null)
+  const [authCredentials, setAuthCredentials] = useState({
+    email: '',
+    password: '',
+    resetCode: ''
+  })
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
@@ -289,6 +299,35 @@ export default function ChatBot() {
     if (!customerInfo.email.trim()) return
 
     try {
+      // First, check if this customer already exists
+      const checkResponse = await fetch(`${API_BASE_URL}/api/check-customer`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: customerInfo.email }),
+      })
+
+      if (checkResponse.ok) {
+        const checkData = await checkResponse.json()
+        
+        if (checkData.exists && checkData.has_password) {
+          // Customer exists and has password - require authentication
+          setIsExistingCustomer(true)
+          setAuthCredentials({ ...authCredentials, email: customerInfo.email })
+          setShowAuthModal(true)
+          return
+        } else if (checkData.exists && !checkData.has_password) {
+          // Customer exists but no password - let them set one
+          setIsExistingCustomer(true)
+          setAuthMode('register')
+          setAuthCredentials({ ...authCredentials, email: customerInfo.email })
+          setShowAuthModal(true)
+          return
+        }
+      }
+
+      // New customer - proceed normally but schedule appointment automatically
       const response = await fetch(`${API_BASE_URL}/api/save-customer`, {
         method: 'POST',
         headers: {
@@ -304,10 +343,43 @@ export default function ChatBot() {
       })
 
       if (response.ok) {
+        const customerData = await response.json()
+        
+        // Automatically schedule an appointment
+        const appointmentResponse = await fetch(`${API_BASE_URL}/api/schedule-appointment`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            customer_id: customerData.customer_id,
+            session_id: sessionId,
+          }),
+        })
+
         setShowInfoCapture(false)
         
-        // No popup notification - just continue the conversation naturally
-        addInstantMessage(`Perfect! I've saved your information. ${customerInfo.name ? `Nice to meet you, ${customerInfo.name}!` : ''} Let me create a custom automation strategy for ${customerInfo.company || 'your business'}.`, true)
+        if (appointmentResponse.ok) {
+          const appointmentData = await appointmentResponse.json()
+          const appointmentDate = new Date(appointmentData.scheduled_date)
+          const formattedDate = appointmentDate.toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit'
+          })
+          
+          addInstantMessage(`Perfect! I've scheduled a consultation call for you on ${formattedDate}. ${customerInfo.name ? `Nice to meet you, ${customerInfo.name}!` : ''} 
+
+To make our call as helpful as possible, could you tell me more about:
+• What specific challenges you're facing with your current processes?
+• What automation solutions you're most interested in?
+• Any particular goals you'd like to achieve?`, true)
+        } else {
+          addInstantMessage(`Perfect! I've saved your information. ${customerInfo.name ? `Nice to meet you, ${customerInfo.name}!` : ''} Let me create a custom automation strategy for ${customerInfo.company || 'your business'}.`, true)
+        }
         
         // Follow up with services details
         setTimeout(() => {
@@ -405,6 +477,159 @@ export default function ChatBot() {
       setUploadingFile(false)
       // Reset file input
       event.target.value = ''
+    }
+  }
+
+  const handleAuthentication = async () => {
+    try {
+      if (authMode === 'login') {
+        const response = await fetch(`${API_BASE_URL}/api/customer-login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: authCredentials.email,
+            password: authCredentials.password,
+          }),
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          setIsAuthenticated(true)
+          setCustomerData(data.customer)
+          setShowAuthModal(false)
+          
+          // Continue with authenticated customer flow
+          proceedWithAuthenticatedCustomer(data.customer)
+        } else {
+          alert('Invalid credentials. Please try again.')
+        }
+      } else if (authMode === 'register') {
+        const response = await fetch(`${API_BASE_URL}/api/customer-set-password`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: authCredentials.email,
+            password: authCredentials.password,
+          }),
+        })
+
+        if (response.ok) {
+          setIsAuthenticated(true)
+          setShowAuthModal(false)
+          
+          // Get customer data and proceed
+          const customerResponse = await fetch(`${API_BASE_URL}/api/get-customer-by-email`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ email: authCredentials.email }),
+          })
+          
+          if (customerResponse.ok) {
+            const customerData = await customerResponse.json()
+            setCustomerData(customerData)
+            proceedWithAuthenticatedCustomer(customerData)
+          }
+        } else {
+          alert('Error setting password. Please try again.')
+        }
+      } else if (authMode === 'reset') {
+        if (!authCredentials.resetCode) {
+          // Request reset code
+          const response = await fetch(`${API_BASE_URL}/api/request-password-reset`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ email: authCredentials.email }),
+          })
+
+          if (response.ok) {
+            alert('Reset code sent to your email!')
+          } else {
+            alert('Error sending reset code.')
+          }
+        } else {
+          // Confirm reset with code
+          const response = await fetch(`${API_BASE_URL}/api/reset-password`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              email: authCredentials.email,
+              reset_code: authCredentials.resetCode,
+              new_password: authCredentials.password,
+            }),
+          })
+
+          if (response.ok) {
+            alert('Password reset successful!')
+            setAuthMode('login')
+          } else {
+            alert('Invalid reset code or error resetting password.')
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Authentication error:', error)
+      alert('Authentication error. Please try again.')
+    }
+  }
+
+  const proceedWithAuthenticatedCustomer = async (customer: any) => {
+    setShowInfoCapture(false)
+    
+    // Check if customer has previous projects/history
+    const historyResponse = await fetch(`${API_BASE_URL}/api/customer-history/${customer.id}`)
+    
+    if (historyResponse.ok) {
+      const historyData = await historyResponse.json()
+      
+      // Automatically schedule appointment
+      const appointmentResponse = await fetch(`${API_BASE_URL}/api/schedule-appointment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          customer_id: customer.id,
+          session_id: sessionId,
+        }),
+      })
+
+      let appointmentMessage = ""
+      if (appointmentResponse.ok) {
+        const appointmentData = await appointmentResponse.json()
+        const appointmentDate = new Date(appointmentData.scheduled_date)
+        const formattedDate = appointmentDate.toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit'
+        })
+        appointmentMessage = `I've scheduled a consultation call for you on ${formattedDate}.`
+      }
+
+      if (historyData.projects && historyData.projects.length > 0) {
+        addInstantMessage(`Welcome back, ${customer.name}! ${appointmentMessage}
+
+I can see we've worked together before on:
+${historyData.projects.map((p: any) => `• ${p.name} - ${p.status}`).join('\n')}
+
+Since we have your project history, I can provide more targeted recommendations. What new automation challenges are you facing, or would you like to expand on our previous work?`, true)
+      } else {
+        addInstantMessage(`Welcome back, ${customer.name}! ${appointmentMessage}
+
+I see this is our first project together. Based on your business profile, I'll create a custom automation strategy. What specific challenges are you looking to solve with automation?`, true)
+      }
     }
   }
 
@@ -686,6 +911,97 @@ export default function ChatBot() {
                       >
                         Start Automation Chat
                       </button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Customer Authentication Modal */}
+              {showAuthModal && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="bg-dark-bg border border-electric-blue rounded-lg p-4"
+                >
+                  <div className="flex items-center mb-3">
+                    <User className="w-5 h-5 text-electric-blue mr-2" />
+                    <h4 className="text-white font-semibold">
+                      {authMode === 'login' ? 'Welcome Back!' : 
+                       authMode === 'register' ? 'Set Your Password' : 
+                       'Reset Password'}
+                    </h4>
+                  </div>
+                  
+                  <p className="text-gray-300 text-sm mb-3">
+                    {authMode === 'login' ? 'Please log in to access your customer data and project history.' :
+                     authMode === 'register' ? 'Set a password to secure your account and access your data.' :
+                     'Reset your password to regain access to your account.'}
+                  </p>
+
+                  <div className="space-y-3">
+                    <input
+                      type="email"
+                      value={authCredentials.email}
+                      onChange={(e) => setAuthCredentials({...authCredentials, email: e.target.value})}
+                      placeholder="Email Address"
+                      className="w-full bg-dark-card border border-dark-border rounded px-3 py-2 text-white text-sm focus:border-electric-blue focus:outline-none"
+                      disabled={authMode !== 'reset'}
+                    />
+                    
+                    {authMode === 'reset' && authCredentials.resetCode === '' ? null : (
+                      <input
+                        type="password"
+                        value={authCredentials.password}
+                        onChange={(e) => setAuthCredentials({...authCredentials, password: e.target.value})}
+                        placeholder={authMode === 'login' ? 'Password' : 'New Password'}
+                        className="w-full bg-dark-card border border-dark-border rounded px-3 py-2 text-white text-sm focus:border-electric-blue focus:outline-none"
+                      />
+                    )}
+
+                    {authMode === 'reset' && (
+                      <input
+                        type="text"
+                        value={authCredentials.resetCode}
+                        onChange={(e) => setAuthCredentials({...authCredentials, resetCode: e.target.value})}
+                        placeholder="6-digit Reset Code (from email)"
+                        className="w-full bg-dark-card border border-dark-border rounded px-3 py-2 text-white text-sm focus:border-electric-blue focus:outline-none"
+                      />
+                    )}
+
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={handleAuthentication}
+                        className="flex-1 bg-electric-blue text-black px-4 py-2 rounded text-sm hover:bg-opacity-80 transition-colors duration-200"
+                      >
+                        {authMode === 'login' ? 'Log In' :
+                         authMode === 'register' ? 'Set Password' :
+                         authCredentials.resetCode === '' ? 'Send Reset Code' : 'Reset Password'}
+                      </button>
+                      <button
+                        onClick={() => setShowAuthModal(false)}
+                        className="bg-gray-600 text-white px-4 py-2 rounded text-sm hover:bg-gray-700 transition-colors duration-200"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+
+                    <div className="flex justify-center space-x-4 text-xs">
+                      {authMode === 'login' && (
+                        <button
+                          onClick={() => setAuthMode('reset')}
+                          className="text-electric-blue hover:underline"
+                        >
+                          Forgot Password?
+                        </button>
+                      )}
+                      {authMode === 'reset' && (
+                        <button
+                          onClick={() => setAuthMode('login')}
+                          className="text-electric-blue hover:underline"
+                        >
+                          Back to Login
+                        </button>
+                      )}
                     </div>
                   </div>
                 </motion.div>

@@ -1,10 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, File, UploadFile, Form
 from sqlalchemy.orm import Session
 from database import get_db
+from database.models import Customer as CustomerModel
 from services.customer_service import CustomerService
 from services.session_service import SessionService
 from services.email_service import email_service
-from schemas.customer import Customer, CustomerCreate, CustomerUpdate
+from utils.file_management import CustomerFileManager
+from schemas.customer import CustomerCreate, CustomerUpdate, Customer
+from api.auth import get_current_user
 from typing import List, Optional
 from pydantic import BaseModel
 import os
@@ -196,28 +199,198 @@ async def create_customer(customer: CustomerCreate, db: Session = Depends(get_db
     return customer_service.create_customer(customer)
 
 @router.get("/customers", response_model=List[Customer])
-async def get_customers(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    """Get all customers with pagination"""
-    customer_service = CustomerService(db)
-    return customer_service.get_customers(skip=skip, limit=limit)
+async def get_customers(
+    skip: int = 0, 
+    limit: int = 100, 
+    db: Session = Depends(get_db), 
+    current_user: dict = Depends(get_current_user)
+):
+    """Get all customers with pagination and chat sessions"""
+    try:
+        customer_service = CustomerService(db)
+        session_service = SessionService(db)
+        
+        # Get customers with basic pagination
+        customers = customer_service.get_customers(skip=skip, limit=limit)
+        
+        # Enhanced customer data with chat sessions
+        enhanced_customers = []
+        for customer in customers:
+            # Get chat sessions for this customer
+            chat_sessions = session_service.get_customer_sessions(customer.id)
+            
+            # Create chat session items
+            chat_session_items = []
+            for session in chat_sessions:
+                chat_session_items.append({
+                    "id": session.id,
+                    "session_id": session.session_id,
+                    "customer_id": session.customer_id,
+                    "start_time": session.created_at,
+                    "end_time": session.updated_at,
+                    "status": session.status,
+                    "message_count": len(session.messages) if session.messages else 0
+                })
+            
+            # Create customer dict with chat sessions
+            customer_dict = {
+                "id": customer.id,
+                "name": customer.name,
+                "email": customer.email,
+                "phone": customer.phone,
+                "address": customer.address,
+                "city": customer.city,
+                "state": customer.state,
+                "zip_code": customer.zip_code,
+                "country": customer.country,
+                "business_site": customer.business_site,
+                "business_type": customer.business_type,
+                "pain_points": customer.pain_points,
+                "current_tools": customer.current_tools,
+                "budget": customer.budget,
+                "status": customer.status,
+                "notes": customer.notes,
+                "created_at": customer.created_at,
+                "updated_at": customer.updated_at,
+                "chat_sessions": chat_session_items,
+                "chat_count": len(chat_session_items)
+            }
+            
+            enhanced_customers.append(customer_dict)
+        
+        return enhanced_customers
+        
+    except Exception as e:
+        print(f"❌ Error getting customers: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get customers: {str(e)}")
 
 @router.get("/customers/{customer_id}", response_model=Customer)
-async def get_customer(customer_id: int, db: Session = Depends(get_db)):
-    """Get a specific customer by ID"""
-    customer_service = CustomerService(db)
-    customer = customer_service.get_customer_by_id(customer_id)
-    if not customer:
-        raise HTTPException(status_code=404, detail="Customer not found")
-    return customer
+async def get_customer(
+    customer_id: int, 
+    db: Session = Depends(get_db), 
+    current_user: dict = Depends(get_current_user)
+):
+    """Get a specific customer by ID with chat sessions"""
+    try:
+        customer_service = CustomerService(db)
+        session_service = SessionService(db)
+        
+        customer = customer_service.get_customer_by_id(customer_id)
+        if not customer:
+            raise HTTPException(status_code=404, detail="Customer not found")
+        
+        # Get chat sessions for this customer
+        chat_sessions = session_service.get_customer_sessions(customer.id)
+        
+        # Create chat session items
+        chat_session_items = []
+        for session in chat_sessions:
+            chat_session_items.append({
+                "id": session.id,
+                "session_id": session.session_id,
+                "customer_id": session.customer_id,
+                "start_time": session.created_at,
+                "end_time": session.updated_at,
+                "status": session.status,
+                "message_count": len(session.messages) if session.messages else 0
+            })
+        
+        # Create customer dict with chat sessions
+        customer_dict = {
+            "id": customer.id,
+            "name": customer.name,
+            "email": customer.email,
+            "address": customer.address,
+            "city": customer.city,
+            "state": customer.state,
+            "zip_code": customer.zip_code,
+            "country": customer.country,
+            "phone": customer.phone,
+            "business_site": customer.business_site,
+            "business_type": customer.business_type,
+            "pain_points": customer.pain_points,
+            "current_tools": customer.current_tools,
+            "budget": customer.budget,
+            "status": customer.status,
+            "notes": customer.notes,
+            "created_at": customer.created_at,
+            "updated_at": customer.updated_at,
+            "chat_sessions": chat_session_items,
+            "chat_count": len(chat_session_items)
+        }
+        
+        return customer_dict
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error getting customer: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get customer: {str(e)}")
 
 @router.put("/customers/{customer_id}", response_model=Customer)
-async def update_customer(customer_id: int, customer_data: CustomerUpdate, db: Session = Depends(get_db)):
+async def update_customer(
+    customer_id: int, 
+    customer_data: CustomerUpdate, 
+    db: Session = Depends(get_db), 
+    current_user: dict = Depends(get_current_user)
+):
     """Update a customer"""
-    customer_service = CustomerService(db)
-    customer = customer_service.update_customer(customer_id, customer_data)
-    if not customer:
-        raise HTTPException(status_code=404, detail="Customer not found")
-    return customer
+    try:
+        customer_service = CustomerService(db)
+        session_service = SessionService(db)
+        
+        # Update the customer
+        customer = customer_service.update_customer(customer_id, customer_data)
+        if not customer:
+            raise HTTPException(status_code=404, detail="Customer not found")
+        
+        # Get chat sessions for this customer
+        chat_sessions = session_service.get_customer_sessions(customer.id)
+        
+        # Create chat session items
+        chat_session_items = []
+        for session in chat_sessions:
+            chat_session_items.append({
+                "id": session.id,
+                "session_id": session.session_id,
+                "customer_id": session.customer_id,
+                "start_time": session.created_at,
+                "end_time": session.updated_at,
+                "status": session.status,
+                "message_count": len(session.messages) if session.messages else 0
+            })
+        
+        # Create customer dict with chat sessions
+        customer_dict = {
+            "id": customer.id,
+            "name": customer.name,
+            "email": customer.email,
+            "phone": customer.phone,
+            "address": customer.address,
+            "city": customer.city,
+            "state": customer.state,
+            "zip_code": customer.zip_code,
+            "country": customer.country,
+            "business_site": customer.business_site,
+            "business_type": customer.business_type,
+            "pain_points": customer.pain_points,
+            "current_tools": customer.current_tools,
+            "budget": customer.budget,
+            "status": customer.status,
+            "notes": customer.notes,
+            "created_at": customer.created_at,
+            "updated_at": customer.updated_at,
+            "chat_sessions": chat_session_items,
+            "chat_count": len(chat_session_items)
+        }
+        
+        return customer_dict
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error updating customer: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to update customer: {str(e)}")
 
 @router.post("/customers/{customer_id}/notes")
 async def add_customer_notes(customer_id: int, notes: str, db: Session = Depends(get_db)):
@@ -344,9 +517,18 @@ async def upload_customer_file(
         # Validate file security
         content = await validate_upload_file(file)
         
-        # Create secure uploads directory if it doesn't exist
-        upload_dir = os.path.join("uploads", "customer_files")
-        os.makedirs(upload_dir, exist_ok=True)
+        # Create customer-specific upload directory using the new file manager
+        if customer_email:
+            customer_service = CustomerService(db)
+            customer = customer_service.get_customer_by_email(customer_email)
+            if customer:
+                upload_dir = CustomerFileManager.ensure_customer_directory(customer, "files")
+            else:
+                upload_dir = os.path.join("uploads", "customers", "unknown", "files")
+                os.makedirs(upload_dir, exist_ok=True)
+        else:
+            upload_dir = os.path.join("uploads", "customers", "general", "files")
+            os.makedirs(upload_dir, exist_ok=True)
         
         # Generate unique filename with original extension
         file_extension = os.path.splitext(file.filename)[1].lower()

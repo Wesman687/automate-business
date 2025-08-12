@@ -23,6 +23,23 @@ class CreateAdminRequest(BaseModel):
     username: Optional[str] = None  # Made optional, will auto-generate if not provided
     password: str
     full_name: Optional[str] = None
+    phone: Optional[str] = None
+    address: Optional[str] = None
+
+class UpdateAdminRequest(BaseModel):
+    email: Optional[str] = None
+    username: Optional[str] = None
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
+    address: Optional[str] = None
+    password: Optional[str] = None
+
+class UpdateAdminRequest(BaseModel):
+    email: Optional[str] = None
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
+    address: Optional[str] = None
+    password: Optional[str] = None
 
 def get_current_user(authorization: str = Header(None), request: Request = None, db: Session = Depends(get_db)):
     """Dependency to validate authentication token from header or cookie"""
@@ -491,6 +508,25 @@ async def validate_token(current_user: dict = Depends(get_current_user), db: Ses
         }
     }
 
+@router.get("/me")
+async def get_current_user_info(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Get current authenticated user information"""
+    # Get full admin details for frontend
+    admin_service = AdminService(db)
+    admin = admin_service.get_admin_by_id(current_user['admin_id'])
+    
+    if not admin:
+        raise HTTPException(status_code=401, detail="Admin not found")
+    
+    return {
+        "id": admin.id,
+        "email": admin.email,
+        "username": admin.username,
+        "full_name": admin.full_name,
+        "is_super_admin": admin.is_super_admin,
+        "is_active": admin.is_active
+    }
+
 @router.post("/logout")
 async def logout():
     """Logout (client should delete token)"""
@@ -564,6 +600,8 @@ async def create_admin(
             username=username,
             password=request.password,
             full_name=request.full_name,
+            phone=request.phone,
+            address=request.address,
             is_super_admin=False
         )
         
@@ -574,6 +612,8 @@ async def create_admin(
                 "email": new_admin.email,
                 "username": new_admin.username,
                 "full_name": new_admin.full_name,
+                "phone": new_admin.phone,
+                "address": new_admin.address,
                 "is_super_admin": new_admin.is_super_admin,
                 "is_active": new_admin.is_active
             }
@@ -597,6 +637,8 @@ async def list_admins(
                 "email": admin.email,
                 "username": admin.username,
                 "full_name": admin.full_name,
+                "phone": admin.phone,
+                "address": admin.address,
                 "is_super_admin": admin.is_super_admin,
                 "is_active": admin.is_active,
                 "created_at": admin.created_at.isoformat() if admin.created_at else None,
@@ -619,6 +661,96 @@ async def delete_admin(
         success = admin_service.delete_admin(admin_id)
         if success:
             return {"message": "Admin deactivated successfully"}
+        else:
+            raise HTTPException(status_code=404, detail="Admin not found")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.put("/admins/{admin_id}")
+async def update_admin(
+    admin_id: int,
+    request: UpdateAdminRequest,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Update admin details (super admin only, or admin updating themselves)"""
+    admin_service = AdminService(db)
+    
+    # Check permissions: super admin or admin updating themselves
+    if not current_user.get('is_super_admin') and current_user.get('id') != admin_id:
+        raise HTTPException(
+            status_code=403, 
+            detail="You can only edit your own profile unless you are a super admin"
+        )
+    
+    try:
+        updated_admin = admin_service.update_admin(
+            admin_id=admin_id,
+            email=request.email,
+            username=request.username,
+            full_name=request.full_name,
+            phone=request.phone,
+            address=request.address,
+            password=request.password
+        )
+        
+        if updated_admin:
+            return {
+                "message": "Admin updated successfully",
+                "admin": {
+                    "id": updated_admin.id,
+                    "email": updated_admin.email,
+                    "username": updated_admin.username,
+                    "full_name": updated_admin.full_name,
+                    "phone": updated_admin.phone,
+                    "address": updated_admin.address,
+                    "is_super_admin": updated_admin.is_super_admin,
+                    "is_active": updated_admin.is_active
+                }
+            }
+        else:
+            raise HTTPException(status_code=404, detail="Admin not found")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.put("/admins/{admin_id}")
+async def update_admin(
+    admin_id: int,
+    request: UpdateAdminRequest,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Update admin details (admin can edit themselves, super admin can edit anyone)"""
+    admin_service = AdminService(db)
+    
+    # Check permissions - admin can only edit themselves unless they're super admin
+    if not current_user.get("is_super_admin") and current_user.get("admin_id") != admin_id:
+        raise HTTPException(status_code=403, detail="You can only edit your own profile")
+    
+    try:
+        updated_admin = admin_service.update_admin(
+            admin_id=admin_id,
+            email=request.email,
+            full_name=request.full_name,
+            phone=request.phone,
+            address=request.address,
+            password=request.password
+        )
+        
+        if updated_admin:
+            return {
+                "message": "Admin updated successfully",
+                "admin": {
+                    "id": updated_admin.id,
+                    "email": updated_admin.email,
+                    "username": updated_admin.username,
+                    "full_name": updated_admin.full_name,
+                    "phone": updated_admin.phone,
+                    "address": updated_admin.address,
+                    "is_super_admin": updated_admin.is_super_admin,
+                    "is_active": updated_admin.is_active
+                }
+            }
         else:
             raise HTTPException(status_code=404, detail="Admin not found")
     except ValueError as e:

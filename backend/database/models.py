@@ -48,6 +48,7 @@ class ChatSession(Base):
     session_id = Column(String(255), unique=True, index=True, nullable=False)
     customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True)
     status = Column(String(50), default="active")  # active, completed, proposal_sent
+    is_seen = Column(Boolean, default=False)  # Whether admin has viewed this chat session
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
@@ -102,6 +103,33 @@ class Appointment(Base):
     
     # Relationships
     customer = relationship("Customer", back_populates="appointments")
+
+class CustomerChangeRequest(Base):
+    __tablename__ = "customer_change_requests"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    job_id = Column(Integer, ForeignKey("jobs.id"), nullable=False)
+    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=False)
+    title = Column(String(255), nullable=False)  # "Update navigation menu"
+    description = Column(Text, nullable=False)  # Detailed description of the change
+    priority = Column(String(50), default="medium")  # low, medium, high, urgent
+    status = Column(String(50), default="pending")  # pending, reviewing, approved, rejected, implemented
+    estimated_hours = Column(Float, nullable=True)  # Admin estimate
+    estimated_cost = Column(Float, nullable=True)  # Admin estimate
+    admin_notes = Column(Text, nullable=True)  # Internal notes
+    rejection_reason = Column(Text, nullable=True)  # If rejected, why
+    implementation_date = Column(DateTime(timezone=True), nullable=True)  # When implemented
+    
+    # Voice agent context
+    requested_via = Column(String(50), default="web")  # web, voice, email, phone
+    session_id = Column(String(255), nullable=True)  # If from voice/chat session
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # Relationships
+    job = relationship("Job", back_populates="change_requests")
+    customer = relationship("Customer")
 
 class Invoice(Base):
     __tablename__ = "invoices"
@@ -191,6 +219,7 @@ class Job(Base):
     # Relationships
     customer = relationship("Customer")
     time_entries = relationship("TimeEntry", back_populates="job")
+    change_requests = relationship("CustomerChangeRequest", back_populates="job")
 
 class TimeEntry(Base):
     __tablename__ = "time_entries"

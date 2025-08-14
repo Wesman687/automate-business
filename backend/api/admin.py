@@ -4,9 +4,13 @@ from sqlalchemy.orm import Session
 from database import get_db
 from services.session_service import SessionService
 from services.customer_service import CustomerService
+from services.email_reader_service import EmailReaderService
 from api.auth import get_current_user, get_current_user_or_redirect
 from api.schedule import router as schedule_router
 from datetime import datetime
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 router.include_router(schedule_router)
@@ -1920,3 +1924,116 @@ async def view_customer_detail(customer_id: int, db: Session = Depends(get_db), 
         </body></html>
         """
         return error_html
+
+@router.get("/overview")
+async def get_dashboard_overview(
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get dashboard overview statistics"""
+    try:
+        # Get basic stats from database
+        customer_service = CustomerService(db)
+        
+        # Get unseen chat logs count using proper ChatSession query
+        from database.models import ChatSession
+        unseen_chat_logs = db.query(ChatSession).filter(ChatSession.is_seen == False).count()
+        
+        # Get upcoming appointments count
+        from services.appointment_service import AppointmentService
+        appointment_service = AppointmentService(db)
+        upcoming_appointments = len(appointment_service.get_upcoming_appointments())
+        
+        # Get pending change requests count
+        try:
+            from services.job_service import ChangeRequestService
+            cr_service = ChangeRequestService(db)
+            # This would need to be implemented in the service
+            pending_requests = 0  # Placeholder - implement in ChangeRequestService
+        except Exception:
+            pending_requests = 0
+        
+        # Get email stats (only works on server)
+        try:
+            email_service = EmailReaderService()
+            email_stats = email_service.get_email_stats()
+            unread_emails = email_stats.get('total_unread', 0)
+        except Exception as e:
+            logger.warning(f"Email stats not available: {str(e)}")
+            unread_emails = 0
+        
+        stats = {
+            'pending_change_requests': pending_requests,
+            'new_chat_logs': unseen_chat_logs,
+            'upcoming_appointments': upcoming_appointments,
+            'unread_emails': unread_emails
+        }
+        
+        return {
+            "stats": stats,
+            "message": "Dashboard overview retrieved successfully"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error fetching dashboard overview: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to fetch dashboard overview")
+
+@router.get("/overview")
+async def get_admin_overview(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Get dashboard overview statistics"""
+    try:
+        from services.job_service import ChangeRequestService
+        from services.email_reader_service import EmailReaderService
+        from services.customer_service import CustomerService
+        from services.appointment_service import AppointmentService
+        from datetime import datetime, timedelta
+        
+        # Get change request stats
+        change_request_service = ChangeRequestService(db)
+        pending_requests = change_request_service.get_change_requests_by_status("pending")
+        pending_count = len(pending_requests) if pending_requests else 0
+        
+        # Get chat log stats
+        customer_service = CustomerService(db)
+        since_yesterday = datetime.now() - timedelta(days=1)
+        recent_customers = customer_service.get_customers(
+            since_date=since_yesterday.isoformat(),
+            limit=1000
+        )
+        new_chat_logs = len([c for c in recent_customers if c.status == "lead"])
+        
+        # Get appointment stats
+        appointment_service = AppointmentService(db)
+        upcoming_appointments = appointment_service.get_upcoming_appointments()
+        upcoming_count = len(upcoming_appointments) if upcoming_appointments else 0
+        
+        # Get email stats
+        unread_emails_count = 0
+        try:
+            email_service = EmailReaderService()
+            email_stats = email_service.get_email_stats()
+            unread_emails_count = email_stats.get('total_unread', 0)
+        except Exception as e:
+            # Email service might not be configured, that's ok
+            pass
+        
+        stats = {
+            "pending_change_requests": pending_count,
+            "new_chat_logs": new_chat_logs,
+            "upcoming_appointments": upcoming_count,
+            "unread_emails": unread_emails_count
+        }
+        
+        return {
+            "stats": stats,
+            "message": "Dashboard overview retrieved successfully"
+        }
+        
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error getting admin overview: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to get dashboard overview")

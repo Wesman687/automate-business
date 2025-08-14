@@ -101,6 +101,7 @@ env/
 .local/
 tmp/
 temp/
+backend/endpoints/
 
 # Database files (SQLite)
 *.db

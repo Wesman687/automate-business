@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2, Calendar, Globe, Github, FolderOpen, Target, CheckCircle, ExternalLink } from 'lucide-react';
+import { X, Plus, Trash2, Calendar, Globe, Github, FolderOpen, Target, CheckCircle, ExternalLink, DollarSign } from 'lucide-react';
 
 interface Customer {
   id: number;
@@ -64,12 +64,20 @@ export default function EditJobModal({ isOpen, onClose, onSave, job }: EditJobMo
     google_drive_links: [] as Array<{ name: string; url: string; type?: string }>,
     github_repositories: [] as Array<{ name: string; url: string; type?: string }>,
     workspace_links: [] as Array<{ name: string; url: string; type?: string }>,
+    additional_tools: [] as Array<{ name: string; url: string; type?: string }>,
     milestones: [] as Array<{ name: string; description?: string; due_date?: string; completed: boolean }>,
     deliverables: [] as Array<{ name: string; description?: string; delivered: boolean; date?: string }>,
     notes: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [financialEstimation, setFinancialEstimation] = useState<{
+    estimated_hours?: number;
+    recommended_hourly_rate?: number;
+    fixed_price_estimate?: number;
+    breakdown_notes?: string;
+  } | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -96,6 +104,7 @@ export default function EditJobModal({ isOpen, onClose, onSave, job }: EditJobMo
       google_drive_links: jobData.google_drive_links || [],
       github_repositories: jobData.github_repositories || [],
       workspace_links: jobData.workspace_links || [],
+      additional_tools: jobData.additional_tools || [],
       milestones: jobData.milestones || [],
       deliverables: jobData.deliverables || [],
       notes: jobData.notes || ''
@@ -164,14 +173,14 @@ export default function EditJobModal({ isOpen, onClose, onSave, job }: EditJobMo
     }
   };
 
-  const addLink = (type: 'google_drive_links' | 'github_repositories' | 'workspace_links') => {
+  const addLink = (type: 'google_drive_links' | 'github_repositories' | 'workspace_links' | 'additional_tools') => {
     setFormData(prev => ({
       ...prev,
       [type]: [...prev[type], { name: '', url: '', type: '' }]
     }));
   };
 
-  const updateLink = (type: 'google_drive_links' | 'github_repositories' | 'workspace_links', index: number, field: string, value: string) => {
+  const updateLink = (type: 'google_drive_links' | 'github_repositories' | 'workspace_links' | 'additional_tools', index: number, field: string, value: string) => {
     setFormData(prev => ({
       ...prev,
       [type]: prev[type].map((item, i) => 
@@ -180,7 +189,7 @@ export default function EditJobModal({ isOpen, onClose, onSave, job }: EditJobMo
     }));
   };
 
-  const removeLink = (type: 'google_drive_links' | 'github_repositories' | 'workspace_links', index: number) => {
+  const removeLink = (type: 'google_drive_links' | 'github_repositories' | 'workspace_links' | 'additional_tools', index: number) => {
     setFormData(prev => ({
       ...prev,
       [type]: prev[type].filter((_, i) => i !== index)
@@ -274,6 +283,7 @@ export default function EditJobModal({ isOpen, onClose, onSave, job }: EditJobMo
               { id: 'basic', label: 'Basic Info', icon: Calendar },
               { id: 'resources', label: 'Project Resources', icon: Globe },
               { id: 'planning', label: 'Project Planning', icon: Target },
+              { id: 'financial', label: 'Financial', icon: DollarSign },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -309,12 +319,12 @@ export default function EditJobModal({ isOpen, onClose, onSave, job }: EditJobMo
                   <select
                     value={formData.customer_id}
                     onChange={(e) => setFormData({ ...formData, customer_id: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
                     required
                   >
-                    <option value="">Select a customer</option>
+                    <option value="" className="text-gray-500">Select a customer</option>
                     {customers.map((customer) => (
-                      <option key={customer.id} value={customer.id}>
+                      <option key={customer.id} value={customer.id} className="text-gray-900">
                         {customer.name} ({customer.email})
                       </option>
                     ))}
@@ -329,7 +339,7 @@ export default function EditJobModal({ isOpen, onClose, onSave, job }: EditJobMo
                     type="text"
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
                     placeholder="e.g., E-commerce Website Development"
                     required
                   />
@@ -344,7 +354,7 @@ export default function EditJobModal({ isOpen, onClose, onSave, job }: EditJobMo
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   rows={4}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
                   placeholder="Detailed project description and requirements..."
                 />
               </div>
@@ -357,13 +367,13 @@ export default function EditJobModal({ isOpen, onClose, onSave, job }: EditJobMo
                   <select
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
                   >
-                    <option value="planning">Planning</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="on_hold">On Hold</option>
-                    <option value="completed">Completed</option>
-                    <option value="cancelled">Cancelled</option>
+                    <option value="planning" className="text-gray-900">Planning</option>
+                    <option value="in_progress" className="text-gray-900">In Progress</option>
+                    <option value="on_hold" className="text-gray-900">On Hold</option>
+                    <option value="completed" className="text-gray-900">Completed</option>
+                    <option value="cancelled" className="text-gray-900">Cancelled</option>
                   </select>
                 </div>
 
@@ -374,12 +384,12 @@ export default function EditJobModal({ isOpen, onClose, onSave, job }: EditJobMo
                   <select
                     value={formData.priority}
                     onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
                   >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                    <option value="urgent">Urgent</option>
+                    <option value="low" className="text-gray-900">Low</option>
+                    <option value="medium" className="text-gray-900">Medium</option>
+                    <option value="high" className="text-gray-900">High</option>
+                    <option value="urgent" className="text-gray-900">Urgent</option>
                   </select>
                 </div>
 
@@ -391,7 +401,7 @@ export default function EditJobModal({ isOpen, onClose, onSave, job }: EditJobMo
                     type="date"
                     value={formData.start_date}
                     onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
                   />
                 </div>
 
@@ -403,51 +413,7 @@ export default function EditJobModal({ isOpen, onClose, onSave, job }: EditJobMo
                     type="date"
                     value={formData.deadline}
                     onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Estimated Hours
-                  </label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    value={formData.estimated_hours}
-                    onChange={(e) => setFormData({ ...formData, estimated_hours: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="40"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Hourly Rate ($)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.hourly_rate}
-                    onChange={(e) => setFormData({ ...formData, hourly_rate: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="75.00"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Fixed Price ($)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.fixed_price}
-                    onChange={(e) => setFormData({ ...formData, fixed_price: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="5000.00"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
                   />
                 </div>
               </div>
@@ -466,7 +432,7 @@ export default function EditJobModal({ isOpen, onClose, onSave, job }: EditJobMo
                   type="url"
                   value={formData.website_url}
                   onChange={(e) => setFormData({ ...formData, website_url: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
                   placeholder="https://example.com"
                 />
               </div>
@@ -599,12 +565,147 @@ export default function EditJobModal({ isOpen, onClose, onSave, job }: EditJobMo
                   </div>
                 ))}
               </div>
+
+              {/* Custom Resources */}
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-medium text-gray-900 flex items-center">
+                    <Plus className="h-5 w-5 mr-2 text-purple-500" />
+                    Custom Resources & Tools
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => addLink('additional_tools')}
+                    className="flex items-center space-x-2 px-3 py-1 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>Add Custom Resource</span>
+                  </button>
+                </div>
+                {formData.additional_tools.map((tool, index) => (
+                  <div key={index} className="flex gap-3 mb-3">
+                    <input
+                      type="text"
+                      value={tool.name}
+                      onChange={(e) => updateLink('additional_tools', index, 'name', e.target.value)}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-gray-900"
+                      placeholder="Resource name (Figma, Notion, API docs, etc.)"
+                    />
+                    <input
+                      type="url"
+                      value={tool.url}
+                      onChange={(e) => updateLink('additional_tools', index, 'url', e.target.value)}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-gray-900"
+                      placeholder="Resource URL"
+                    />
+                    <input
+                      type="text"
+                      value={tool.type || ''}
+                      onChange={(e) => updateLink('additional_tools', index, 'type', e.target.value)}
+                      className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-gray-900"
+                      placeholder="Type/Category"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeLink('additional_tools', index)}
+                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
           {/* Project Planning Tab */}
           {activeTab === 'planning' && (
             <div className="space-y-8">
+              {/* AI Planning Section */}
+              <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-6 rounded-lg border border-purple-200">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-medium text-gray-900 flex items-center">
+                    <Target className="h-5 w-5 mr-2 text-purple-500" />
+                    AI Project Planning
+                  </h3>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        setLoading(true);
+                        try {
+                          const token = localStorage.getItem('admin_token');
+                          const prompt = `Please create an actionable project plan based on the following information:
+                        
+Project Title: ${formData.title}
+Description: ${formData.description}
+Customer: Customer ID ${formData.customer_id}
+Estimated Hours: ${formData.estimated_hours || 'Not specified'}
+Priority: ${formData.priority}
+Deadline: ${formData.deadline || 'Not specified'}
+Notes: ${formData.notes || 'None'}
+
+Additional Context: ${aiPrompt}
+
+Please create specific milestones with due dates and deliverables that would help complete this project successfully.`;
+
+                          const response = await fetch('/api/ai/generate-plan', {
+                            method: 'POST',
+                            headers: {
+                              'Authorization': `Bearer ${token}`,
+                              'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ prompt })
+                          });
+
+                          if (response.ok) {
+                            const plan = await response.json();
+                            // Apply the generated plan to milestones and deliverables
+                            if (plan.milestones) {
+                              setFormData(prev => ({ ...prev, milestones: plan.milestones }));
+                            }
+                            if (plan.deliverables) {
+                              setFormData(prev => ({ ...prev, deliverables: plan.deliverables }));
+                            }
+                          }
+                        } catch (error) {
+                          console.error('AI planning error:', error);
+                          alert('Failed to generate AI plan. Please try again.');
+                        } finally {
+                          setLoading(false);
+                        }
+                      }}
+                      disabled={loading}
+                      className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 disabled:opacity-50"
+                    >
+                      <Target className="h-4 w-4" />
+                      <span>{loading ? 'Generating...' : 'Generate AI Plan'}</span>
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Additional AI Planning Context (Optional)
+                  </label>
+                  <textarea
+                    value={aiPrompt}
+                    onChange={(e) => setAiPrompt(e.target.value)}
+                    onFocus={(e) => {
+                      if (e.target.value === '') {
+                        e.target.select();
+                      }
+                    }}
+                    rows={4}
+                    className="w-full px-4 py-3 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
+                    placeholder="Example: 'Use React and TypeScript for frontend, implement authentication with NextAuth, prioritize mobile responsiveness, integrate with Stripe for payments, deploy on Vercel'"
+                  />
+                </div>
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mt-2">
+                  <p className="text-sm text-purple-700">
+                    💡 <strong>Pro tip:</strong> The more specific you are about technologies, constraints, and priorities, the better the AI can tailor the project plan to your needs.
+                  </p>
+                </div>
+              </div>
               {/* Milestones */}
               <div>
                 <div className="flex items-center justify-between mb-4">
@@ -628,14 +729,14 @@ export default function EditJobModal({ isOpen, onClose, onSave, job }: EditJobMo
                         type="text"
                         value={milestone.name}
                         onChange={(e) => updateMilestone(index, 'name', e.target.value)}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-gray-900"
                         placeholder="Milestone name"
                       />
                       <input
                         type="date"
                         value={milestone.due_date}
                         onChange={(e) => updateMilestone(index, 'due_date', e.target.value)}
-                        className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-gray-900"
                       />
                       <label className="flex items-center space-x-2">
                         <input
@@ -657,7 +758,7 @@ export default function EditJobModal({ isOpen, onClose, onSave, job }: EditJobMo
                     <textarea
                       value={milestone.description}
                       onChange={(e) => updateMilestone(index, 'description', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-gray-900"
                       placeholder="Milestone description..."
                       rows={2}
                     />
@@ -688,14 +789,14 @@ export default function EditJobModal({ isOpen, onClose, onSave, job }: EditJobMo
                         type="text"
                         value={deliverable.name}
                         onChange={(e) => updateDeliverable(index, 'name', e.target.value)}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-gray-900"
                         placeholder="Deliverable name"
                       />
                       <input
                         type="date"
                         value={deliverable.date}
                         onChange={(e) => updateDeliverable(index, 'date', e.target.value)}
-                        className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-gray-900"
                       />
                       <label className="flex items-center space-x-2">
                         <input
@@ -717,7 +818,7 @@ export default function EditJobModal({ isOpen, onClose, onSave, job }: EditJobMo
                     <textarea
                       value={deliverable.description}
                       onChange={(e) => updateDeliverable(index, 'description', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-gray-900"
                       placeholder="Deliverable description..."
                       rows={2}
                     />
@@ -734,9 +835,235 @@ export default function EditJobModal({ isOpen, onClose, onSave, job }: EditJobMo
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                   rows={4}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
                   placeholder="Additional notes, requirements, or important information..."
                 />
+              </div>
+            </div>
+          )}
+
+          {/* Financial Estimation Tab */}
+          {activeTab === 'financial' && (
+            <div className="space-y-8">
+              {/* AI Financial Estimation Section */}
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-lg border border-green-200">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-medium text-gray-900 flex items-center">
+                    <DollarSign className="h-5 w-5 mr-2 text-green-500" />
+                    AI Financial Estimation
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setLoading(true);
+                      try {
+                        const token = localStorage.getItem('admin_token');
+                        const prompt = `Analyze this project and provide financial estimates:
+
+Title: ${formData.title}
+Description: ${formData.description}
+Current Hourly Rate: ${formData.hourly_rate || 'Not set'}
+Current Fixed Price: ${formData.fixed_price || 'Not set'}
+Current Estimated Hours: ${formData.estimated_hours || 'Not set'}
+
+Additional Context: ${aiPrompt}
+
+Please analyze the project complexity and provide realistic estimates for:
+1. Total hours needed
+2. Recommended hourly rate (if applicable)
+3. Alternative fixed price estimate
+4. Breakdown by major phases
+
+Return only a JSON object with these fields: estimated_hours, recommended_hourly_rate, fixed_price_estimate, breakdown_notes`;
+
+                        const response = await fetch('/api/ai/generate-plan', {
+                          method: 'POST',
+                          headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                          },
+                          body: JSON.stringify({ prompt })
+                        });
+
+                        if (response.ok) {
+                          const estimation = await response.json();
+                          setFinancialEstimation(estimation);
+                          
+                          // Apply estimates to form
+                          if (estimation.estimated_hours) {
+                            setFormData(prev => ({ ...prev, estimated_hours: estimation.estimated_hours.toString() }));
+                          }
+                          if (estimation.recommended_hourly_rate) {
+                            setFormData(prev => ({ ...prev, hourly_rate: estimation.recommended_hourly_rate.toString() }));
+                          }
+                          if (estimation.fixed_price_estimate) {
+                            setFormData(prev => ({ ...prev, fixed_price: estimation.fixed_price_estimate.toString() }));
+                          }
+                        }
+                      } catch (error) {
+                        console.error('AI estimation error:', error);
+                        setError('Failed to generate financial estimates. Please try again.');
+                      } finally {
+                        setLoading(false);
+                      }
+                    }}
+                    disabled={loading}
+                    className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 disabled:opacity-50"
+                  >
+                    <DollarSign className="h-4 w-4" />
+                    <span>{loading ? 'Generating Estimates...' : 'Generate Financial Estimates'}</span>
+                  </button>
+                </div>
+
+                {/* Financial Context Input */}
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Additional Financial Context (Optional)
+                  </label>
+                  <textarea
+                    value={aiPrompt}
+                    onChange={(e) => setAiPrompt(e.target.value)}
+                    rows={3}
+                    className="w-full px-4 py-3 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
+                    placeholder="Example: 'Include rush charges, complex integration requirements, maintenance costs, deployment fees'"
+                  />
+                </div>
+
+                {/* Financial Input Fields */}
+                <div className="bg-white p-6 rounded-lg border border-green-200 shadow-sm">
+                  <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                    <DollarSign className="h-5 w-5 mr-2 text-green-500" />
+                    Project Financial Details
+                  </h4>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Estimated Hours
+                      </label>
+                      <input
+                        type="number"
+                        step="0.5"
+                        value={formData.estimated_hours}
+                        onChange={(e) => setFormData({ ...formData, estimated_hours: e.target.value })}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white text-gray-900"
+                        placeholder="40"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Hourly Rate ($)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={formData.hourly_rate}
+                        onChange={(e) => setFormData({ ...formData, hourly_rate: e.target.value })}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white text-gray-900"
+                        placeholder="75.00"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Fixed Price ($)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={formData.fixed_price}
+                        onChange={(e) => setFormData({ ...formData, fixed_price: e.target.value })}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white text-gray-900"
+                        placeholder="5000.00"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Calculated Total */}
+                  {formData.estimated_hours && formData.hourly_rate && (
+                    <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                      <div className="text-sm font-medium text-gray-700">Calculated Total (Hours × Rate)</div>
+                      <div className="text-xl font-bold text-gray-900">
+                        ${(parseFloat(formData.estimated_hours) * parseFloat(formData.hourly_rate)).toFixed(2)}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Financial Estimation Results */}
+                {financialEstimation && (
+                  <div className="bg-white p-6 rounded-lg border border-green-200 shadow-sm">
+                    <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                      <CheckCircle className="h-5 w-5 mr-2 text-green-500" />
+                      AI Financial Analysis Results
+                    </h4>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                      {financialEstimation.estimated_hours && (
+                        <div className="bg-blue-50 p-4 rounded-lg">
+                          <div className="text-sm font-medium text-blue-600">Estimated Hours</div>
+                          <div className="text-2xl font-bold text-blue-900">{financialEstimation.estimated_hours}</div>
+                        </div>
+                      )}
+                      {financialEstimation.recommended_hourly_rate && (
+                        <div className="bg-purple-50 p-4 rounded-lg">
+                          <div className="text-sm font-medium text-purple-600">Recommended Rate</div>
+                          <div className="text-2xl font-bold text-purple-900">${financialEstimation.recommended_hourly_rate}/hr</div>
+                        </div>
+                      )}
+                      {financialEstimation.fixed_price_estimate && (
+                        <div className="bg-green-50 p-4 rounded-lg">
+                          <div className="text-sm font-medium text-green-600">Fixed Price</div>
+                          <div className="text-2xl font-bold text-green-900">${financialEstimation.fixed_price_estimate}</div>
+                        </div>
+                      )}
+                    </div>
+
+                    {financialEstimation.breakdown_notes && (
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <div className="text-sm font-medium text-gray-700 mb-2">Analysis Breakdown</div>
+                        <div className="text-sm text-gray-600 whitespace-pre-line">{financialEstimation.breakdown_notes}</div>
+                      </div>
+                    )}
+
+                    <div className="flex gap-3 mt-4">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (financialEstimation.estimated_hours) {
+                            setFormData(prev => ({ ...prev, estimated_hours: financialEstimation.estimated_hours!.toString() }));
+                          }
+                        }}
+                        className="px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 text-sm"
+                      >
+                        Apply Hours
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (financialEstimation.recommended_hourly_rate) {
+                            setFormData(prev => ({ ...prev, hourly_rate: financialEstimation.recommended_hourly_rate!.toString() }));
+                          }
+                        }}
+                        className="px-3 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 text-sm"
+                      >
+                        Apply Rate
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (financialEstimation.fixed_price_estimate) {
+                            setFormData(prev => ({ ...prev, fixed_price: financialEstimation.fixed_price_estimate!.toString() }));
+                          }
+                        }}
+                        className="px-3 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 text-sm"
+                      >
+                        Apply Fixed Price
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

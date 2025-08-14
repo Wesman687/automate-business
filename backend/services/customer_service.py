@@ -101,3 +101,58 @@ class CustomerService:
         self.db.commit()
         self.db.refresh(customer)
         return customer
+    
+    def get_customers_by_phone(self, phone: str) -> List[Customer]:
+        """Get customers by phone number (exact match and fuzzy match)"""
+        # Clean phone number (remove common formatting)
+        clean_phone = ''.join(filter(str.isdigit, phone))
+        
+        if len(clean_phone) < 10:
+            return []
+        
+        # Try exact match first
+        customers = self.db.query(Customer).filter(Customer.phone == phone).all()
+        
+        # If no exact match, try fuzzy matching on cleaned phone numbers
+        if not customers and len(clean_phone) >= 10:
+            # Get last 10 digits for comparison
+            phone_suffix = clean_phone[-10:]
+            customers = self.db.query(Customer).filter(
+                Customer.phone.ilike(f'%{phone_suffix}')
+            ).all()
+        
+        return customers
+    
+    def search_customers_by_name(self, name: str) -> List[Customer]:
+        """Search customers by name (fuzzy match)"""
+        name_parts = name.strip().split()
+        
+        if not name_parts:
+            return []
+        
+        # Search for customers where name contains any part of the search term
+        query = self.db.query(Customer)
+        
+        for part in name_parts:
+            query = query.filter(Customer.name.ilike(f'%{part}%'))
+        
+        customers = query.all()
+        
+        # If no results with all parts, try each part individually
+        if not customers:
+            individual_searches = []
+            for part in name_parts:
+                matches = self.db.query(Customer).filter(
+                    Customer.name.ilike(f'%{part}%')
+                ).all()
+                individual_searches.extend(matches)
+            
+            # Remove duplicates while preserving order
+            seen = set()
+            customers = []
+            for customer in individual_searches:
+                if customer.id not in seen:
+                    seen.add(customer.id)
+                    customers.append(customer)
+        
+        return customers

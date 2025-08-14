@@ -107,3 +107,29 @@ body {
   75% { content: '...'; }
   100% { content: ''; }
 }
+
+/* Default form input styles */
+.form-input {
+  @apply w-full px-3 py-2 bg-gray-800 text-white border border-gray-600 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent;
+}
+
+.form-select {
+  @apply w-full px-3 py-2 bg-gray-800 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent;
+}
+
+.form-select option {
+  @apply bg-gray-800 text-white;
+}
+
+.form-textarea {
+  @apply w-full px-3 py-2 bg-gray-800 text-white border border-gray-600 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent resize-y;
+}
+
+/* Inline form controls (for dropdowns in headers, etc) */
+.form-select-inline {
+  @apply px-3 py-1 text-sm font-semibold rounded-full bg-gray-800 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500;
+}
+
+.form-select-inline option {
+  @apply bg-gray-800 text-white;
+}

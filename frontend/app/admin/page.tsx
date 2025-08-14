@@ -158,6 +158,20 @@ export default function AdminDashboard() {
           className="mb-8 flex flex-wrap gap-4 justify-center"
         >
           <button
+            onClick={() => window.location.href = '/admin/dashboard'}
+            className="bg-purple-600 text-white px-6 py-3 rounded-lg font-mono hover:bg-purple-700 transition-colors duration-300 flex items-center space-x-2"
+          >
+            <TrendingUp className="w-4 h-4" />
+            <span>Unified Dashboard</span>
+          </button>
+          <button
+            onClick={() => window.location.href = '/admin/jobs'}
+            className="bg-blue-600 text-white px-6 py-3 rounded-lg font-mono hover:bg-blue-700 transition-colors duration-300 flex items-center space-x-2"
+          >
+            <Users className="w-4 h-4" />
+            <span>Job Management</span>
+          </button>
+          <button
             onClick={() => openBackendAdmin('/chat-logs')}
             className="bg-electric-blue text-black px-6 py-3 rounded-lg font-mono hover:bg-opacity-80 transition-colors duration-300 flex items-center space-x-2"
           >

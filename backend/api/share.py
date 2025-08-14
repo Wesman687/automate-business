@@ -789,13 +789,7 @@ async def share_badges_page(request: Request):
                     <div id="dark-html" class="tab-content active">
                         <div class="code-block">
                             <button class="copy-btn" onclick="copyCode('dark-html-code')">📋 Copy</button>
-                            <pre id="dark-html-code">&lt;style&gt;
-@keyframes pulse {{
-  0%, 100% {{ opacity: 1; transform: scale(1); }}
-  50% {{ opacity: 0.7; transform: scale(1.1); }}
-}}
-&lt;/style&gt;
-&lt;a href="https://stream-lineai.com" target="_blank" style="display: inline-flex; align-items: center; padding: 10px 18px; background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%); color: #00d4ff; text-decoration: none; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; font-weight: 600; border: 1px solid #333; box-shadow: 0 4px 16px rgba(0,0,0,0.2); transition: all 0.3s ease;"&gt;
+                            <pre id="dark-html-code">&lt;a href="https://stream-lineai.com" target="_blank" style="display: inline-flex; align-items: center; padding: 10px 18px; background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%); color: #00d4ff; text-decoration: none; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; font-weight: 600; border: 1px solid #333; box-shadow: 0 4px 16px rgba(0,0,0,0.2); transition: all 0.3s ease;"&gt;
     &lt;div style="width: 8px; height: 8px; background: #00d4ff; border-radius: 50%; margin-right: 8px; animation: pulse 2s infinite;"&gt;&lt;/div&gt;
     Designed by StreamlineAI
 &lt;/a&gt;</pre>

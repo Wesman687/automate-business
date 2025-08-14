@@ -30,7 +30,8 @@ export default function CreateJobModal({ isOpen, onClose, onSave }: CreateJobMod
     hourly_rate: '',
     fixed_price: '',
     website_url: '',
-    notes: ''
+    notes: '',
+    milestones: [] as Array<{ name: string; description: string; due_date: string; completed: boolean }>
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -92,7 +93,8 @@ export default function CreateJobModal({ isOpen, onClose, onSave }: CreateJobMod
         hourly_rate: '',
         fixed_price: '',
         website_url: '',
-        notes: ''
+        notes: '',
+        milestones: []
       });
     } catch (error) {
       console.error('Error creating job:', error);
@@ -319,6 +321,92 @@ export default function CreateJobModal({ isOpen, onClose, onSave }: CreateJobMod
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
               placeholder="Additional notes and requirements..."
             />
+          </div>
+
+          {/* Milestones Section */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <label className="block text-sm font-medium text-gray-300">
+                Project Milestones
+              </label>
+              <button
+                type="button"
+                onClick={() => setFormData({
+                  ...formData,
+                  milestones: [...formData.milestones, { name: '', description: '', due_date: '', completed: false }]
+                })}
+                className="text-cyan-400 hover:text-cyan-300 text-sm flex items-center"
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Add Milestone
+              </button>
+            </div>
+            {formData.milestones.map((milestone, index) => (
+              <div key={index} className="bg-gray-700/50 p-4 rounded-lg mb-3">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-medium text-gray-300">Milestone {index + 1}</h4>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({
+                      ...formData,
+                      milestones: formData.milestones.filter((_, i) => i !== index)
+                    })}
+                    className="text-red-400 hover:text-red-300"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-400 mb-1">
+                      Milestone Name
+                    </label>
+                    <input
+                      type="text"
+                      value={milestone.name}
+                      onChange={(e) => {
+                        const newMilestones = [...formData.milestones];
+                        newMilestones[index].name = e.target.value;
+                        setFormData({ ...formData, milestones: newMilestones });
+                      }}
+                      className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      placeholder="e.g., Design Phase Complete"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-400 mb-1">
+                      Due Date
+                    </label>
+                    <input
+                      type="date"
+                      value={milestone.due_date}
+                      onChange={(e) => {
+                        const newMilestones = [...formData.milestones];
+                        newMilestones[index].due_date = e.target.value;
+                        setFormData({ ...formData, milestones: newMilestones });
+                      }}
+                      className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    />
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <label className="block text-xs font-medium text-gray-400 mb-1">
+                    Description
+                  </label>
+                  <textarea
+                    value={milestone.description}
+                    onChange={(e) => {
+                      const newMilestones = [...formData.milestones];
+                      newMilestones[index].description = e.target.value;
+                      setFormData({ ...formData, milestones: newMilestones });
+                    }}
+                    rows={2}
+                    className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    placeholder="Milestone description..."
+                  />
+                </div>
+              </div>
+            ))}
           </div>
 
           <div className="flex justify-end gap-3 pt-4">

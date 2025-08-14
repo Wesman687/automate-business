@@ -13,11 +13,18 @@ from api.email import router as email_router
 from api.share import router as share_router
 from api.api_endpoints import router as api_router
 from api.financial import router as financial_router
+from api.schedule import router as schedule_router
+from api.google_auth import router as google_auth_router
+from api.voice_agent import router as voice_agent_router
+from api.admin_jobs import router as admin_jobs_router
+from api.admin_emails import router as admin_emails_router
+from api.admin_chat_logs import router as admin_chat_logs_router
 import logging
 import os
 from datetime import datetime
 import sys
 from contextlib import asynccontextmanager
+from config import config
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -170,6 +177,12 @@ app.include_router(email_router)
 app.include_router(share_router)
 app.include_router(api_router)
 app.include_router(financial_router, prefix="/api")
+app.include_router(schedule_router)
+app.include_router(google_auth_router)
+app.include_router(voice_agent_router)
+app.include_router(admin_jobs_router)
+app.include_router(admin_emails_router)
+app.include_router(admin_chat_logs_router)
 
 @app.get("/health")
 async def health_check():
@@ -198,4 +211,17 @@ async def root():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8005, reload=True)
+    
+    # Validate required environment variables
+    try:
+        config.validate_required_env_vars()
+        print("✅ Environment variables validated successfully")
+    except ValueError as e:
+        print(f"❌ Configuration error: {e}")
+        sys.exit(1)
+    
+    print(f"🚀 Starting backend server on {config.BACKEND_HOST}:{config.BACKEND_PORT}")
+    print(f"🌍 Environment: {config.ENVIRONMENT}")
+    print(f"🔗 Backend URL: {config.BACKEND_URL}")
+    
+    uvicorn.run("main:app", host=config.BACKEND_HOST, port=config.BACKEND_PORT, reload=True)

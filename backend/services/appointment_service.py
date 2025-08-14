@@ -13,15 +13,30 @@ class AppointmentService:
         scheduled_date: datetime,
         duration_minutes: int = 30,
         appointment_type: str = "consultation",
-        customer_notes: str = None
+        customer_notes: str = None,
+        status: str = "scheduled",
+        force_create: bool = False
     ) -> Appointment:
-        """Create a new appointment"""
+        """Create a new appointment with optional conflict checking"""
+        
+        # Only check for conflicts if not forcing creation
+        if not force_create:
+            # Check for exact time conflicts (same date and time)
+            existing_appointment = self.db.query(Appointment).filter(
+                Appointment.scheduled_date == scheduled_date,
+                Appointment.status == "scheduled"
+            ).first()
+            
+            if existing_appointment:
+                raise ValueError(f"Another appointment is already scheduled at {scheduled_date.strftime('%A, %B %d at %I:%M %p')}")
+        
         appointment = Appointment(
             customer_id=customer_id,
             scheduled_date=scheduled_date,
             duration_minutes=duration_minutes,
             appointment_type=appointment_type,
-            customer_notes=customer_notes
+            customer_notes=customer_notes,
+            status=status
         )
         
         self.db.add(appointment)
@@ -29,18 +44,20 @@ class AppointmentService:
         self.db.refresh(appointment)
         return appointment
     
+    def _is_time_available(self, scheduled_date: datetime, duration_minutes: int) -> bool:
+        """Check if a specific time slot is available"""
+        available_slots = self.get_available_slots(scheduled_date, duration_minutes)
+        requested_time = scheduled_date.replace(second=0, microsecond=0)
+        return requested_time in available_slots
+    
     def get_available_slots(self, date: datetime, duration_minutes: int = 30) -> List[datetime]:
         """Get available appointment slots for a given date"""
-        # Business hours: 9 AM to 5 PM, Monday to Friday
+        # Business hours: 9 AM to 5 PM, 7 days a week (including weekends)
         start_hour = 9
         end_hour = 17
         slot_duration = duration_minutes
         
-        # Check if it's a weekday
-        if date.weekday() >= 5:  # Saturday = 5, Sunday = 6
-            return []
-        
-        # Generate possible slots
+        # Generate possible slots for any day of the week
         slots = []
         current_time = date.replace(hour=start_hour, minute=0, second=0, microsecond=0)
         end_time = date.replace(hour=end_hour, minute=0, second=0, microsecond=0)
@@ -49,7 +66,7 @@ class AppointmentService:
             slots.append(current_time)
             current_time += timedelta(minutes=slot_duration)
         
-        # Remove slots that are already booked
+        # Remove slots that are already booked (only hard conflicts)
         booked_appointments = self.db.query(Appointment).filter(
             Appointment.scheduled_date >= date.replace(hour=0, minute=0, second=0),
             Appointment.scheduled_date < date.replace(hour=23, minute=59, second=59),
@@ -58,18 +75,51 @@ class AppointmentService:
         
         booked_times = set()
         for apt in booked_appointments:
-            # Block out the appointment time and some buffer
-            start_time = apt.scheduled_date
-            end_time = start_time + timedelta(minutes=apt.duration_minutes)
-            
-            # Remove conflicting slots
-            current = start_time
-            while current < end_time:
-                booked_times.add(current.replace(second=0, microsecond=0))
-                current += timedelta(minutes=30)
+            # Only block the exact time slot, not buffer time
+            booked_times.add(apt.scheduled_date.replace(second=0, microsecond=0))
         
         available_slots = [slot for slot in slots if slot not in booked_times]
         return available_slots
+    
+    def get_recommended_times(
+        self, 
+        preferred_date: datetime, 
+        duration_minutes: int = 30, 
+        num_suggestions: int = 5
+    ) -> List[datetime]:
+        """Get recommended appointment times around a preferred date"""
+        
+        recommendations = []
+        
+        # Start from the preferred date and look forward/backward
+        search_date = preferred_date.replace(hour=9, minute=0, second=0, microsecond=0)
+        days_searched = 0
+        max_days = 14  # Search up to 2 weeks
+        
+        while len(recommendations) < num_suggestions and days_searched < max_days:
+            # Include all days (weekdays and weekends)
+            available_slots = self.get_available_slots(search_date, duration_minutes)
+            
+            # Sort slots by proximity to preferred time
+            if available_slots:
+                preferred_time = preferred_date.time()
+                sorted_slots = sorted(
+                    available_slots, 
+                    key=lambda x: abs(
+                        (x.time().hour * 60 + x.time().minute) - 
+                        (preferred_time.hour * 60 + preferred_time.minute)
+                    )
+                )
+                
+                for slot in sorted_slots:
+                    if len(recommendations) < num_suggestions:
+                        recommendations.append(slot)
+            
+            # Move to next day
+            search_date += timedelta(days=1)
+            days_searched += 1
+        
+        return recommendations[:num_suggestions]
     
     def get_next_available_slot(self, days_ahead: int = 7) -> Optional[datetime]:
         """Get the next available appointment slot within the next N days"""
@@ -155,6 +205,32 @@ class AppointmentService:
         start_date = datetime.now()
         end_date = start_date + timedelta(days=days_ahead)
         
+        return self.db.query(Appointment).filter(
+            Appointment.scheduled_date >= start_date,
+            Appointment.scheduled_date <= end_date
+        ).order_by(Appointment.scheduled_date).all()
+
+    def get_appointment(self, appointment_id: int) -> Optional[Appointment]:
+        """Get a specific appointment by ID"""
+        return self.db.query(Appointment).filter(Appointment.id == appointment_id).first()
+    
+    def update_appointment(self, appointment: Appointment) -> Appointment:
+        """Update an existing appointment"""
+        self.db.commit()
+        self.db.refresh(appointment)
+        return appointment
+    
+    def delete_appointment(self, appointment_id: int) -> bool:
+        """Delete an appointment"""
+        appointment = self.get_appointment(appointment_id)
+        if appointment:
+            self.db.delete(appointment)
+            self.db.commit()
+            return True
+        return False
+    
+    def get_appointments_by_date_range(self, start_date: datetime, end_date: datetime) -> List[Appointment]:
+        """Get appointments within a date range"""
         return self.db.query(Appointment).filter(
             Appointment.scheduled_date >= start_date,
             Appointment.scheduled_date <= end_date

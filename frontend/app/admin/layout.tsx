@@ -73,7 +73,7 @@ export default function AdminLayout({
     { name: 'Customers', href: '/admin/customers', icon: Users },
     { name: 'Financial', href: '/admin/financial', icon: DollarSign },
     { name: 'Jobs', href: '/admin/jobs', icon: Briefcase },
-    { name: 'Schedule', href: '/admin/schedule', icon: Calendar },
+    { name: 'Appointments', href: '/admin/appointments', icon: Calendar },
     ...(user?.is_super_admin ? [{ name: 'Admin Users', href: '/admin/users', icon: UserCog }] : []),
   ];
 

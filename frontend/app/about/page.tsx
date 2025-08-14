@@ -1,5 +1,3 @@
-'use client';
-
 import { CheckCircle, Users, Zap, Award, Mail, Phone, MapPin } from 'lucide-react';
 import Link from 'next/link';
 import type { Metadata } from 'next';

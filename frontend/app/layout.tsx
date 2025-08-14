@@ -30,6 +30,9 @@ export const metadata: Metadata = {
   creator: 'Streamline AI',
   publisher: 'Streamline AI',
   metadataBase: new URL('https://stream-lineai.com'),
+  alternates: {
+    canonical: 'https://stream-lineai.com',
+  },
   openGraph: {
     type: 'website',
     locale: 'en_US',

@@ -9,13 +9,29 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check admin authentication
-    const token = localStorage.getItem('admin_token');
-    if (!token) {
-      window.location.href = '/portal';
-      return;
-    }
-    setLoading(false);
+    // Check admin authentication via API call instead of localStorage
+    const checkAuth = async () => {
+      try {
+        const response = await fetch('/api/auth/verify', {
+          credentials: 'include', // Include cookies
+        });
+        if (!response.ok) {
+          window.location.href = '/portal';
+          return;
+        }
+        const data = await response.json();
+        if (!data.valid || !data.user || !data.user.is_admin) {
+          window.location.href = '/portal';
+          return;
+        }
+        setLoading(false);
+      } catch (error) {
+        console.error('Authentication check failed:', error);
+        window.location.href = '/portal';
+      }
+    };
+    
+    checkAuth();
   }, []);
 
   if (loading) {

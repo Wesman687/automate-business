@@ -440,7 +440,8 @@ async def get_appointments(
                 end = datetime.strptime(end_date, '%Y-%m-%d').date()
                 appointments = appointment_service.get_appointments_by_date_range(start, end)
             else:
-                appointments = appointment_service.get_upcoming_appointments(30)
+                # Admin sees ALL appointments (past, present, future) - no date filtering
+                appointments = appointment_service.get_all_appointments()  # Get ALL appointments for admin
         elif user_type == "customer" and user_id:
             # Customer can only see their own appointments
             appointments = appointment_service.get_customer_appointments(user_id)

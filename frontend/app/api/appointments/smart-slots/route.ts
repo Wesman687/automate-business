@@ -6,12 +6,8 @@ const BACKEND_URL = getApiUrl();
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const date = searchParams.get('date');
+    const queryString = searchParams.toString();
     
-    if (!date) {
-      return NextResponse.json({ error: 'Date parameter is required' }, { status: 400 });
-    }
-
     // Forward cookies from the request
     const cookies = request.headers.get('cookie');
     const headers: Record<string, string> = {
@@ -22,7 +18,7 @@ export async function GET(request: NextRequest) {
       headers['Cookie'] = cookies;
     }
 
-    const response = await fetch(`${BACKEND_URL}/api/appointments/available-slots?date=${date}`, {
+    const response = await fetch(`${BACKEND_URL}/api/appointments/smart-slots?${queryString}`, {
       method: 'GET',
       headers,
     });
@@ -31,13 +27,13 @@ export async function GET(request: NextRequest) {
       throw new Error(`Backend responded with status: ${response.status}`);
     }
 
-    const availableSlots = await response.json();
-    return NextResponse.json(availableSlots);
+    const smartSlots = await response.json();
+    return NextResponse.json(smartSlots);
 
   } catch (error) {
-    console.error('Error fetching available slots:', error);
+    console.error('Error fetching smart slots:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch available slots' }, 
+      { error: 'Failed to fetch smart slots' }, 
       { status: 500 }
     );
   }

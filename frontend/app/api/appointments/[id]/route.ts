@@ -8,17 +8,19 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Authorization required' }, { status: 401 });
+    // Forward cookies from the request
+    const cookies = request.headers.get('cookie');
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    
+    if (cookies) {
+      headers['Cookie'] = cookies;
     }
 
     const response = await fetch(`${BACKEND_URL}/api/appointments/${params.id}`, {
       method: 'GET',
-      headers: {
-        'Authorization': authHeader,
-        'Content-Type': 'application/json',
-      },
+      headers,
     });
 
     if (!response.ok) {
@@ -42,19 +44,21 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Authorization required' }, { status: 401 });
-    }
-
     const updateData = await request.json();
+    
+    // Forward cookies from the request
+    const cookies = request.headers.get('cookie');
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    
+    if (cookies) {
+      headers['Cookie'] = cookies;
+    }
 
     const response = await fetch(`${BACKEND_URL}/api/appointments/${params.id}`, {
       method: 'PUT',
-      headers: {
-        'Authorization': authHeader,
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify(updateData),
     });
 
@@ -80,17 +84,19 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Authorization required' }, { status: 401 });
+    // Forward cookies from the request
+    const cookies = request.headers.get('cookie');
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    
+    if (cookies) {
+      headers['Cookie'] = cookies;
     }
 
     const response = await fetch(`${BACKEND_URL}/api/appointments/${params.id}`, {
       method: 'DELETE',
-      headers: {
-        'Authorization': authHeader,
-        'Content-Type': 'application/json',
-      },
+      headers,
     });
 
     if (!response.ok) {

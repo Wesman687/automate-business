@@ -164,6 +164,10 @@ class AppointmentService:
             Appointment.status == "scheduled"
         ).order_by(Appointment.scheduled_date).all()
     
+    def get_all_appointments(self) -> List[Appointment]:
+        """Get all appointments (for admin users)"""
+        return self.db.query(Appointment).order_by(Appointment.scheduled_date.desc()).all()
+    
     def get_appointments_by_date(self, date: datetime) -> List[Appointment]:
         """Get all appointments for a specific date"""
         start_of_day = date.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -200,16 +204,6 @@ class AppointmentService:
         self.db.commit()
         return True
     
-    def get_upcoming_appointments(self, days_ahead: int = 30):
-        """Get upcoming appointments within specified days"""
-        start_date = datetime.now()
-        end_date = start_date + timedelta(days=days_ahead)
-        
-        return self.db.query(Appointment).filter(
-            Appointment.scheduled_date >= start_date,
-            Appointment.scheduled_date <= end_date
-        ).order_by(Appointment.scheduled_date).all()
-
     def get_appointment(self, appointment_id: int) -> Optional[Appointment]:
         """Get a specific appointment by ID"""
         return self.db.query(Appointment).filter(Appointment.id == appointment_id).first()

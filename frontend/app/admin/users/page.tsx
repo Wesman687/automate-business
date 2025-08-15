@@ -35,7 +35,12 @@ export default function AdminUsers() {
       const response = await fetchWithAuth('/auth/me');
       if (response.ok) {
         const data = await response.json();
-        setCurrentUser(data);
+        // Map the response to match our interface expectations
+        setCurrentUser({
+          email: data.user.email,
+          is_super_admin: data.user.is_super_admin,
+          admin_id: data.user.id
+        });
       }
     } catch (error) {
       console.error('Error fetching current user:', error);
@@ -201,32 +206,46 @@ export default function AdminUsers() {
     );
   }
 
-  // Check if current user is super admin
-  if (!currentUser?.is_super_admin) {
+  // Check if current user has any admin access
+  if (!currentUser) {
     return (
       <div className="text-center py-12">
         <Shield className="h-16 w-16 text-red-400 mx-auto mb-4" />
         <div className="text-red-400 text-lg font-semibold">Access Denied</div>
-        <div className="text-gray-400 mt-2">Only super administrators can access this page.</div>
+        <div className="text-gray-400 mt-2">Only administrators can access this page.</div>
       </div>
     );
   }
+
+  // Filter admins based on user permissions
+  const visibleAdmins = currentUser?.is_super_admin 
+    ? admins 
+    : admins.filter(admin => admin.id === currentUser?.admin_id);
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-white">Admin Management</h1>
-          <p className="text-gray-400 mt-1">Manage administrative users and permissions</p>
+          <h1 className="text-3xl font-bold text-white">
+            {currentUser?.is_super_admin ? 'Admin Management' : 'My Profile'}
+          </h1>
+          <p className="text-gray-400 mt-1">
+            {currentUser?.is_super_admin 
+              ? 'Manage administrative users and permissions' 
+              : 'Manage your admin profile information'
+            }
+          </p>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 transition-colors"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add Admin
-        </button>
+        {currentUser?.is_super_admin && (
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 transition-colors"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Admin
+          </button>
+        )}
       </div>
 
       {/* Message */}
@@ -240,31 +259,33 @@ export default function AdminUsers() {
         </div>
       )}
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white/5 backdrop-blur-sm rounded-lg p-6 border border-white/10">
-          <h3 className="text-sm font-medium text-cyan-400">Total Admins</h3>
-          <div className="text-2xl font-bold text-white">{admins.length}</div>
-        </div>
-        <div className="bg-white/5 backdrop-blur-sm rounded-lg p-6 border border-white/10">
-          <h3 className="text-sm font-medium text-cyan-400">Super Admins</h3>
-          <div className="text-2xl font-bold text-white">
-            {admins.filter(admin => admin.is_super_admin).length}
+      {/* Stats Cards - Only show for super admins */}
+      {currentUser?.is_super_admin && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="bg-white/5 backdrop-blur-sm rounded-lg p-6 border border-white/10">
+            <h3 className="text-sm font-medium text-cyan-400">Total Admins</h3>
+            <div className="text-2xl font-bold text-white">{admins.length}</div>
+          </div>
+          <div className="bg-white/5 backdrop-blur-sm rounded-lg p-6 border border-white/10">
+            <h3 className="text-sm font-medium text-cyan-400">Super Admins</h3>
+            <div className="text-2xl font-bold text-white">
+              {admins.filter(admin => admin.is_super_admin).length}
+            </div>
+          </div>
+          <div className="bg-white/5 backdrop-blur-sm rounded-lg p-6 border border-white/10">
+            <h3 className="text-sm font-medium text-cyan-400">Active Admins</h3>
+            <div className="text-2xl font-bold text-white">
+              {admins.filter(admin => admin.is_active).length}
+            </div>
+          </div>
+          <div className="bg-white/5 backdrop-blur-sm rounded-lg p-6 border border-white/10">
+            <h3 className="text-sm font-medium text-cyan-400">Regular Admins</h3>
+            <div className="text-2xl font-bold text-white">
+              {admins.filter(admin => !admin.is_super_admin && admin.is_active).length}
+            </div>
           </div>
         </div>
-        <div className="bg-white/5 backdrop-blur-sm rounded-lg p-6 border border-white/10">
-          <h3 className="text-sm font-medium text-cyan-400">Active Admins</h3>
-          <div className="text-2xl font-bold text-white">
-            {admins.filter(admin => admin.is_active).length}
-          </div>
-        </div>
-        <div className="bg-white/5 backdrop-blur-sm rounded-lg p-6 border border-white/10">
-          <h3 className="text-sm font-medium text-cyan-400">Regular Admins</h3>
-          <div className="text-2xl font-bold text-white">
-            {admins.filter(admin => !admin.is_super_admin && admin.is_active).length}
-          </div>
-        </div>
-      </div>
+      )}
 
       {/* Admin Table */}
       <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 overflow-hidden">
@@ -293,7 +314,7 @@ export default function AdminUsers() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {admins.map((admin) => (
+              {visibleAdmins.map((admin) => (
                 <tr key={admin.id} className="hover:bg-white/5 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
@@ -361,8 +382,8 @@ export default function AdminUsers() {
                         </button>
                       )}
 
-                      {/* Super admin actions */}
-                      {!admin.is_super_admin && admin.is_active && (
+                      {/* Super admin actions - only super admins can promote/demote */}
+                      {currentUser?.is_super_admin && !admin.is_super_admin && admin.is_active && (
                         <button
                           onClick={() => makeSuperAdmin(admin.id)}
                           className="text-yellow-400 hover:text-yellow-300 p-1 rounded"
@@ -373,7 +394,7 @@ export default function AdminUsers() {
                       )}
 
                       {/* Remove super admin (only for owner) */}
-                      {admin.is_super_admin && 
+                      {currentUser?.is_super_admin && admin.is_super_admin && 
                        currentUser?.email.toLowerCase() === 'wesman687@gmail.com' && 
                        admin.email.toLowerCase() !== 'wesman687@gmail.com' && (
                         <button
@@ -385,8 +406,8 @@ export default function AdminUsers() {
                         </button>
                       )}
 
-                      {/* Delete button (not for super admins) */}
-                      {!admin.is_super_admin && (
+                      {/* Delete button - only super admins can delete other admins (not super admins) */}
+                      {currentUser?.is_super_admin && !admin.is_super_admin && (
                         <button
                           onClick={() => deleteAdmin(admin.id)}
                           className="text-red-400 hover:text-red-300 p-1 rounded"

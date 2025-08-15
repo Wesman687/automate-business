@@ -4,7 +4,8 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from database import get_db
 from services.auth_service import AuthService
-from api.auth import get_current_user
+from services.admin_service import AdminService
+from api.auth import get_current_user, get_current_super_admin
 from typing import Optional
 
 router = APIRouter(prefix="/auth", tags=["unified-authentication"])
@@ -157,3 +158,212 @@ async def customer_login_legacy(request: LoginRequest, response: Response, db: S
             "email": result["user"]["email"]
         }
     }
+
+# Admin Management API Endpoints
+
+@router.get("/admins")
+async def get_all_admins(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Get all admins - Super admins see all, regular admins see only themselves"""
+    try:
+        admin_service = AdminService(db)
+        
+        if current_user.get("is_super_admin", False):
+            # Super admin sees all admins
+            admins = admin_service.get_all_admins()
+            admin_list = []
+            for admin in admins:
+                admin_list.append({
+                    "id": admin.id,
+                    "email": admin.email,
+                    "full_name": admin.full_name,
+                    "phone": admin.phone,
+                    "address": admin.address,
+                    "is_super_admin": admin.is_super_admin,
+                    "is_active": admin.is_active,
+                    "last_login": admin.last_login.isoformat() if admin.last_login else None,
+                    "created_at": admin.created_at.isoformat() if admin.created_at else None
+                })
+            return {"admins": admin_list}
+        else:
+            # Regular admin sees only themselves
+            admin = admin_service.get_admin_by_id(current_user["user_id"])
+            if admin:
+                admin_list = [{
+                    "id": admin.id,
+                    "email": admin.email,
+                    "full_name": admin.full_name,
+                    "phone": admin.phone,
+                    "address": admin.address,
+                    "is_super_admin": admin.is_super_admin,
+                    "is_active": admin.is_active,
+                    "last_login": admin.last_login.isoformat() if admin.last_login else None,
+                    "created_at": admin.created_at.isoformat() if admin.created_at else None
+                }]
+                return {"admins": admin_list}
+            else:
+                return {"admins": []}
+    except Exception as e:
+        print(f"❌ Error fetching admins: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error fetching admins: {str(e)}")
+
+@router.post("/create-admin")
+async def create_admin(
+    request: dict, 
+    current_user: dict = Depends(get_current_super_admin), 
+    db: Session = Depends(get_db)
+):
+    """Create a new admin - Super admin only"""
+    try:
+        admin_service = AdminService(db)
+        
+        email = request.get("email")
+        password = request.get("password")
+        full_name = request.get("full_name")
+        phone = request.get("phone")
+        address = request.get("address")
+        
+        if not email or not password:
+            raise HTTPException(status_code=400, detail="Email and password are required")
+        
+        # Use email as username for simplicity
+        username = email.split("@")[0]
+        
+        admin = admin_service.create_admin(
+            email=email,
+            username=username,
+            password=password,
+            full_name=full_name,
+            phone=phone,
+            address=address,
+            is_super_admin=False
+        )
+        
+        return {
+            "message": "Admin created successfully",
+            "admin_id": admin.id
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        print(f"❌ Error creating admin: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error creating admin: {str(e)}")
+
+@router.put("/admins/{admin_id}")
+async def update_admin(
+    admin_id: int,
+    request: dict,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update admin - Super admins can update anyone, regular admins can only update themselves"""
+    try:
+        admin_service = AdminService(db)
+        
+        # Check permissions
+        if not current_user.get("is_super_admin", False) and current_user["user_id"] != admin_id:
+            raise HTTPException(status_code=403, detail="You can only update your own profile")
+        
+        admin = admin_service.get_admin_by_id(admin_id)
+        if not admin:
+            raise HTTPException(status_code=404, detail="Admin not found")
+        
+        # Update fields
+        if "email" in request:
+            admin.email = request["email"]
+        if "full_name" in request:
+            admin.full_name = request["full_name"]
+        if "phone" in request:
+            admin.phone = request["phone"]
+        if "address" in request:
+            admin.address = request["address"]
+        if "password" in request and request["password"]:
+            admin.password_hash = admin_service._hash_password(request["password"])
+        
+        db.commit()
+        
+        return {"message": "Admin updated successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error updating admin: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error updating admin: {str(e)}")
+
+@router.delete("/admins/{admin_id}")
+async def delete_admin(
+    admin_id: int,
+    current_user: dict = Depends(get_current_super_admin),
+    db: Session = Depends(get_db)
+):
+    """Deactivate admin - Super admin only"""
+    try:
+        admin_service = AdminService(db)
+        
+        admin = admin_service.get_admin_by_id(admin_id)
+        if not admin:
+            raise HTTPException(status_code=404, detail="Admin not found")
+        
+        # Don't allow deleting super admins
+        if admin.is_super_admin:
+            raise HTTPException(status_code=400, detail="Cannot deactivate super admin")
+        
+        admin.is_active = False
+        db.commit()
+        
+        return {"message": "Admin deactivated successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error deactivating admin: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error deactivating admin: {str(e)}")
+
+@router.post("/admins/{admin_id}/make-super-admin")
+async def make_super_admin(
+    admin_id: int,
+    current_user: dict = Depends(get_current_super_admin),
+    db: Session = Depends(get_db)
+):
+    """Make admin a super admin - Super admin only"""
+    try:
+        admin_service = AdminService(db)
+        
+        admin = admin_service.get_admin_by_id(admin_id)
+        if not admin:
+            raise HTTPException(status_code=404, detail="Admin not found")
+        
+        admin.is_super_admin = True
+        db.commit()
+        
+        return {"message": "Admin promoted to super admin successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error promoting admin: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error promoting admin: {str(e)}")
+
+@router.post("/admins/{admin_id}/remove-super-admin")
+async def remove_super_admin(
+    admin_id: int,
+    current_user: dict = Depends(get_current_super_admin),
+    db: Session = Depends(get_db)
+):
+    """Remove super admin status - Super admin only (owner protection)"""
+    try:
+        admin_service = AdminService(db)
+        
+        admin = admin_service.get_admin_by_id(admin_id)
+        if not admin:
+            raise HTTPException(status_code=404, detail="Admin not found")
+        
+        # Protect the owner account (wesman687@gmail.com)
+        if admin.email.lower() == "wesman687@gmail.com":
+            raise HTTPException(status_code=400, detail="Cannot remove super admin status from owner account")
+        
+        admin.is_super_admin = False
+        db.commit()
+        
+        return {"message": "Super admin status removed successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error removing super admin status: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error removing super admin status: {str(e)}")

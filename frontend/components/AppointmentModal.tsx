@@ -130,23 +130,15 @@ export default function AppointmentModal({ isOpen, onClose, onSave, appointment 
 
   const fetchCustomers = async () => {
     try {
-      const token = localStorage.getItem('admin_token');
-      if (!token) {
-        console.error('No admin token found');
-        return;
-      }
-      
       const response = await fetch('/api/customers', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
         credentials: 'include'
       });
 
       if (response.ok) {
         const data = await response.json();
         setCustomers(data);
+      } else {
+        console.error('Failed to fetch customers:', response.status);
       }
     } catch (error) {
       console.error('Error fetching customers:', error);
@@ -156,12 +148,6 @@ export default function AppointmentModal({ isOpen, onClose, onSave, appointment 
   const fetchSmartSlots = async (preferredDate?: string) => {
     setLoadingSlots(true);
     try {
-      const token = localStorage.getItem('admin_token');
-      if (!token) {
-        setError('Authentication required');
-        return;
-      }
-      
       const params = new URLSearchParams({
         duration_minutes: formData.duration_minutes.toString(),
         days_ahead: '14'
@@ -172,10 +158,6 @@ export default function AppointmentModal({ isOpen, onClose, onSave, appointment 
       }
 
       const response = await fetch(`/api/appointments/smart-slots?${params}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
         credentials: 'include'
       });
 
@@ -235,12 +217,6 @@ export default function AppointmentModal({ isOpen, onClose, onSave, appointment 
     setConflictError(null);
 
     try {
-      const token = localStorage.getItem('admin_token');
-      if (!token) {
-        setError('Authentication required');
-        return;
-      }
-      
       // Generate title if not provided
       const selectedCustomer = customers.find(c => c.id.toString() === formData.customer_id);
       const title = formData.title || `Consultation - ${selectedCustomer?.name || 'Customer'}`;
@@ -263,7 +239,6 @@ export default function AppointmentModal({ isOpen, onClose, onSave, appointment 
       const response = await fetch(urlWithForce, {
         method,
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         credentials: 'include',

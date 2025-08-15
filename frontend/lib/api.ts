@@ -24,12 +24,10 @@ export const getApiUrl = (): string => {
 
 // Helper function for authenticated API calls
 export const fetchWithAuth = async (endpoint: string, options: RequestInit = {}) => {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('admin_token') : null;
   const apiUrl = getApiUrl();
   
   const headers = {
     'Content-Type': 'application/json',
-    ...(token && { 'Authorization': `Bearer ${token}` }),
     ...options.headers,
   };
 

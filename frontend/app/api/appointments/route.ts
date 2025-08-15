@@ -8,17 +8,19 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const queryString = searchParams.toString();
     
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Authorization required' }, { status: 401 });
+    // Forward cookies from the request
+    const cookies = request.headers.get('cookie');
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    
+    if (cookies) {
+      headers['Cookie'] = cookies;
     }
 
     const response = await fetch(`${BACKEND_URL}/api/appointments?${queryString}`, {
       method: 'GET',
-      headers: {
-        'Authorization': authHeader,
-        'Content-Type': 'application/json',
-      },
+      headers,
     });
 
     if (!response.ok) {
@@ -39,19 +41,21 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Authorization required' }, { status: 401 });
-    }
-
     const appointmentData = await request.json();
+    
+    // Forward cookies from the request
+    const cookies = request.headers.get('cookie');
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    
+    if (cookies) {
+      headers['Cookie'] = cookies;
+    }
 
     const response = await fetch(`${BACKEND_URL}/api/appointments`, {
       method: 'POST',
-      headers: {
-        'Authorization': authHeader,
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify(appointmentData),
     });
 

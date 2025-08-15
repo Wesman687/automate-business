@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, User, Bot, Clock } from 'lucide-react';
+import { ArrowLeft, User, Bot, Clock, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
+import { fetchWithAuth } from '@/lib/api';
+import ErrorModal from '@/components/ErrorModal';
 
 interface Customer {
   id: number;
@@ -25,6 +27,7 @@ interface Message {
 interface Session {
   session_id: string;
   status: string;
+  is_seen: boolean;
   created_at: string;
   updated_at: string;
   customer_id?: number;
@@ -44,6 +47,17 @@ export default function ChatLogView() {
   const [data, setData] = useState<ChatLogData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [errorModal, setErrorModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type?: 'error' | 'warning' | 'success' | 'info';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'error'
+  });
 
   useEffect(() => {
     if (sessionId) {
@@ -53,13 +67,8 @@ export default function ChatLogView() {
 
   const fetchChatLog = async () => {
     try {
-      const token = localStorage.getItem('admin_token');
-      
       // Fetch session data
-      const sessionResponse = await fetch(`/api/sessions/${sessionId}`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-        credentials: 'include',
-      });
+      const sessionResponse = await fetchWithAuth(`/api/sessions/${sessionId}`);
 
       if (!sessionResponse.ok) {
         throw new Error('Session not found');
@@ -70,20 +79,14 @@ export default function ChatLogView() {
       // Fetch customer data if available
       let customer = null;
       if (session.customer_id) {
-        const customerResponse = await fetch(`/api/customers/${session.customer_id}`, {
-          headers: { 'Authorization': `Bearer ${token}` },
-          credentials: 'include',
-        });
+        const customerResponse = await fetchWithAuth(`/api/customers/${session.customer_id}`);
         if (customerResponse.ok) {
           customer = await customerResponse.json();
         }
       }
 
-      // Fetch messages - need to create API route for this
-      const messagesResponse = await fetch(`/api/sessions/${sessionId}/messages`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-        credentials: 'include',
-      });
+      // Fetch messages
+      const messagesResponse = await fetchWithAuth(`/api/sessions/${sessionId}/messages`);
       
       const messages = messagesResponse.ok ? await messagesResponse.json() : [];
 
@@ -93,6 +96,46 @@ export default function ChatLogView() {
       setError(error instanceof Error ? error.message : 'Failed to load chat log');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const toggleSeenStatus = async () => {
+    if (!data) return;
+    
+    try {
+      const response = await fetchWithAuth(`/api/sessions/${sessionId}/seen`, {
+        method: 'PATCH',
+        body: JSON.stringify({ is_seen: !data.session.is_seen }),
+      });
+
+      if (response.ok) {
+        setData({
+          ...data,
+          session: { ...data.session, is_seen: !data.session.is_seen }
+        });
+        setErrorModal({
+          isOpen: true,
+          title: 'Status Updated',
+          message: `Session marked as ${!data.session.is_seen ? 'seen' : 'unseen'}.`,
+          type: 'success'
+        });
+      } else {
+        const errorData = await response.json();
+        setErrorModal({
+          isOpen: true,
+          title: 'Update Failed',
+          message: errorData.detail || 'Failed to update the seen status. Please try again.',
+          type: 'error'
+        });
+      }
+    } catch (error) {
+      console.error('Error updating seen status:', error);
+      setErrorModal({
+        isOpen: true,
+        title: 'Network Error',
+        message: 'Unable to connect to the server. Please check your internet connection and try again.',
+        type: 'error'
+      });
     }
   };
 
@@ -152,8 +195,24 @@ export default function ChatLogView() {
             <div className="text-white font-mono">{session.session_id}</div>
           </div>
           <div>
-            <div className="text-sm text-gray-400">Status</div>
-            <div className="text-white capitalize">{session.status.replace('_', ' ')}</div>
+            <div className="text-sm text-gray-400">Seen Status</div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={toggleSeenStatus}
+                className={`inline-flex items-center px-3 py-1 text-sm font-semibold rounded-full transition-colors ${
+                  session.is_seen
+                    ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                    : 'bg-orange-100 text-orange-800 hover:bg-orange-200'
+                }`}
+              >
+                {session.is_seen ? (
+                  <Eye className="h-4 w-4 mr-1" />
+                ) : (
+                  <EyeOff className="h-4 w-4 mr-1" />
+                )}
+                {session.is_seen ? 'Seen' : 'Unseen'}
+              </button>
+            </div>
           </div>
           <div>
             <div className="text-sm text-gray-400">Created</div>
@@ -289,6 +348,14 @@ export default function ChatLogView() {
           </div>
         </div>
       )}
+      
+      <ErrorModal
+        isOpen={errorModal.isOpen}
+        onClose={() => setErrorModal({ ...errorModal, isOpen: false })}
+        title={errorModal.title}
+        message={errorModal.message}
+        type={errorModal.type}
+      />
     </div>
   );
 }

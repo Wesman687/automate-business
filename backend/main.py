@@ -130,7 +130,7 @@ def is_allowed_ip_range(origin: str) -> bool:
 
 
 async def custom_cors_handler(request: Request, call_next):
-    """Custom CORS handler that supports IP ranges"""
+    """Custom CORS handler that supports IP ranges and handles preflight requests"""
     origin = request.headers.get("origin")
     
     # Check if origin is allowed
@@ -143,12 +143,24 @@ async def custom_cors_handler(request: Request, call_next):
         elif is_allowed_ip_range(origin):
             allowed = True
     
+    # Handle preflight requests (OPTIONS) before they reach the endpoint
+    if request.method == "OPTIONS" and allowed:
+        from fastapi.responses import Response
+        response = Response()
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+        response.headers["Access-Control-Max-Age"] = "86400"
+        return response
+    
     response = await call_next(request)
     
+    # Add CORS headers to all responses from allowed origins
     if allowed and origin:
         response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Access-Control-Allow-Credentials"] = "true"
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, PATCH, OPTIONS"
         response.headers["Access-Control-Allow-Headers"] = "*"
     
     return response
@@ -161,8 +173,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],
+    max_age=86400,
 )
 
 

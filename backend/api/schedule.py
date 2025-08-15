@@ -371,6 +371,186 @@ StreamlineAI - Automating Your Success
         logger.error(f"Error sending appointment update email: {str(e)}")
         return False
 
+async def send_appointment_cancellation_email(
+    customer_name: str,
+    customer_email: str,
+    appointment_date: date,
+    appointment_time: time,
+    duration_minutes: int,
+    meeting_type: str,
+    notes: Optional[str] = None
+):
+    """
+    Send appointment cancellation notification email to customer
+    """
+    try:
+        # Format the appointment details
+        formatted_date = appointment_date.strftime('%A, %B %d, %Y')
+        formatted_time = appointment_time.strftime('%I:%M %p')
+        meeting_type_display = meeting_type.replace('_', ' ').title()
+        
+        # Email subject
+        subject = f"Appointment Cancelled - {formatted_date} at {formatted_time}"
+        
+        # Email body (plain text)
+        body = f"""
+Dear {customer_name},
+
+We wanted to inform you that your StreamlineAI appointment has been cancelled. We apologize for any inconvenience this may cause.
+
+CANCELLED APPOINTMENT DETAILS:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📅 Date: {formatted_date}
+🕐 Time: {formatted_time}
+⏱️  Duration: {duration_minutes} minutes
+💻 Meeting Type: {meeting_type_display}
+{f'📝 Notes: {notes}' if notes else ''}
+
+NEXT STEPS:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• If you'd like to reschedule, please visit our website or contact us directly
+• We're happy to help find a new time that works better for your schedule
+• Feel free to reach out with any questions or concerns
+
+We value your business and hope to reschedule with you soon. Thank you for your understanding.
+
+Best regards,
+The StreamlineAI Team
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+StreamlineAI - Automating Your Success
+🌐 Website: https://stream-lineai.com
+📧 Email: sales@stream-lineai.com
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+"""
+
+        # HTML email body
+        html_body = f"""
+        <html>
+        <head>
+            <style>
+                body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8fafc; margin: 0; padding: 20px; }}
+                .container {{ max-width: 650px; margin: 0 auto; background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); overflow: hidden; }}
+                .header {{ background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); color: white; padding: 30px; text-align: center; }}
+                .header h1 {{ margin: 0; font-size: 24px; font-weight: 600; }}
+                .header p {{ margin: 10px 0 0 0; opacity: 0.9; font-size: 16px; }}
+                .content {{ padding: 40px 30px; }}
+                .greeting {{ font-size: 18px; color: #333; margin-bottom: 25px; line-height: 1.5; }}
+                .section {{ margin: 30px 0; }}
+                .section-title {{ font-size: 16px; font-weight: 600; color: #e74c3c; margin-bottom: 15px; border-bottom: 2px solid #e74c3c; padding-bottom: 5px; }}
+                .details-box {{ background: #fdf2f2; border: 1px solid #f5c6cb; border-radius: 8px; padding: 20px; margin: 20px 0; }}
+                .detail-item {{ display: flex; align-items: center; margin: 10px 0; font-size: 15px; }}
+                .detail-icon {{ font-size: 18px; margin-right: 12px; min-width: 25px; }}
+                .detail-text {{ color: #4a5568; }}
+                .reschedule-button {{ display: inline-block; background: #00d4ff; color: white; padding: 15px 25px; text-decoration: none; border-radius: 6px; font-weight: 600; margin: 20px 0; text-align: center; }}
+                .reschedule-button:hover {{ background: #0099cc; }}
+                .next-steps {{ background: #e8f4fd; border-left: 4px solid #00d4ff; padding: 20px; margin: 20px 0; }}
+                .next-steps ul {{ margin: 10px 0; padding-left: 20px; }}
+                .next-steps li {{ margin: 8px 0; color: #4a5568; }}
+                .footer {{ background: #f8fafc; padding: 25px 30px; text-align: center; border-top: 1px solid #e2e8f0; }}
+                .footer-links {{ margin: 15px 0; }}
+                .footer-links a {{ color: #00d4ff; text-decoration: none; margin: 0 10px; }}
+                .logo {{ font-size: 20px; font-weight: 700; color: #00d4ff; }}
+                .cancellation-notice {{ background: #fdf2f2; border: 1px solid #e74c3c; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>❌ Appointment Cancelled</h1>
+                    <p>We apologize for any inconvenience</p>
+                </div>
+                
+                <div class="content">
+                    <div class="greeting">
+                        Dear <strong>{customer_name}</strong>,
+                        <br><br>
+                        We wanted to inform you that your <strong>StreamlineAI</strong> appointment has been cancelled. We sincerely apologize for any inconvenience this may cause.
+                    </div>
+                    
+                    <div class="cancellation-notice">
+                        <p style="margin: 0; color: #721c24; font-weight: 600;">
+                            ⚠️ Your appointment has been cancelled
+                        </p>
+                    </div>
+                    
+                    <div class="section">
+                        <div class="section-title">📅 Cancelled Appointment Details</div>
+                        <div class="details-box">
+                            <div class="detail-item">
+                                <span class="detail-icon">📅</span>
+                                <span class="detail-text"><strong>Date:</strong> {formatted_date}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-icon">🕐</span>
+                                <span class="detail-text"><strong>Time:</strong> {formatted_time}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-icon">⏱️</span>
+                                <span class="detail-text"><strong>Duration:</strong> {duration_minutes} minutes</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-icon">💻</span>
+                                <span class="detail-text"><strong>Meeting Type:</strong> {meeting_type_display}</span>
+                            </div>
+                            {f'<div class="detail-item"><span class="detail-icon">📝</span><span class="detail-text"><strong>Notes:</strong> {notes}</span></div>' if notes else ''}
+                        </div>
+                    </div>
+                    
+                    <div class="section">
+                        <div class="section-title">🔄 Next Steps</div>
+                        <div class="next-steps">
+                            We'd love to reschedule with you:
+                            <ul>
+                                <li>Visit our website to book a new appointment time</li>
+                                <li>Contact us directly to find a time that works better</li>
+                                <li>We're flexible and happy to accommodate your schedule</li>
+                            </ul>
+                        </div>
+                        
+                        <div style="text-align: center;">
+                            <a href="https://stream-lineai.com/schedule" class="reschedule-button">📅 Reschedule Appointment</a>
+                        </div>
+                    </div>
+                    
+                    <div style="background: #f0f9ff; border: 1px solid #00d4ff; border-radius: 8px; padding: 20px; margin: 30px 0; text-align: center;">
+                        <p style="margin: 0; color: #0066cc; font-weight: 600;">
+                            We value your business and hope to reschedule soon!
+                        </p>
+                        <p style="margin: 10px 0 0 0; color: #4a5568;">
+                            Thank you for your understanding. Please don't hesitate to reach out with any questions.
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="footer">
+                    <div class="logo">StreamlineAI</div>
+                    <p style="margin: 5px 0; color: #718096; font-size: 14px;">Automating Your Success</p>
+                    <div class="footer-links">
+                        <a href="https://stream-lineai.com">🌐 Website</a>
+                        <a href="mailto:tech@stream-lineai.com">📧 Contact</a>
+                    </div>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        # Send email
+        success = email_service.send_email(
+            from_account='no-reply',
+            to_emails=[customer_email],
+            subject=subject,
+            body=body,
+            html_body=html_body
+        )
+        
+        return success
+        
+    except Exception as e:
+        logger.error(f"Error sending appointment cancellation email: {str(e)}")
+        return False
+
 # Pydantic models for API
 class AppointmentCreate(BaseModel):
     customer_id: int
@@ -1029,6 +1209,10 @@ async def update_appointment(
         # Update appointment fields
         update_data = appointment_data.dict(exclude_unset=True)
         
+        # Check if the appointment is being cancelled
+        is_cancellation = update_data.get('status') == 'cancelled'
+        old_status = appointment.status
+        
         # Handle date and time updates
         if 'appointment_date' in update_data or 'appointment_time' in update_data:
             new_date = update_data.get('appointment_date', appointment.scheduled_date.date())
@@ -1054,39 +1238,63 @@ async def update_appointment(
         # Get customer info for response
         customer = db.query(Customer).filter(Customer.id == appointment.customer_id).first()
         
-        # Update Google Calendar event
-        try:
-            calendar_link = google_calendar_service.update_calendar_event(
-                appointment_id=appointment.id,
-                title=f"Consultation - {customer.name if customer else 'Unknown'}",
-                description=appointment.customer_notes or "Business automation consultation",
-                start_datetime=appointment.scheduled_date,
-                duration_minutes=appointment.duration_minutes,
-                attendee_email=customer.email if customer and customer.email else None
-            )
-            logger.info(f"Google Calendar event updated for appointment {appointment.id}: {calendar_link}")
-        except Exception as e:
-            logger.error(f"Failed to update Google Calendar event for appointment {appointment.id}: {str(e)}")
-            # Don't fail the appointment update if calendar fails
+        # Update Google Calendar event if not being cancelled
+        calendar_link = None
+        if not is_cancellation:
+            try:
+                calendar_link = google_calendar_service.update_calendar_event(
+                    appointment_id=appointment.id,
+                    title=f"Consultation - {customer.name if customer else 'Unknown'}",
+                    description=appointment.customer_notes or "Business automation consultation",
+                    start_datetime=appointment.scheduled_date,
+                    duration_minutes=appointment.duration_minutes,
+                    attendee_email=customer.email if customer and customer.email else None
+                )
+                logger.info(f"Google Calendar event updated for appointment {appointment.id}: {calendar_link}")
+            except Exception as e:
+                logger.error(f"Failed to update Google Calendar event for appointment {appointment.id}: {str(e)}")
+                # Don't fail the appointment update if calendar fails
+        else:
+            # Delete Google Calendar event if appointment is cancelled
+            try:
+                google_calendar_service.delete_calendar_event(appointment.id)
+                logger.info(f"Google Calendar event deleted for cancelled appointment {appointment.id}")
+            except Exception as e:
+                logger.error(f"Failed to delete Google Calendar event for appointment {appointment.id}: {str(e)}")
+                # Don't fail the appointment update if calendar fails
         
-        # Send appointment update notification email
+        # Send appropriate email notification
         try:
             if customer and customer.email:
-                await send_appointment_update_email(
-                    customer_name=customer.name,
-                    customer_email=customer.email,
-                    appointment_date=appointment.scheduled_date.date(),
-                    appointment_time=appointment.scheduled_date.time(),
-                    duration_minutes=appointment.duration_minutes,
-                    meeting_type=appointment.appointment_type,
-                    notes=appointment.customer_notes,
-                    calendar_link=calendar_link
-                )
-                logger.info(f"Appointment update email sent to {customer.email}")
+                if is_cancellation and old_status != 'cancelled':
+                    # Send cancellation email
+                    await send_appointment_cancellation_email(
+                        customer_name=customer.name,
+                        customer_email=customer.email,
+                        appointment_date=appointment.scheduled_date.date(),
+                        appointment_time=appointment.scheduled_date.time(),
+                        duration_minutes=appointment.duration_minutes,
+                        meeting_type=appointment.appointment_type,
+                        notes=appointment.customer_notes
+                    )
+                    logger.info(f"Appointment cancellation email sent to {customer.email}")
+                elif not is_cancellation:
+                    # Send update email for non-cancellation changes
+                    await send_appointment_update_email(
+                        customer_name=customer.name,
+                        customer_email=customer.email,
+                        appointment_date=appointment.scheduled_date.date(),
+                        appointment_time=appointment.scheduled_date.time(),
+                        duration_minutes=appointment.duration_minutes,
+                        meeting_type=appointment.appointment_type,
+                        notes=appointment.customer_notes,
+                        calendar_link=calendar_link
+                    )
+                    logger.info(f"Appointment update email sent to {customer.email}")
             else:
-                logger.warning(f"No email address for customer - update email not sent")
+                logger.warning(f"No email address for customer - notification email not sent")
         except Exception as email_error:
-            logger.error(f"Error sending appointment update email: {str(email_error)}")
+            logger.error(f"Error sending appointment notification email: {str(email_error)}")
             # Don't fail the appointment update if email fails
         
         return {

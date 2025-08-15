@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Eye, Trash2, Search, Filter } from 'lucide-react';
 import Link from 'next/link';
 import { fetchWithAuth } from '@/lib/api';
+import ErrorModal from '@/components/ErrorModal';
 
 interface Customer {
   id: number;
@@ -16,6 +17,7 @@ interface ChatSession {
   session_id: string;
   customer?: Customer;
   status: string;
+  is_seen: boolean;
   created_at: string;
   updated_at: string;
   message_count: number;
@@ -25,7 +27,18 @@ export default function ChatLogs() {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [seenFilter, setSeenFilter] = useState('all');
+  const [errorModal, setErrorModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type?: 'error' | 'warning' | 'success' | 'info';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'error'
+  });
 
   useEffect(() => {
     fetchChatLogs();
@@ -60,12 +73,68 @@ export default function ChatLogs() {
 
       if (response.ok) {
         setSessions(sessions.filter(s => s.session_id !== sessionId));
+        setErrorModal({
+          isOpen: true,
+          title: 'Session Deleted',
+          message: 'The chat session has been successfully deleted.',
+          type: 'success'
+        });
       } else {
-        alert('Error deleting chat session');
+        const errorData = await response.json();
+        setErrorModal({
+          isOpen: true,
+          title: 'Delete Failed',
+          message: errorData.detail || 'Failed to delete the chat session. Please try again.',
+          type: 'error'
+        });
       }
     } catch (error) {
       console.error('Error deleting session:', error);
-      alert('Error deleting chat session');
+      setErrorModal({
+        isOpen: true,
+        title: 'Network Error',
+        message: 'Unable to connect to the server. Please check your internet connection and try again.',
+        type: 'error'
+      });
+    }
+  };
+
+  const toggleSeenStatus = async (sessionId: string, currentSeen: boolean) => {
+    try {
+      const response = await fetchWithAuth(`/api/sessions/${sessionId}/seen`, {
+        method: 'PATCH',
+        body: JSON.stringify({ is_seen: !currentSeen }),
+      });
+
+      if (response.ok) {
+        setSessions(sessions.map(s => 
+          s.session_id === sessionId 
+            ? { ...s, is_seen: !currentSeen }
+            : s
+        ));
+        setErrorModal({
+          isOpen: true,
+          title: 'Status Updated',
+          message: `Session marked as ${!currentSeen ? 'seen' : 'unseen'}.`,
+          type: 'success'
+        });
+      } else {
+        const errorData = await response.json();
+        setErrorModal({
+          isOpen: true,
+          title: 'Update Failed',
+          message: errorData.detail || 'Failed to update the seen status. Please try again.',
+          type: 'error'
+        });
+      }
+    } catch (error) {
+      console.error('Error updating seen status:', error);
+      setErrorModal({
+        isOpen: true,
+        title: 'Network Error',
+        message: 'Unable to connect to the server. Please check your internet connection and try again.',
+        type: 'error'
+      });
     }
   };
 
@@ -75,23 +144,12 @@ export default function ChatLogs() {
       session.customer?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       session.session_id.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesStatus = statusFilter === 'all' || session.status === statusFilter;
+    const matchesSeen = seenFilter === 'all' || 
+      (seenFilter === 'seen' && session.is_seen) ||
+      (seenFilter === 'unseen' && !session.is_seen);
     
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesSeen;
   });
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'bg-green-100 text-green-800';
-      case 'active':
-        return 'bg-blue-100 text-blue-800';
-      case 'proposal_sent':
-        return 'bg-yellow-100 text-yellow-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
 
   if (loading) {
     return (
@@ -129,14 +187,13 @@ export default function ChatLogs() {
         <div className="relative">
           <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
           <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            value={seenFilter}
+            onChange={(e) => setSeenFilter(e.target.value)}
             className="pl-10 pr-8 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent appearance-none"
           >
-            <option value="all">All Status</option>
-            <option value="active">Active</option>
-            <option value="completed">Completed</option>
-            <option value="proposal_sent">Proposal Sent</option>
+            <option value="all">All Sessions</option>
+            <option value="seen">Seen</option>
+            <option value="unseen">Unseen</option>
           </select>
         </div>
       </div>
@@ -148,15 +205,15 @@ export default function ChatLogs() {
           <div className="text-2xl font-bold text-white">{sessions.length}</div>
         </div>
         <div className="bg-white/5 backdrop-blur-sm rounded-lg p-6 border border-white/10">
-          <h3 className="text-sm font-medium text-cyan-400">Active Sessions</h3>
+          <h3 className="text-sm font-medium text-cyan-400">Unseen Sessions</h3>
           <div className="text-2xl font-bold text-white">
-            {sessions.filter(s => s.status === 'active').length}
+            {sessions.filter(s => !s.is_seen).length}
           </div>
         </div>
         <div className="bg-white/5 backdrop-blur-sm rounded-lg p-6 border border-white/10">
-          <h3 className="text-sm font-medium text-cyan-400">Completed</h3>
+          <h3 className="text-sm font-medium text-cyan-400">Seen Sessions</h3>
           <div className="text-2xl font-bold text-white">
-            {sessions.filter(s => s.status === 'completed').length}
+            {sessions.filter(s => s.is_seen).length}
           </div>
         </div>
         <div className="bg-white/5 backdrop-blur-sm rounded-lg p-6 border border-white/10">
@@ -186,7 +243,7 @@ export default function ChatLogs() {
                   Company
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-cyan-400 uppercase tracking-wider">
-                  Status
+                  Seen
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-cyan-400 uppercase tracking-wider">
                   Created
@@ -235,9 +292,19 @@ export default function ChatLogs() {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(session.status)}`}>
-                      {session.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                    </span>
+                    <button
+                      onClick={() => toggleSeenStatus(session.session_id, session.is_seen)}
+                      className={`inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full transition-colors ${
+                        session.is_seen
+                          ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                          : 'bg-orange-100 text-orange-800 hover:bg-orange-200'
+                      }`}
+                    >
+                      <div className={`w-2 h-2 rounded-full mr-2 ${
+                        session.is_seen ? 'bg-green-500' : 'bg-orange-500'
+                      }`} />
+                      {session.is_seen ? 'Seen' : 'Unseen'}
+                    </button>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-white">
@@ -279,7 +346,7 @@ export default function ChatLogs() {
         {filteredSessions.length === 0 && (
           <div className="text-center py-12">
             <div className="text-gray-400">
-              {searchTerm || statusFilter !== 'all' 
+              {searchTerm || seenFilter !== 'all' 
                 ? 'No chat sessions match your search criteria'
                 : 'No chat sessions found'
               }
@@ -287,6 +354,15 @@ export default function ChatLogs() {
           </div>
         )}
       </div>
+
+      {/* Error Modal */}
+      <ErrorModal
+        isOpen={errorModal.isOpen}
+        onClose={() => setErrorModal({ ...errorModal, isOpen: false })}
+        title={errorModal.title}
+        message={errorModal.message}
+        type={errorModal.type}
+      />
     </div>
   );
 }

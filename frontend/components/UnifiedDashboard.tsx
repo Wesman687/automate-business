@@ -1,9 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { AlertCircle, Calendar, Clock, MessageSquare, CheckCircle, Users, Briefcase, Mail } from 'lucide-react';
+import { AlertCircle, Calendar, Clock, MessageSquare, CheckCircle, Users, Briefcase, Mail, X } from 'lucide-react';
 import ChangeRequestCard from './ChangeRequestCard';
 import ChangeRequestModal from './ChangeRequestModal';
+import SmartAppointmentModal from './SmartAppointmentModal';
+import { fetchWithAuth } from '@/lib/api';
 
 interface ChangeRequest {
   id: number;
@@ -33,11 +35,18 @@ interface Job {
 
 interface Appointment {
   id: number;
+  customer_id: number;
   customer_name: string;
-  scheduled_date: string;
-  appointment_type: string;
-  status: string;
+  customer_email: string;
+  title: string;
+  description: string;
+  appointment_date: string; // Backend returns date in 'YYYY-MM-DD' format
+  appointment_time: string; // Backend returns time in 'HH:MM:SS' format
   duration_minutes: number;
+  meeting_type: string;
+  status: string;
+  notes: string;
+  created_at: string;
 }
 
 interface ChatLog {
@@ -86,16 +95,8 @@ export default function UnifiedDashboard() {
   
   const markChatLogAsSeen = async (sessionId: number) => {
     try {
-      const token = localStorage.getItem('admin_token');
-      if (!token) return;
-
-      const response = await fetch(`/api/admin/chat-logs/${sessionId}/mark-seen`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include'
+      const response = await fetchWithAuth(`/api/admin/chat-logs/${sessionId}/mark-seen`, {
+        method: 'PUT'
       });
 
       if (response.ok) {
@@ -120,6 +121,10 @@ export default function UnifiedDashboard() {
   const [selectedRequest, setSelectedRequest] = useState<ChangeRequest | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
+  
+  // Appointment modal state
+  const [showAppointmentModal, setShowAppointmentModal] = useState(false);
+  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
 
   useEffect(() => {
     fetchDashboardData();
@@ -127,30 +132,20 @@ export default function UnifiedDashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      const token = localStorage.getItem('admin_token');
-      if (!token) return;
-
-      const headers = {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      };
-
       // Determine if we're running locally and need to use server endpoints
       const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
       const serverBaseUrl = 'https://server.stream-lineai.com';
       
       // Email endpoint - always use server for email operations
-      const emailEndpoint = isLocal 
-        ? `${serverBaseUrl}/api/admin/emails/unread`
-        : '/api/admin/emails/unread';
+      const emailEndpoint = `${serverBaseUrl}/api/admin/emails/unread`;
 
-      // Fetch all dashboard data
+      // Fetch all dashboard data using the new fetchWithAuth function
       const [overviewRes, requestsRes, appointmentsRes, chatLogsRes, emailsRes] = await Promise.all([
-        fetch('/api/admin/overview', { headers, credentials: 'include' }),
-        fetch('/api/admin/change-requests', { headers, credentials: 'include' }),
-        fetch('/api/appointments?upcoming=true', { headers, credentials: 'include' }),
-        fetch('/api/admin/chat-logs?seen=false&limit=10', { headers, credentials: 'include' }), // Only get unseen chat logs
-        fetch(emailEndpoint, { headers, credentials: 'include' })
+        fetchWithAuth('/api/admin/overview'),
+        fetchWithAuth('/api/admin/change-requests'),
+        fetchWithAuth('/api/appointments?upcoming=true'),
+        fetchWithAuth('/api/sessions'), // Updated to use the new chat sessions endpoint
+        fetch(emailEndpoint, { credentials: 'include' }) // Email still uses direct fetch
       ]);
 
       if (overviewRes.ok) {
@@ -173,19 +168,46 @@ export default function UnifiedDashboard() {
 
       if (appointmentsRes.ok) {
         const appointmentsData = await appointmentsRes.json();
-        setAppointments(Array.isArray(appointmentsData) ? appointmentsData : []);
+        const appointmentsList = Array.isArray(appointmentsData) ? appointmentsData : [];
+        setAppointments(appointmentsList);
+        
+        // Calculate upcoming appointments count for stats
+        const upcomingCount = appointmentsList.filter(apt => {
+          try {
+            // Combine appointment_date and appointment_time to create a proper datetime
+            const dateTimeString = apt.appointment_time 
+              ? `${apt.appointment_date}T${apt.appointment_time}` 
+              : `${apt.appointment_date}T00:00:00`;
+            const aptDate = new Date(dateTimeString);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const isValid = !isNaN(aptDate.getTime());
+            const isUpcoming = aptDate >= today;
+            
+            return isValid && isUpcoming;
+          } catch (error) {
+            console.error('Error parsing appointment date:', apt.appointment_date, apt.appointment_time, error);
+            return false;
+          }
+        }).length;
+        
+        // Update stats with correct upcoming appointments count
+        setStats(prev => ({
+          ...prev,
+          upcoming_appointments: upcomingCount
+        }));
       }
 
       if (chatLogsRes.ok) {
         const chatLogsData = await chatLogsRes.json();
-        setChatLogs(chatLogsData.chat_logs || []);
-        // Only update stats if the API returned valid data
-        if (chatLogsData.total !== undefined) {
-          setStats(prev => ({
-            ...prev,
-            new_chat_logs: chatLogsData.total
-          }));
-        }
+        // Filter for only unseen chat logs
+        const unseenLogs = Array.isArray(chatLogsData) ? chatLogsData.filter(log => !log.is_seen) : [];
+        setChatLogs(unseenLogs);
+        // Update stats with unseen count
+        setStats(prev => ({
+          ...prev,
+          new_chat_logs: unseenLogs.length
+        }));
       } else {
         console.error('❌ Chat logs API error:', chatLogsRes.status, await chatLogsRes.text());
       }
@@ -208,14 +230,8 @@ export default function UnifiedDashboard() {
 
   const updateChangeRequestStatus = async (requestId: number, newStatus: string) => {
     try {
-      const token = localStorage.getItem('admin_token');
-      const response = await fetch(`/api/admin/change-requests/${requestId}`, {
+      const response = await fetchWithAuth(`/api/admin/change-requests/${requestId}`, {
         method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
         body: JSON.stringify({ status: newStatus })
       });
 
@@ -237,14 +253,8 @@ export default function UnifiedDashboard() {
 
   const handleSaveRequest = async (updatedRequest: Partial<ChangeRequest>) => {
     try {
-      const token = localStorage.getItem('admin_token');
-      const response = await fetch(`/api/admin/change-requests/${updatedRequest.id}`, {
+      const response = await fetchWithAuth(`/api/admin/change-requests/${updatedRequest.id}`, {
         method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
         body: JSON.stringify(updatedRequest)
       });
 
@@ -260,20 +270,75 @@ export default function UnifiedDashboard() {
     }
   };
 
+  // Appointment handlers
+  const handleEditAppointment = (appointment: Appointment) => {
+    setEditingAppointment(appointment);
+    setShowAppointmentModal(true);
+  };
+
+  const handleAppointmentSave = async (appointmentData: any) => {
+    try {
+      await fetchDashboardData(); // Refresh the dashboard data
+      setShowAppointmentModal(false);
+      setEditingAppointment(null);
+    } catch (error) {
+      console.error('Error handling appointment save:', error);
+    }
+  };
+
+  const handleCancelAppointment = async (appointmentId: number) => {
+    if (!confirm('Are you sure you want to cancel this appointment?')) {
+      return;
+    }
+
+    try {
+      const response = await fetchWithAuth(`/api/appointments/${appointmentId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ status: 'cancelled' })
+      });
+
+      if (response.ok) {
+        // Refresh the appointments
+        await fetchDashboardData();
+      } else {
+        alert('Failed to cancel appointment');
+      }
+    } catch (error) {
+      console.error('Error canceling appointment:', error);
+      alert('Failed to cancel appointment');
+    }
+  };
+
   const pendingRequests = changeRequests.filter(req => req.status === 'pending');
   const inProgressRequests = changeRequests.filter(req => req.status === 'in_progress');
   // Since we're already fetching only unseen chat logs from the API, we don't need to filter them again
   const newChatLogs = chatLogs;
-  const todayAppointments = appointments.filter(apt => {
-    const today = new Date().toDateString();
-    return new Date(apt.scheduled_date).toDateString() === today;
+  
+  // Filter upcoming appointments (today and future) with better date parsing
+  const upcomingAppointments = appointments.filter(apt => {
+    try {
+      // Combine appointment_date and appointment_time to create a proper datetime
+      const dateTimeString = apt.appointment_time 
+        ? `${apt.appointment_date}T${apt.appointment_time}` 
+        : `${apt.appointment_date}T00:00:00`;
+      const aptDate = new Date(dateTimeString);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Reset time to start of day for comparison
+      
+      // Check if date is valid and is today or in the future
+      return !isNaN(aptDate.getTime()) && aptDate >= today;
+    } catch (error) {
+      console.error('Error parsing appointment date:', apt.appointment_date, apt.appointment_time, error);
+      return false;
+    }
   });
+  
   const importantEmails = unreadEmails.filter(email => email.is_important);
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400"></div>
       </div>
     );
   }
@@ -282,42 +347,42 @@ export default function UnifiedDashboard() {
     <div className="space-y-6">
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-6">
           <div className="flex items-center">
-            <AlertCircle className="h-8 w-8 text-red-500" />
+            <AlertCircle className="h-8 w-8 text-red-400" />
             <div className="ml-4">
-              <p className="text-2xl font-semibold text-gray-900">{stats.pending_change_requests}</p>
-              <p className="text-sm text-gray-600">Pending Requests</p>
+              <p className="text-2xl font-semibold text-white">{stats.pending_change_requests}</p>
+              <p className="text-sm text-gray-300">Pending Requests</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-6">
           <div className="flex items-center">
-            <MessageSquare className="h-8 w-8 text-blue-500" />
+            <MessageSquare className="h-8 w-8 text-blue-400" />
             <div className="ml-4">
-              <p className="text-2xl font-semibold text-gray-900">{stats.new_chat_logs}</p>
-              <p className="text-sm text-gray-600">Unseen Chat Logs</p>
+              <p className="text-2xl font-semibold text-white">{stats.new_chat_logs}</p>
+              <p className="text-sm text-gray-300">Unseen Chat Logs</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-6">
           <div className="flex items-center">
-            <Calendar className="h-8 w-8 text-green-500" />
+            <Calendar className="h-8 w-8 text-green-400" />
             <div className="ml-4">
-              <p className="text-2xl font-semibold text-gray-900">{stats.upcoming_appointments}</p>
-              <p className="text-sm text-gray-600">Upcoming Appointments</p>
+              <p className="text-2xl font-semibold text-white">{stats.upcoming_appointments}</p>
+              <p className="text-sm text-gray-300">Upcoming Appointments</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-6">
           <div className="flex items-center">
-            <Mail className="h-8 w-8 text-purple-500" />
+            <Mail className="h-8 w-8 text-purple-400" />
             <div className="ml-4">
-              <p className="text-2xl font-semibold text-gray-900">{stats.unread_emails}</p>
-              <p className="text-sm text-gray-600">Unread Emails</p>
+              <p className="text-2xl font-semibold text-white">{stats.unread_emails}</p>
+              <p className="text-sm text-gray-300">Unread Emails</p>
             </div>
           </div>
         </div>
@@ -326,20 +391,20 @@ export default function UnifiedDashboard() {
       {/* Priority Items */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Pending Change Requests */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center">
-              <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
+            <h2 className="text-lg font-semibold text-white flex items-center">
+              <AlertCircle className="h-5 w-5 text-red-400 mr-2" />
               Pending Change Requests
             </h2>
-            <span className="bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+            <span className="bg-red-400/20 text-red-300 text-xs font-medium px-2.5 py-0.5 rounded-full">
               {pendingRequests.length}
             </span>
           </div>
           
           <div className="space-y-3 max-h-96 overflow-y-auto">
             {pendingRequests.length === 0 ? (
-              <p className="text-gray-500 text-sm">No pending change requests</p>
+              <p className="text-gray-400 text-sm">No pending change requests</p>
             ) : (
               pendingRequests.map(request => (
                 <ChangeRequestCard
@@ -355,55 +420,55 @@ export default function UnifiedDashboard() {
         </div>
 
         {/* New Chat Logs */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center">
-              <MessageSquare className="h-5 w-5 text-blue-500 mr-2" />
+            <h2 className="text-lg font-semibold text-white flex items-center">
+              <MessageSquare className="h-5 w-5 text-blue-400 mr-2" />
               Unseen Chat Logs
             </h2>
-            <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+            <span className="bg-blue-400/20 text-blue-300 text-xs font-medium px-2.5 py-0.5 rounded-full">
               {newChatLogs.length}
             </span>
           </div>
           
           <div className="space-y-3 max-h-96 overflow-y-auto">
             {newChatLogs.length === 0 ? (
-              <p className="text-gray-500 text-sm">No unseen chat logs</p>
+              <p className="text-gray-400 text-sm">No unseen chat logs</p>
             ) : (
               newChatLogs.map(log => (
-                <div key={log.id} className="border border-gray-200 rounded-lg p-4">
+                <div key={log.id} className="border border-white/10 rounded-lg p-4 bg-white/5">
                   <div className="flex items-center justify-between mb-2">
                     <div>
-                      <h3 className="font-medium text-gray-900">
+                      <h3 className="font-medium text-white">
                         {log.customer?.name || 'Anonymous'}
                       </h3>
-                      <p className="text-sm text-gray-600">{log.customer?.email || 'Unknown'}</p>
+                      <p className="text-sm text-gray-300">{log.customer?.email || 'Unknown'}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-medium text-gray-900">
+                      <p className="text-sm font-medium text-white">
                         {new Date(log.created_at).toLocaleTimeString('en-US', {
                           hour: '2-digit',
                           minute: '2-digit'
                         })}
                       </p>
-                      <p className="text-xs text-gray-500">{log.message_count} messages</p>
+                      <p className="text-xs text-gray-400">{log.message_count} messages</p>
                     </div>
                   </div>
                   {log.latest_message && (
-                    <p className="text-sm text-gray-600 truncate mb-2">
+                    <p className="text-sm text-gray-300 truncate mb-2">
                       {log.latest_message.text}
                     </p>
                   )}
                   <div className="mt-2 flex justify-between items-center">
                     <button 
                       onClick={() => markChatLogAsSeen(log.id)}
-                      className="text-xs bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded font-medium"
+                      className="text-xs bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded font-medium transition-colors"
                     >
                       Mark as Seen
                     </button>
                     <button 
-                      onClick={() => window.open(`/admin/chat-logs/${log.id}`, '_blank')}
-                      className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                      onClick={() => window.open(`/admin/chat-logs/${log.session_id}`, '_blank')}
+                      className="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors"
                     >
                       View Full Log →
                     </button>
@@ -418,52 +483,89 @@ export default function UnifiedDashboard() {
       {/* Secondary Items */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Upcoming Appointments */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center">
-              <Calendar className="h-5 w-5 text-green-500 mr-2" />
+            <h2 className="text-lg font-semibold text-white flex items-center">
+              <Calendar className="h-5 w-5 text-green-400 mr-2" />
               Upcoming Appointments
             </h2>
-            <span className="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
-              {appointments.length}
+            <span className="bg-green-400/20 text-green-300 text-xs font-medium px-2.5 py-0.5 rounded-full">
+              {upcomingAppointments.length}
             </span>
           </div>
           
           <div className="space-y-3 max-h-96 overflow-y-auto">
-            {appointments.length === 0 ? (
-              <p className="text-gray-500 text-sm">No upcoming appointments</p>
+            {upcomingAppointments.length === 0 ? (
+              <p className="text-gray-400 text-sm">No upcoming appointments</p>
             ) : (
-              appointments.map(appointment => (
-                <div key={appointment.id} className="border border-gray-200 rounded-lg p-4">
+              upcomingAppointments.map(appointment => (
+                <div 
+                  key={appointment.id} 
+                  className="border border-white/10 rounded-lg p-4 bg-white/5 hover:bg-white/10 transition-colors"
+                >
                   <div className="flex items-center justify-between mb-2">
                     <div>
-                      <h3 className="font-medium text-gray-900">{appointment.customer_name}</h3>
-                      <p className="text-sm text-gray-600">{appointment.appointment_type}</p>
+                      <h3 className="font-medium text-white">{appointment.customer_name}</h3>
+                      <p className="text-sm text-gray-300">{appointment.meeting_type}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-medium text-gray-900">
-                        {new Date(appointment.scheduled_date).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric'
-                        })}
+                      <p className="text-sm font-medium text-white">
+                        {(() => {
+                          try {
+                            const dateTimeString = appointment.appointment_time 
+                              ? `${appointment.appointment_date}T${appointment.appointment_time}` 
+                              : `${appointment.appointment_date}T00:00:00`;
+                            const date = new Date(dateTimeString);
+                            return isNaN(date.getTime()) ? 'Invalid Date' : date.toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric'
+                            });
+                          } catch (error) {
+                            return 'Invalid Date';
+                          }
+                        })()}
                       </p>
-                      <p className="text-xs text-gray-500">
-                        {new Date(appointment.scheduled_date).toLocaleTimeString('en-US', {
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
+                      <p className="text-xs text-gray-400">
+                        {(() => {
+                          try {
+                            const dateTimeString = appointment.appointment_time 
+                              ? `${appointment.appointment_date}T${appointment.appointment_time}` 
+                              : `${appointment.appointment_date}T00:00:00`;
+                            const date = new Date(dateTimeString);
+                            return isNaN(date.getTime()) ? 'Invalid Time' : date.toLocaleTimeString('en-US', {
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            });
+                          } catch (error) {
+                            return 'Invalid Time';
+                          }
+                        })()}
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between mb-3">
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                       appointment.status === 'confirmed' 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-yellow-100 text-yellow-800'
+                        ? 'bg-green-400/20 text-green-300' 
+                        : 'bg-yellow-400/20 text-yellow-300'
                     }`}>
                       {appointment.status}
                     </span>
-                    <span className="text-xs text-gray-500">{appointment.duration_minutes} min</span>
+                    <span className="text-xs text-gray-400">{appointment.duration_minutes} min</span>
+                  </div>
+                  <div className="flex gap-2 mt-2">
+                    <button 
+                      onClick={() => handleEditAppointment(appointment)}
+                      className="text-xs bg-blue-600/80 hover:bg-blue-600 text-white px-6 py-1 rounded text-center font-medium transition-colors"
+                    >
+                      Edit
+                    </button>
+                    <button 
+                      onClick={() => handleCancelAppointment(appointment.id)}
+                      className="text-xs bg-red-600/80 hover:bg-red-600 text-white px-4 py-1 rounded font-medium transition-colors"
+                    >
+                      Cancel
+                    </button>
                   </div>
                 </div>
               ))
@@ -472,67 +574,55 @@ export default function UnifiedDashboard() {
         </div>
 
         {/* Unread Emails */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center">
-              <Mail className="h-5 w-5 text-purple-500 mr-2" />
+            <h2 className="text-lg font-semibold text-white flex items-center">
+              <Mail className="h-5 w-5 text-purple-400 mr-2" />
               Unread Emails
             </h2>
-            <span className="bg-purple-100 text-purple-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+            <span className="bg-purple-400/20 text-purple-300 text-xs font-medium px-2.5 py-0.5 rounded-full">
               {unreadEmails.length}
             </span>
           </div>
           
           <div className="space-y-3 max-h-96 overflow-y-auto">
             {unreadEmails.length === 0 ? (
-              <p className="text-gray-500 text-sm">No unread emails</p>
+              <p className="text-gray-400 text-sm">No unread emails</p>
             ) : (
               unreadEmails.map(email => (
-                <div key={email.id} className="border border-gray-200 rounded-lg p-4">
+                <div key={email.id} className="border border-white/10 rounded-lg p-4 bg-white/5">
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <h3 className="font-medium text-gray-900 truncate">{email.from}</h3>
+                        <h3 className="font-medium text-white truncate">{email.from}</h3>
                         {email.is_important && (
-                          <span className="bg-red-100 text-red-800 text-xs font-medium px-1.5 py-0.5 rounded-full">
+                          <span className="bg-red-400/20 text-red-300 text-xs font-medium px-1.5 py-0.5 rounded-full">
                             !
                           </span>
                         )}
                       </div>
-                      <p className="text-sm font-medium text-gray-700 truncate">{email.subject}</p>
+                      <p className="text-sm font-medium text-gray-200 truncate">{email.subject}</p>
                     </div>
                     <div className="text-right ml-2">
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-gray-400">
                         {new Date(email.received_date).toLocaleDateString('en-US', {
                           month: 'short',
                           day: 'numeric'
                         })}
                       </p>
-                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                      <span className="text-xs bg-white/10 text-gray-300 px-2 py-1 rounded">
                         {email.account}
                       </span>
                     </div>
                   </div>
-                  <p className="text-sm text-gray-600 truncate mb-2">{email.preview}</p>
+                  <p className="text-sm text-gray-300 truncate mb-2">{email.preview}</p>
                   <div className="flex justify-end">
                     <button 
                       onClick={async () => {
-                        // Mark email as read on server if needed
-                        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-                        const serverBaseUrl = 'https://server.stream-lineai.com';
-                        const markReadEndpoint = isLocal 
-                          ? `${serverBaseUrl}/api/admin/emails/mark-read/${email.id}`
-                          : `/api/admin/emails/mark-read/${email.id}`;
-                        
+                        // Mark email as read on server
                         try {
-                          const token = localStorage.getItem('admin_token');
-                          await fetch(markReadEndpoint, {
-                            method: 'POST',
-                            headers: {
-                              'Authorization': `Bearer ${token}`,
-                              'Content-Type': 'application/json',
-                            },
-                            credentials: 'include'
+                          await fetchWithAuth(`/api/admin/emails/mark-read/${email.id}`, {
+                            method: 'POST'
                           });
                           // Refresh dashboard data to update counts
                           fetchDashboardData();
@@ -543,7 +633,7 @@ export default function UnifiedDashboard() {
                         // TODO: Open email client or webmail
                         console.log('Opening email:', email.id);
                       }}
-                      className="text-xs text-purple-600 hover:text-purple-800 font-medium"
+                      className="text-xs text-purple-400 hover:text-purple-300 font-medium transition-colors"
                     >
                       Open Email →
                     </button>
@@ -557,13 +647,13 @@ export default function UnifiedDashboard() {
 
       {/* In Progress Items */}
       {inProgressRequests.length > 0 && (
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center">
-              <Clock className="h-5 w-5 text-blue-500 mr-2" />
+            <h2 className="text-lg font-semibold text-white flex items-center">
+              <Clock className="h-5 w-5 text-blue-400 mr-2" />
               In Progress Change Requests
             </h2>
-            <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+            <span className="bg-blue-400/20 text-blue-300 text-xs font-medium px-2.5 py-0.5 rounded-full">
               {inProgressRequests.length}
             </span>
           </div>
@@ -591,6 +681,17 @@ export default function UnifiedDashboard() {
           setSelectedRequest(null);
         }}
         onSave={handleSaveRequest}
+      />
+
+      {/* Edit Appointment Modal */}
+      <SmartAppointmentModal
+        isOpen={showAppointmentModal}
+        onClose={() => {
+          setShowAppointmentModal(false);
+          setEditingAppointment(null);
+        }}
+        onSave={handleAppointmentSave}
+        appointment={editingAppointment}
       />
     </div>
   );

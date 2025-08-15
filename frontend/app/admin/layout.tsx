@@ -116,7 +116,7 @@ export default function AdminLayout({
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
       {/* Header */}
       <header className="bg-black/20 backdrop-blur-lg border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-[95vw] mx-auto px-2 sm:px-4 lg:px-6">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               <h1 className="text-xl font-bold text-cyan-400">
@@ -142,7 +142,7 @@ export default function AdminLayout({
 
       {/* Navigation */}
       <nav className="bg-cyan-500/10 backdrop-blur-sm border-b border-cyan-500/20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-[95vw] mx-auto px-2 sm:px-4 lg:px-6">
           <div className="flex justify-center space-x-8">
             {navigation.map((item) => {
               const Icon = item.icon;
@@ -168,7 +168,7 @@ export default function AdminLayout({
       </nav>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+      <main className="max-w-[95vw] mx-auto py-6 px-2 sm:px-4 lg:px-6">
         {children}
       </main>
     </div>

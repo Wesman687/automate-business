@@ -36,5 +36,11 @@ export const fetchWithAuth = async (endpoint: string, options: RequestInit = {})
   return fetch(`${apiUrl}${endpoint}`, {
     ...options,
     headers,
+    credentials: 'include', // Include cookies for authentication
   });
+};
+
+// Quick authenticated fetch for admin operations
+export const adminFetch = async (endpoint: string, options: RequestInit = {}) => {
+  return fetchWithAuth(endpoint, options);
 };

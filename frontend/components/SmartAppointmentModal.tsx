@@ -135,7 +135,8 @@ export default function SmartAppointmentModal({ isOpen, onClose, onSave, appoint
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
-        }
+        },
+        credentials: 'include'
       });
 
       if (response.ok) {

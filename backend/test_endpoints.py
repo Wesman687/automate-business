@@ -16,7 +16,7 @@ def test_login():
     
     login_data = {
         "email": "Wesman687@gmail.com",
-        "password": "admin123"
+        "password": "Pothead420!"
     }
     
     response = session.post(f"{BASE_URL}/auth/login", json=login_data)
@@ -116,7 +116,7 @@ def test_with_authorization_header():
     # First login to get the token
     login_data = {
         "email": "Wesman687@gmail.com", 
-        "password": "admin123"
+        "password": "Pothead420!"
     }
     
     response = requests.post(f"{BASE_URL}/auth/login", json=login_data)

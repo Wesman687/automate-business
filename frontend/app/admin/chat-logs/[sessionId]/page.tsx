@@ -58,6 +58,7 @@ export default function ChatLogView() {
       // Fetch session data
       const sessionResponse = await fetch(`/api/sessions/${sessionId}`, {
         headers: { 'Authorization': `Bearer ${token}` },
+        credentials: 'include',
       });
 
       if (!sessionResponse.ok) {
@@ -71,6 +72,7 @@ export default function ChatLogView() {
       if (session.customer_id) {
         const customerResponse = await fetch(`/api/customers/${session.customer_id}`, {
           headers: { 'Authorization': `Bearer ${token}` },
+          credentials: 'include',
         });
         if (customerResponse.ok) {
           customer = await customerResponse.json();
@@ -80,6 +82,7 @@ export default function ChatLogView() {
       // Fetch messages - need to create API route for this
       const messagesResponse = await fetch(`/api/sessions/${sessionId}/messages`, {
         headers: { 'Authorization': `Bearer ${token}` },
+        credentials: 'include',
       });
       
       const messages = messagesResponse.ok ? await messagesResponse.json() : [];

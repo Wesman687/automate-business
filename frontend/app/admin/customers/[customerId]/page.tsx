@@ -159,6 +159,7 @@ export default function CustomerDetail() {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
+        credentials: 'include'
       });
 
       if (response.ok) {
@@ -186,6 +187,7 @@ export default function CustomerDetail() {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify(updatedData)
       });
 

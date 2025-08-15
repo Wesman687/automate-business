@@ -12,7 +12,7 @@ export default function DashboardPage() {
     // Check admin authentication
     const token = localStorage.getItem('admin_token');
     if (!token) {
-      window.location.href = '/admin/login';
+      window.location.href = '/portal';
       return;
     }
     setLoading(false);

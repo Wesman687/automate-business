@@ -94,7 +94,8 @@ export default function UnifiedDashboard() {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
-        }
+        },
+        credentials: 'include'
       });
 
       if (response.ok) {
@@ -145,11 +146,11 @@ export default function UnifiedDashboard() {
 
       // Fetch all dashboard data
       const [overviewRes, requestsRes, appointmentsRes, chatLogsRes, emailsRes] = await Promise.all([
-        fetch('/api/admin/overview', { headers }),
-        fetch('/api/admin/change-requests', { headers }),
-        fetch('/api/appointments?upcoming=true', { headers }),
-        fetch('/api/admin/chat-logs?seen=false&limit=10', { headers }), // Only get unseen chat logs
-        fetch(emailEndpoint, { headers })
+        fetch('/api/admin/overview', { headers, credentials: 'include' }),
+        fetch('/api/admin/change-requests', { headers, credentials: 'include' }),
+        fetch('/api/appointments?upcoming=true', { headers, credentials: 'include' }),
+        fetch('/api/admin/chat-logs?seen=false&limit=10', { headers, credentials: 'include' }), // Only get unseen chat logs
+        fetch(emailEndpoint, { headers, credentials: 'include' })
       ]);
 
       if (overviewRes.ok) {
@@ -214,6 +215,7 @@ export default function UnifiedDashboard() {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({ status: newStatus })
       });
 
@@ -242,6 +244,7 @@ export default function UnifiedDashboard() {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify(updatedRequest)
       });
 
@@ -528,7 +531,8 @@ export default function UnifiedDashboard() {
                             headers: {
                               'Authorization': `Bearer ${token}`,
                               'Content-Type': 'application/json',
-                            }
+                            },
+                            credentials: 'include'
                           });
                           // Refresh dashboard data to update counts
                           fetchDashboardData();

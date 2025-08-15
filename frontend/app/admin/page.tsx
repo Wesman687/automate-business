@@ -84,11 +84,13 @@ export default function AdminDashboard() {
   const fetchCustomers = async () => {
     try {
       const apiUrl = getApiUrl()
+      const token = localStorage.getItem('admin_token')
       const response = await fetch(`${apiUrl}/api/customers`, {
         method: 'GET',
         credentials: 'include',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
         }
       })
       if (response.ok) {

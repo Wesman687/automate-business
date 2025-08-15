@@ -895,6 +895,57 @@ async def create_appointment(
         logger.error(f"Error creating appointment: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to create appointment")
 
+@router.get("/api/appointments/customer")
+async def get_customer_appointments(
+    customer_id: Optional[int] = None,  # Allow specifying customer ID for admin access
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Get appointments for the currently authenticated customer or specified customer (admin only)"""
+    
+    try:
+        # Check user authorization
+        is_admin = current_user.get('is_admin', False)
+        user_type = current_user.get('user_type')
+        user_id = current_user.get('user_id')
+        
+        print(f"📝 Customer appointments endpoint - User: {current_user}")
+        print(f"📝 Is admin: {is_admin}, User type: {user_type}, User ID: {user_id}")
+        
+        # Determine which customer's appointments to fetch
+        target_customer_id = None
+        
+        if is_admin:
+            # Admins can see any customer's appointments
+            if customer_id:
+                target_customer_id = customer_id
+            else:
+                # If no customer_id specified, return empty list for admin
+                return []
+        elif user_type == "customer" and user_id:
+            # Customers can only see their own appointments
+            target_customer_id = user_id
+        else:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        if not target_customer_id:
+            raise HTTPException(status_code=400, detail="Customer ID required")
+        
+        # Get appointments for the target customer
+        appointment_service = AppointmentService(db)
+        appointments = appointment_service.get_customer_appointments(target_customer_id)
+        
+        print(f"📝 Fetching appointments for customer ID: {target_customer_id}")
+        print(f"📝 Found {len(appointments) if appointments else 0} appointments")
+        
+        return {"appointments": appointments}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error in get_customer_appointments: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
 @router.get("/api/appointments/{appointment_id}", response_model=AppointmentResponse)
 async def get_appointment(
     appointment_id: int,
@@ -1243,58 +1294,3 @@ async def view_schedule(db: Session = Depends(get_db)):
         
     except Exception as e:
         return f"<html><body style='background: #1a1a1a; color: white; padding: 40px;'><h1>Error: {str(e)}</h1><a href='/admin/chat-logs' style='color: #00d4ff;'>← Back to Admin</a></body></html>"
-
-@router.get("/api/appointments/customer")
-async def get_customer_appointments(
-    customer_id: Optional[int] = None,  # Allow specifying customer ID for admin access
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
-):
-    """Get appointments for the currently authenticated customer or specified customer (admin only)"""
-    
-    try:
-        # Check user authorization
-        is_admin = current_user.get('is_admin', False)
-        user_type = current_user.get('user_type')
-        user_id = current_user.get('user_id')
-        
-        print(f"📝 Customer appointments endpoint - User: {current_user}")
-        print(f"📝 Is admin: {is_admin}, User type: {user_type}, User ID: {user_id}")
-        
-        # Determine which customer's appointments to fetch
-        target_customer_id = None
-        
-        if is_admin:
-            # Admins can see any customer's appointments
-            if customer_id:
-                target_customer_id = customer_id
-            else:
-                # If no customer_id specified, return empty list for admin
-                return []
-        elif user_type == "customer" and user_id:
-            # Customers can only see their own appointments
-            target_customer_id = user_id
-        else:
-            raise HTTPException(status_code=403, detail="Access denied")
-        
-        if not target_customer_id:
-            raise HTTPException(status_code=400, detail="Customer ID required")
-        
-        # Get appointments for the target customer
-        appointment_service = AppointmentService(db)
-        appointments = appointment_service.get_customer_appointments(target_customer_id)
-        
-        print(f"📝 Fetching appointments for customer ID: {target_customer_id}")
-        
-        appointment_service = AppointmentService(db)
-        appointments = appointment_service.get_customer_appointments(target_customer_id)
-        
-        print(f"📝 Found {len(appointments) if appointments else 0} appointments")
-        
-        return {"appointments": appointments}
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"❌ Error in get_customer_appointments: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

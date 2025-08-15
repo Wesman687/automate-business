@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Users, MessageSquare, TrendingUp, Download } from 'lucide-react'
-import ProtectedRoute from '@/components/ProtectedRoute'
+import { Users, MessageSquare, TrendingUp, Download, LogOut } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { getApiUrl } from '@/lib/api'
 
 interface Customer {
   email: string
@@ -17,13 +18,12 @@ interface Customer {
   status: string
 }
 
-const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://server.stream-lineai.com' 
-  : 'http://localhost:8005'
-
 export default function AdminDashboard() {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [loading, setLoading] = useState(true)
+  const [authLoading, setAuthLoading] = useState(true)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const router = useRouter()
   const [stats, setStats] = useState({
     totalLeads: 0,
     todayLeads: 0,
@@ -32,15 +32,62 @@ export default function AdminDashboard() {
   })
 
   useEffect(() => {
-    fetchCustomers()
+    checkAuthentication()
   }, [])
+
+  const checkAuthentication = async () => {
+    try {
+      const apiUrl = getApiUrl()
+      const response = await fetch(`${apiUrl}/auth/verify`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (response.ok) {
+        const userData = await response.json()
+        if (userData.user.is_admin) {
+          setIsAuthenticated(true)
+          fetchCustomers()
+        } else {
+          // Not an admin, redirect to customer portal
+          router.push('/customer')
+        }
+      } else {
+        // Not authenticated, redirect to portal
+        router.push('/portal')
+      }
+    } catch (error) {
+      console.error('Auth check error:', error)
+      router.push('/portal')
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
+  const handleLogout = async () => {
+    try {
+      const apiUrl = getApiUrl()
+      await fetch(`${apiUrl}/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+      router.push('/')
+    } catch (error) {
+      console.error('Logout error:', error)
+      router.push('/')
+    }
+  }
 
   const fetchCustomers = async () => {
     try {
-      const token = localStorage.getItem('admin_token')
-      const response = await fetch(`${API_BASE_URL}/api/customers`, {
+      const apiUrl = getApiUrl()
+      const response = await fetch(`${apiUrl}/api/customers`, {
+        method: 'GET',
+        credentials: 'include',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       })
@@ -64,9 +111,10 @@ export default function AdminDashboard() {
     }
   }
 
-    const openBackendAdmin = (path: string) => {
+  const openBackendAdmin = (path: string) => {
     // First check if user is already authenticated with backend (by trying a simple request)
-    const backendUrl = `${API_BASE_URL}/admin${path}`
+    const apiUrl = getApiUrl()
+    const backendUrl = `${apiUrl}/admin${path}`
     
     // Open backend admin directly - if not authenticated, it will redirect to login
     window.open(backendUrl, '_blank')
@@ -125,6 +173,27 @@ export default function AdminDashboard() {
     a.click()
   }
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-dark-bg flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-electric-blue border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-white">Checking authentication...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-dark-bg flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-400">Redirecting to login...</p>
+        </div>
+      </div>
+    )
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-dark-bg flex items-center justify-center">
@@ -137,10 +206,32 @@ export default function AdminDashboard() {
   }
 
   return (
-    <ProtectedRoute>
-      <div className="min-h-screen bg-dark-bg p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
+    <div className="min-h-screen bg-dark-bg p-6">
+      {/* Admin Header */}
+      <div className="bg-dark-card border-b border-dark-border mb-6">
+        <div className="container mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <h1 className="text-2xl font-bold">
+                <span className="text-electric-blue">⚡</span>
+                <span className="text-white">Streamline</span>
+                <span className="text-neon-green">AI</span>
+              </h1>
+              <span className="text-gray-400">|</span>
+              <h2 className="text-xl text-white">Admin Dashboard</h2>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 text-gray-300 hover:text-red-400 transition-colors"
+            >
+              <LogOut className="h-5 w-5" />
+              Logout
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto">{/* Main Content */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -312,7 +403,6 @@ export default function AdminDashboard() {
           </div>
         </motion.div>
       </div>
-      </div>
-    </ProtectedRoute>
+    </div>
   )
 }

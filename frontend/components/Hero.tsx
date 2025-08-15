@@ -49,11 +49,12 @@ export default function Hero() {
             Stop wasting time on repetitive tasks. Start scaling your business.
           </motion.p>
 
-          {/* CTA Button */}
+          {/* CTA Buttons */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.6 }}
+            className="flex flex-col sm:flex-row gap-4 justify-center items-center"
           >
             <button
               onClick={() => {
@@ -82,6 +83,15 @@ export default function Hero() {
               className="btn-terminal text-lg px-8 py-4 rounded-lg font-mono hover:animate-glow"
             >
               {'>'} Get Started
+            </button>
+            
+            <button
+              onClick={() => {
+                window.location.href = '/portal'
+              }}
+              className="bg-electric-blue hover:bg-electric-blue/80 text-white text-lg px-8 py-4 rounded-lg font-semibold transition-all duration-200 border border-electric-blue"
+            >
+              Schedule Appointment
             </button>
           </motion.div>
 

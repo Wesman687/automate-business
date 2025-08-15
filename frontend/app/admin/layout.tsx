@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { fetchWithAuth } from '@/lib/api';
+import { getApiUrl } from '@/lib/api';
 import { 
   MessageSquare, 
   Users, 
@@ -21,6 +21,8 @@ interface User {
   email: string;
   is_super_admin: boolean;
   admin_id: number;
+  user_type: string;
+  is_admin: boolean;
 }
 
 export default function AdminLayout({
@@ -36,24 +38,30 @@ export default function AdminLayout({
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const token = localStorage.getItem('admin_token');
-        if (!token) {
-          router.push('/auth/login');
-          return;
-        }
-
-        const response = await fetchWithAuth('/auth/me');
+        const apiUrl = getApiUrl();
+        const response = await fetch(`${apiUrl}/auth/verify`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
 
         if (response.ok) {
           const userData = await response.json();
-          setUser(userData);
+          if (userData.user.is_admin) {
+            setUser(userData.user);
+          } else {
+            // Not an admin, redirect to customer portal
+            router.push('/customer');
+          }
         } else {
-          localStorage.removeItem('admin_token');
-          router.push('/auth/login');
+          // Not authenticated, redirect to portal
+          router.push('/portal');
         }
       } catch (error) {
         console.error('Auth check failed:', error);
-        router.push('/auth/login');
+        router.push('/portal');
       } finally {
         setLoading(false);
       }
@@ -62,9 +70,18 @@ export default function AdminLayout({
     checkAuth();
   }, [router]);
 
-  const logout = () => {
-    localStorage.removeItem('admin_token');
-    router.push('/auth/login');
+  const logout = async () => {
+    try {
+      const apiUrl = getApiUrl();
+      await fetch(`${apiUrl}/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      router.push('/');
+    } catch (error) {
+      console.error('Logout error:', error);
+      router.push('/');
+    }
   };
 
   const navigation = [

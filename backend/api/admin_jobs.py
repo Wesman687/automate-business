@@ -4,7 +4,8 @@ from database import get_db
 from database.models import CustomerChangeRequest, Job, Customer
 from services.job_service import JobService, ChangeRequestService
 from services.appointment_service import AppointmentService
-from api.auth import get_current_user
+from api.auth import get_current_user  # Legacy import
+from api.auth import get_current_admin
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
@@ -27,7 +28,7 @@ class OverviewResponse(BaseModel):
 @router.get("/jobs", response_model=List[dict])
 async def get_all_jobs(
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_admin)
 ):
     """Get all jobs for admin overview"""
     try:
@@ -58,7 +59,7 @@ async def get_all_jobs(
 async def get_job_details(
     job_id: int,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_admin)
 ):
     """Get detailed job information with change requests"""
     try:
@@ -117,7 +118,7 @@ async def get_job_details(
 async def get_all_change_requests(
     status: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_admin)
 ):
     """Get all change requests, optionally filtered by status"""
     try:
@@ -167,7 +168,7 @@ async def update_change_request(
     request_id: int,
     update_data: ChangeRequestUpdate,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_admin)
 ):
     """Update a change request status and details"""
     try:
@@ -204,7 +205,7 @@ async def update_change_request(
 @router.get("/overview", response_model=OverviewResponse)
 async def get_admin_overview(
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_admin)
 ):
     """Get comprehensive overview for admin dashboard"""
     try:

@@ -1,137 +1,169 @@
-import hashlib
-import hmac
-import secrets
-import time
+from sqlalchemy.orm import Session
+from database.models import User, UserType  # Unified model only!
+from passlib.context import CryptContext
+from jose import JWTError, jwt
 from datetime import datetime, timedelta
-from typing import Optional
-import os
-from cryptography.fernet import Fernet
-import base64
+from typing import Optional, Union
+import secrets
+
+# Password hashing
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# JWT settings
+SECRET_KEY = "your-unified-secret-key-here"  # In production, use environment variable
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
 
 class AuthService:
-    def __init__(self):
-        # Get or generate encryption key
-        self.encryption_key = self._get_or_create_encryption_key()
-        self.fernet = Fernet(self.encryption_key)
-        
-        # Token expiration time (24 hours)
-        self.token_expiration_hours = 24
-        
-    def _get_or_create_encryption_key(self) -> bytes:
-        """Get encryption key from environment or create new one"""
-        key_env = os.getenv('ENCRYPTION_KEY')
-        if key_env:
-            try:
-                return base64.urlsafe_b64decode(key_env)
-            except:
-                pass
-        
-        # Generate new key
-        key = Fernet.generate_key()
-        print(f"🔐 Generated new encryption key. Add to .env file:")
-        print(f"ENCRYPTION_KEY={base64.urlsafe_b64encode(key).decode()}")
-        return key
+    def __init__(self, db: Session):
+        self.db = db
     
-    def _hash_password(self, password: str) -> str:
-        """Hash password with salt"""
-        salt = os.getenv('PASSWORD_SALT', 'streamline_salt_2024')
-        return hashlib.pbkdf2_hmac('sha256', password.encode(), salt.encode(), 100000).hex()
+    def hash_password(self, password: str) -> str:
+        """Hash a password for storing in database"""
+        return pwd_context.hash(password)
     
-    def authenticate_user(self, username: str, password: str, admin_service) -> Optional[dict]:
-        """Authenticate user credentials using admin service"""
-        admin = admin_service.authenticate_admin(username, password)
-        if admin:
-            return {
-                'id': admin.id,
-                'username': admin.username,
-                'email': admin.email,
-                'full_name': admin.full_name,
-                'is_super_admin': admin.is_super_admin,
-                'is_active': admin.is_active
-            }
-        return None
+    def verify_password(self, plain_password: str, hashed_password: str) -> bool:
+        """Verify a password against its hash"""
+        return pwd_context.verify(plain_password, hashed_password)
     
-    def generate_token(self, admin_data: dict) -> str:
-        """Generate encrypted authentication token"""
-        # Create token payload
-        payload = {
-            'admin_id': admin_data['id'],
-            'username': admin_data['username'],
-            'email': admin_data['email'],
-            'is_super_admin': admin_data['is_super_admin'],
-            'issued_at': time.time(),
-            'expires_at': time.time() + (self.token_expiration_hours * 3600),
-            'random': secrets.token_hex(16)  # Add randomness
-        }
+    def authenticate_user(self, email: str, password: str) -> Optional[dict]:
+        """Authenticate user using unified User model"""
         
-        # Convert to string and encrypt
-        payload_str = f"{payload['admin_id']}|{payload['username']}|{payload['email']}|{payload['is_super_admin']}|{payload['issued_at']}|{payload['expires_at']}|{payload['random']}"
-        encrypted_token = self.fernet.encrypt(payload_str.encode())
+        # Use unified model - no fallback!
+        user = self.db.query(User).filter(User.email.ilike(email)).first()
         
-        return base64.urlsafe_b64encode(encrypted_token).decode()
-    
-    def validate_token(self, token: str) -> Optional[dict]:
-        """Validate and decrypt authentication token"""
-        try:
-            # Decode and decrypt token
-            encrypted_token = base64.urlsafe_b64decode(token.encode())
-            decrypted_payload = self.fernet.decrypt(encrypted_token).decode()
-            
-            # Parse payload
-            parts = decrypted_payload.split('|')
-            if len(parts) != 7:
-                return None
-            
-            admin_id, username, email, is_super_admin, issued_at, expires_at, random_part = parts
-            
-            # Check if token has expired
-            if time.time() > float(expires_at):
-                return None
-            
-            return {
-                'admin_id': int(admin_id),
-                'username': username,
-                'email': email,
-                'is_super_admin': is_super_admin.lower() == 'true',
-                'issued_at': float(issued_at),
-                'expires_at': float(expires_at),
-                'valid': True
-            }
-            
-        except Exception as e:
-            print(f"❌ Token validation error: {str(e)}")
+        if not user:
+            print(f"❌ Authentication failed: User not found for email '{email}'")
             return None
-    
-    def get_token_info(self, token: str) -> dict:
-        """Get information about a token without validating it"""
-        try:
-            encrypted_token = base64.urlsafe_b64decode(token.encode())
-            decrypted_payload = self.fernet.decrypt(encrypted_token).decode()
-            parts = decrypted_payload.split('|')
             
-            if len(parts) == 4:
-                username, issued_at, expires_at, _ = parts
-                return {
-                    'username': username,
-                    'issued_at': datetime.fromtimestamp(float(issued_at)),
-                    'expires_at': datetime.fromtimestamp(float(expires_at)),
-                    'is_expired': time.time() > float(expires_at)
-                }
-        except:
-            pass
+        if not user.password_hash:
+            print(f"❌ Authentication failed: User '{email}' has no password hash")
+            return None
+            
+        if not self.verify_password(password, user.password_hash):
+            print(f"❌ Authentication failed: Invalid password for user '{email}'")
+            return None
+            
+        if not user.is_active:
+            print(f"❌ Authentication failed: User '{email}' is not active (status: {user.status})")
+            return None
         
-        return {'error': 'Invalid token format'}
-    
-    def create_admin_user(self, username: str, password: str) -> dict:
-        """Create new admin user credentials (for setup)"""
-        password_hash = self._hash_password(password)
+        print(f"✅ Authentication successful for user '{email}' (type: {user.user_type})")
         
         return {
-            'username': username,
-            'password_hash': password_hash,
-            'setup_complete': True,
-            'created_at': datetime.utcnow().isoformat()
+            "user_id": user.id,
+            "email": user.email,
+            "name": user.name or user.username,
+            "user_type": user.user_type,
+            "is_admin": user.is_admin,
+            "is_customer": user.is_customer,
+            "is_super_admin": user.is_super_admin if user.is_admin else False,
+            "permissions": self._get_permissions(user)
         }
-
-# Global auth service instance
-auth_service = AuthService()
+    
+    def _get_permissions(self, user) -> list:
+        """Get permissions based on user type"""
+        if user.is_admin:
+            base_permissions = [
+                "view_appointments",
+                "create_appointments", 
+                "edit_appointments",
+                "delete_appointments",
+                "view_customers",
+                "create_customers",
+                "edit_customers"
+            ]
+            
+            if user.is_super_admin:
+                base_permissions.extend([
+                    "manage_admins",
+                    "view_system_logs",
+                    "system_settings",
+                    "delete_customers"
+                ])
+            
+            return base_permissions
+        else:
+            return [
+                "view_own_appointments",
+                "create_own_appointments",
+                "edit_own_appointments",
+                "cancel_own_appointments"
+            ]
+    
+    def create_access_token(self, user_data: dict, expires_delta: Optional[timedelta] = None) -> str:
+        """Create JWT access token with user data"""
+        to_encode = user_data.copy()
+        
+        if expires_delta:
+            expire = datetime.utcnow() + expires_delta
+        else:
+            expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        
+        to_encode.update({
+            "exp": expire,
+            "iat": datetime.utcnow(),
+            "type": "access_token"
+        })
+        
+        encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+        return encoded_jwt
+    
+    def verify_token(self, token: str) -> Optional[dict]:
+        """Verify JWT token and return user data"""
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            
+            # Check token type
+            if payload.get("type") != "access_token":
+                return None
+            
+            # Extract user data
+            user_data = {
+                "user_id": payload.get("user_id"),
+                "email": payload.get("email"),
+                "name": payload.get("name"),
+                "user_type": payload.get("user_type"),
+                "is_admin": payload.get("is_admin", False),
+                "is_customer": payload.get("is_customer", False),
+                "is_super_admin": payload.get("is_super_admin", False),
+                "permissions": payload.get("permissions", [])
+            }
+            
+            # Verify user still exists and is active - unified approach only
+            user = self.db.query(User).filter(User.id == user_data["user_id"]).first()
+            if not user or not user.is_active:
+                return None
+            
+            return user_data
+            
+        except JWTError:
+            return None
+    
+    def get_user_from_token(self, token: str) -> Optional[dict]:
+        """Get user data from JWT token"""
+        return self.verify_token(token)
+    
+    def has_permission(self, user_data: dict, permission: str) -> bool:
+        """Check if user has specific permission"""
+        return permission in user_data.get("permissions", [])
+    
+    def require_admin(self, user_data: dict) -> bool:
+        """Check if user is admin"""
+        return user_data.get("is_admin", False)
+    
+    def require_super_admin(self, user_data: dict) -> bool:
+        """Check if user is super admin"""
+        return user_data.get("is_super_admin", False)
+    
+    def can_access_customer_data(self, user_data: dict, customer_id: int) -> bool:
+        """Check if user can access specific customer data"""
+        # Admins can access all customer data
+        if user_data.get("is_admin", False):
+            return True
+        
+        # Customers can only access their own data
+        if user_data.get("user_type") == "customer":
+            return user_data.get("user_id") == customer_id
+        
+        return False

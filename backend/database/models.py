@@ -1,9 +1,86 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, Float, JSON
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, Float, JSON, Enum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from sqlalchemy.ext.declarative import declarative_base
+import enum
 
 Base = declarative_base()
+
+class UserType(enum.Enum):
+    ADMIN = "admin"
+    CUSTOMER = "customer"
+
+class UserStatus(enum.Enum):
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+    PENDING = "pending"
+    SUSPENDED = "suspended"
+
+class User(Base):
+    __tablename__ = "users"
+    
+    # Core fields
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(255), unique=True, index=True, nullable=False)
+    password_hash = Column(String(255), nullable=False)
+    user_type = Column(String(20), nullable=False, index=True)
+    status = Column(String(20), default='active', index=True)
+    
+    # Identity fields
+    name = Column(String(255), nullable=True)  # Full name for customers, display name for admins
+    username = Column(String(100), nullable=True, unique=True, index=True)  # Optional username (mainly for admins)
+    phone = Column(String(50), nullable=True, index=True)
+    
+    # Address fields (mainly for customers)
+    address = Column(Text, nullable=True)
+    city = Column(String(100), nullable=True)
+    state = Column(String(100), nullable=True)
+    zip_code = Column(String(20), nullable=True)
+    country = Column(String(100), nullable=True)
+    
+    # Business fields (for customers)
+    business_name = Column(String(255), nullable=True)
+    business_site = Column(String(500), nullable=True)
+    additional_websites = Column(Text, nullable=True)  # JSON array
+    business_type = Column(String(255), nullable=True)
+    pain_points = Column(Text, nullable=True)
+    current_tools = Column(Text, nullable=True)
+    budget = Column(String(100), nullable=True)
+    
+    # Admin-specific fields
+    is_super_admin = Column(Boolean, default=False)
+    
+    # Customer-specific fields
+    lead_status = Column(String(50), default="lead")  # lead, qualified, customer, closed
+    notes = Column(Text, nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    last_login = Column(DateTime(timezone=True), nullable=True)
+    
+    # Relationships
+    # Note: chat_sessions still reference customer_id, so we'll handle this differently for now
+    # chat_sessions = relationship("ChatSession", back_populates="user")  # Commented out for now
+    # Note: appointments still reference customer_id, so we'll handle this differently
+    # appointments = relationship("Appointment", back_populates="customer")  # Commented out for now
+    
+    @property
+    def is_admin(self) -> bool:
+        return self.user_type == 'admin'
+    
+    @property
+    def is_customer(self) -> bool:
+        return self.user_type == 'customer'
+    
+    @property
+    def is_active(self) -> bool:
+        return self.status == 'active'
+    
+    @property
+    def company(self):
+        """Return business_type as company for compatibility"""
+        return self.business_type
 
 class Customer(Base):
     __tablename__ = "customers"
@@ -12,12 +89,13 @@ class Customer(Base):
     name = Column(String(255), nullable=True)
     email = Column(String(255), unique=True, index=True, nullable=False)
     password_hash = Column(String(255), nullable=True)  # For customer authentication
-    phone = Column(String(50), nullable=True)
+    phone = Column(String(50), nullable=True, index=True)  # Added index for faster lookups
     address = Column(Text, nullable=True)  # Full address
     state = Column(String(100), nullable=True)  # State or province
     city = Column(String(100), nullable=True)  # City
     zip_code = Column(String(20), nullable=True)  # Postal code
     country = Column(String(100), nullable=True)  # Country
+    business_name = Column(String(255), nullable=True)  # Business/company name
     business_site = Column(String(500), nullable=True)  # Primary website URL
     additional_websites = Column(Text, nullable=True)  # JSON array of additional websites
     business_type = Column(String(255), nullable=True)
@@ -41,19 +119,34 @@ class Customer(Base):
         """Return business_type as company for compatibility"""
         return self.business_type
 
+class PortalInvite(Base):
+    __tablename__ = "portal_invites"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=False, index=True)
+    invite_token = Column(String(255), unique=True, index=True, nullable=False)
+    email = Column(String(255), nullable=False, index=True)
+    status = Column(String(50), default="pending")  # pending, accepted, expired
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    accepted_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # Relationships
+    customer = relationship("Customer")
+
 class ChatSession(Base):
     __tablename__ = "chat_sessions"
     
     id = Column(Integer, primary_key=True, index=True)
     session_id = Column(String(255), unique=True, index=True, nullable=False)
-    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True)
+    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True)  # Keep original for now
     status = Column(String(50), default="active")  # active, completed, proposal_sent
     is_seen = Column(Boolean, default=False)  # Whether admin has viewed this chat session
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relationships
-    customer = relationship("Customer", back_populates="chat_sessions")
+    customer = relationship("Customer", back_populates="chat_sessions")  # Keep original relationship
     messages = relationship("ChatMessage", back_populates="session")
 
 class ChatMessage(Base):

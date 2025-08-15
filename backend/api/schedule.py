@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional, Optional
@@ -8,7 +8,7 @@ from database.models import Appointment, Customer
 from services.appointment_service import AppointmentService
 from services.google_calendar_service import google_calendar_service
 from services.email_service import email_service
-from api.auth import get_current_user
+from api.auth import get_current_user as get_current_user, get_customer_or_admin
 from pydantic import BaseModel
 import logging
 
@@ -77,7 +77,7 @@ The StreamlineAI Team
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 StreamlineAI - Automating Your Success
 🌐 Website: https://stream-lineai.com
-📧 Email: tech@stream-lineai.com
+📧 Email: sales@stream-lineai.com
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 
@@ -257,7 +257,7 @@ The StreamlineAI Team
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 StreamlineAI - Automating Your Success
 🌐 Website: https://stream-lineai.com
-📧 Email: tech@stream-lineai.com
+📧 Email: sales@stream-lineai.com
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 
@@ -753,6 +753,11 @@ async def create_appointment(
         if not customer:
             raise HTTPException(status_code=404, detail="Customer not found")
         
+        # Security check: customers can only create appointments for themselves
+        if current_user.get("user_type") == "customer":
+            if current_user.get("user_id") != appointment_data.customer_id:
+                raise HTTPException(status_code=403, detail="Customers can only create appointments for themselves")
+        
         appointment_service = AppointmentService(db)
         
         # Combine date and time for scheduled_date
@@ -1198,3 +1203,34 @@ async def view_schedule(db: Session = Depends(get_db)):
         
     except Exception as e:
         return f"<html><body style='background: #1a1a1a; color: white; padding: 40px;'><h1>Error: {str(e)}</h1><a href='/admin/chat-logs' style='color: #00d4ff;'>← Back to Admin</a></body></html>"
+
+@router.get("/api/appointments/customer")
+async def get_customer_appointments(
+    customer_id: Optional[int] = None,  # Allow specifying customer ID for admin access
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Get appointments for the currently authenticated customer or specified customer (admin only)"""
+    
+    # Determine which customer's appointments to fetch
+    target_customer_id = None
+    print("Current user:", current_user)
+    
+    if current_user.get("user_type") == "customer":
+        # Customers can only see their own appointments
+        target_customer_id = current_user.get("user_id")
+    elif current_user.get("is_admin"):
+        # Admins can see any customer's appointments
+        if customer_id:
+            target_customer_id = customer_id
+        else:
+            # If no customer_id specified, return error for admin
+            raise HTTPException(status_code=400, detail="Admin must specify customer_id parameter")
+    else:
+        # Unknown user type
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    appointment_service = AppointmentService(db)
+    appointments = appointment_service.get_customer_appointments(target_customer_id)
+    
+    return {"appointments": appointments}

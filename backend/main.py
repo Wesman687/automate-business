@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Request
+﻿from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from database.models import Base
 from database import engine
@@ -7,8 +7,7 @@ from api.chat import router as chat_router
 from api.customers import router as customers_router
 from api.contact import router as contact_router
 from api.admin import router as admin_router
-from api.auth import router as auth_router
-from api.customer_auth import router as customer_auth_router
+from api.login import router as auth_router
 from api.email import router as email_router
 from api.share import router as share_router
 from api.api_endpoints import router as api_router
@@ -34,52 +33,52 @@ async def lifespan(app: FastAPI):
     
     # Log startup banner
     logger.info("=" * 80)
-    logger.info("🚀 STREAMLINE AI BACKEND STARTING UP")
+    logger.info("ðŸš€ STREAMLINE AI BACKEND STARTING UP")
     logger.info("=" * 80)
     
     # Log system information
-    logger.info(f"📅 Startup Time: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
-    logger.info(f"🐍 Python Version: {sys.version.split()[0]}")
-    logger.info(f"🌍 Environment: {os.getenv('ENVIRONMENT', 'development')}")
-    logger.info(f"📡 SMTP Server: {os.getenv('SMTP_SERVER', 'not configured')}")
-    logger.info(f"🔑 OpenAI API: {'✅ Configured' if os.getenv('OPENAI_API_KEY') else '❌ Missing'}")
+    logger.info(f"ðŸ“… Startup Time: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
+    logger.info(f"ðŸ Python Version: {sys.version.split()[0]}")
+    logger.info(f"ðŸŒ Environment: {os.getenv('ENVIRONMENT', 'development')}")
+    logger.info(f"ðŸ“¡ SMTP Server: {os.getenv('SMTP_SERVER', 'not configured')}")
+    logger.info(f"ðŸ”‘ OpenAI API: {'âœ… Configured' if os.getenv('OPENAI_API_KEY') else 'âŒ Missing'}")
     
     # Database initialization
     try:
         Base.metadata.create_all(bind=engine)
-        logger.info("✅ Database tables created/verified successfully")
+        logger.info("âœ… Database tables created/verified successfully")
     except Exception as e:
-        logger.error(f"❌ Database initialization failed: {e}")
+        logger.error(f"âŒ Database initialization failed: {e}")
         raise
     
     # Log available routes
-    logger.info("🛣️  Available API Routes:")
-    logger.info("   • /health - Health check endpoint")
-    logger.info("   • /api/chat - AI chatbot interactions")
-    logger.info("   • /api/save-customer - Customer data capture")
-    logger.info("   • /api/contact - Contact form submissions")
-    logger.info("   • /admin/* - Administrative endpoints")
-    logger.info("   • /docs - API documentation")
+    logger.info("ðŸ›£ï¸  Available API Routes:")
+    logger.info("   â€¢ /health - Health check endpoint")
+    logger.info("   â€¢ /api/chat - AI chatbot interactions")
+    logger.info("   â€¢ /api/save-customer - Customer data capture")
+    logger.info("   â€¢ /api/contact - Contact form submissions")
+    logger.info("   â€¢ /admin/* - Administrative endpoints")
+    logger.info("   â€¢ /docs - API documentation")
     
     # Final startup message
     logger.info("=" * 80)
-    logger.info("🎯 STREAMLINE AI BACKEND v2.0 IS READY!")
+    logger.info("ðŸŽ¯ STREAMLINE AI BACKEND v2.0 IS READY!")
     logger.info("=" * 80)
     
-    print("✅ Database tables created/verified")
-    print("🚀 Streamline AI Backend v2.0 is running!")
-    print(f"📅 Started at: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
+    print("âœ… Database tables created/verified")
+    print("ðŸš€ Streamline AI Backend v2.0 is running!")
+    print(f"ðŸ“… Started at: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
     
     yield  # This is where the app runs
     
     # Shutdown
     logger.info("=" * 80)
-    logger.info("🛑 STREAMLINE AI BACKEND SHUTTING DOWN")
+    logger.info("ðŸ›‘ STREAMLINE AI BACKEND SHUTTING DOWN")
     logger.info("=" * 80)
-    logger.info(f"📅 Shutdown Time: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
-    logger.info("👋 Service stopped gracefully")
+    logger.info(f"ðŸ“… Shutdown Time: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
+    logger.info("ðŸ‘‹ Service stopped gracefully")
     logger.info("=" * 80)
-    print(f"🛑 Streamline AI Backend stopped at: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
+    print(f"ðŸ›‘ Streamline AI Backend stopped at: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
 
 # Create FastAPI app with lifespan
 app = FastAPI(
@@ -172,7 +171,6 @@ app.include_router(customers_router)
 app.include_router(contact_router)
 app.include_router(admin_router)
 app.include_router(auth_router)
-app.include_router(customer_auth_router)
 app.include_router(email_router)
 app.include_router(share_router)
 app.include_router(api_router)
@@ -200,6 +198,21 @@ async def health_check():
         ]
     }
 
+@app.get("/api/test/users")
+async def get_users_test():
+    """Test endpoint to verify migrated users"""
+    from database import get_db
+    from database.models import User
+    from sqlalchemy.orm import Session
+    
+    db_gen = get_db()
+    db = next(db_gen)
+    try:
+        users = db.query(User).all()
+        return [{"id": u.id, "email": u.email, "user_type": u.user_type, "status": u.status, "name": u.name} for u in users]
+    finally:
+        db.close()
+
 @app.get("/")
 async def root():
     """Root endpoint"""
@@ -215,13 +228,18 @@ if __name__ == "__main__":
     # Validate required environment variables
     try:
         config.validate_required_env_vars()
-        print("✅ Environment variables validated successfully")
+        print("âœ… Environment variables validated successfully")
     except ValueError as e:
-        print(f"❌ Configuration error: {e}")
+        print(f"âŒ Configuration error: {e}")
         sys.exit(1)
     
-    print(f"🚀 Starting backend server on {config.BACKEND_HOST}:{config.BACKEND_PORT}")
-    print(f"🌍 Environment: {config.ENVIRONMENT}")
-    print(f"🔗 Backend URL: {config.BACKEND_URL}")
+    print(f"ðŸš€ Starting backend server on {config.BACKEND_HOST}:{config.BACKEND_PORT}")
+    print(f"ðŸŒ Environment: {config.ENVIRONMENT}")
+    print(f"ðŸ”— Backend URL: {config.BACKEND_URL}")
     
     uvicorn.run("main:app", host=config.BACKEND_HOST, port=config.BACKEND_PORT, reload=True)
+
+
+
+
+

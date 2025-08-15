@@ -5,7 +5,8 @@ from datetime import datetime, timedelta
 
 from database import get_db
 from database.models import ChatSession, ChatMessage, Customer
-from api.auth import get_current_user
+from api.auth import get_current_user  # Legacy import
+from api.auth import get_current_admin
 
 router = APIRouter(prefix="/api/admin/chat-logs", tags=["admin-chat-logs"])
 
@@ -15,7 +16,7 @@ async def get_chat_logs(
     limit: int = Query(50, description="Number of chat sessions to retrieve"),
     skip: int = Query(0, description="Number of records to skip"),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_admin)
 ):
     """Get chat logs with optional filtering by seen status"""
     try:
@@ -85,7 +86,7 @@ async def get_chat_logs(
 async def mark_chat_session_seen(
     session_id: int,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_admin)
 ):
     """Mark a chat session as seen"""
     try:
@@ -112,7 +113,7 @@ async def mark_chat_session_seen(
 async def mark_chat_session_unseen(
     session_id: int,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_admin)
 ):
     """Mark a chat session as unseen"""
     try:
@@ -139,7 +140,7 @@ async def mark_chat_session_unseen(
 async def get_chat_log_details(
     session_id: int,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_admin)
 ):
     """Get detailed chat log for a specific session"""
     try:
@@ -190,7 +191,7 @@ async def get_chat_log_details(
 @router.get("/stats/summary")
 async def get_chat_log_stats(
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_admin)
 ):
     """Get chat log statistics"""
     try:

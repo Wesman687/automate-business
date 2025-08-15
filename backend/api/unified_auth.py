@@ -1,7 +1,7 @@
 from fastapi import Depends, HTTPException, Header, Request
 from sqlalchemy.orm import Session
 from database import get_db
-from services.auth_service import AuthService
+from services.unified_auth_service import UnifiedAuthService
 from typing import Optional
 
 def get_current_user(authorization: str = Header(None), request: Request = None, db: Session = Depends(get_db)) -> dict:
@@ -28,7 +28,7 @@ def get_current_user(authorization: str = Header(None), request: Request = None,
         raise HTTPException(status_code=401, detail="Authorization required")
     
     # Validate token with unified auth service
-    auth_service = AuthService(db)
+    auth_service = UnifiedAuthService(db)
     user_data = auth_service.verify_token(token)
     
     if not user_data:
@@ -53,7 +53,7 @@ def get_current_super_admin(current_user: dict = Depends(get_current_user)) -> d
 def require_permission(permission: str):
     """Dependency factory that requires specific permission"""
     def permission_checker(current_user: dict = Depends(get_current_user)) -> dict:
-        auth_service = AuthService(None)  # Don't need db for permission check
+        auth_service = UnifiedAuthService(None)  # Don't need db for permission check
         if not auth_service.has_permission(current_user, permission):
             raise HTTPException(status_code=403, detail=f"Permission '{permission}' required")
         return current_user
@@ -75,7 +75,7 @@ def get_current_user_or_redirect(request: Request, db: Session = Depends(get_db)
         raise HTTPException(status_code=302, headers={"Location": "/portal"})
     
     # Validate token
-    auth_service = AuthService(db)
+    auth_service = UnifiedAuthService(db)
     user_data = auth_service.verify_token(token)
     
     if not user_data:

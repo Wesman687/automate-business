@@ -1,11 +1,13 @@
 from sqlalchemy.orm import Session
 from database.models import Customer
 from schemas.customer import CustomerCreate, CustomerUpdate
+from services.auth_service import AuthService
 from typing import Optional, List
 
 class CustomerService:
     def __init__(self, db: Session):
         self.db = db
+        self.auth_service = AuthService(db)
     
     def create_customer(self, customer_data: CustomerCreate) -> Customer:
         # Check if customer already exists
@@ -13,11 +15,17 @@ class CustomerService:
         if existing:
             return existing
         
-        # Create customer with default authentication values
-        customer_dict = customer_data.dict()
+        # Create customer with authentication support
+        customer_dict = customer_data.dict(exclude={'password'})
+        
+        # Hash password if provided
+        password_hash = None
+        if customer_data.password:
+            password_hash = self.auth_service.hash_password(customer_data.password)
+        
         customer_dict.update({
-            'is_authenticated': False,
-            'password_hash': None,
+            'is_authenticated': bool(password_hash),
+            'password_hash': password_hash,
             'reset_code': None,
             # 'reset_code_expires': None  # Temporarily disabled
         })

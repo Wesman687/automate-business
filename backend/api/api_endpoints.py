@@ -3,13 +3,14 @@ from sqlalchemy.orm import Session
 from database import get_db
 from services.session_service import SessionService
 from services.customer_service import CustomerService
-from api.auth import get_current_user
+from api.auth import get_current_user  # Legacy import
+from api.auth import get_current_admin
 from typing import List
 
 router = APIRouter(prefix="/api", tags=["api"])
 
 @router.get("/sessions")
-async def get_all_sessions(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+async def get_all_sessions(db: Session = Depends(get_db), current_user: dict = Depends(get_current_admin)):
     """Get all chat sessions with customer info for admin"""
     try:
         session_service = SessionService(db)
@@ -43,7 +44,7 @@ async def get_all_sessions(db: Session = Depends(get_db), current_user: dict = D
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/sessions/{session_id}")
-async def get_session_details(session_id: str, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+async def get_session_details(session_id: str, db: Session = Depends(get_db), current_user: dict = Depends(get_current_admin)):
     """Get session details with messages"""
     try:
         session_service = SessionService(db)
@@ -99,7 +100,7 @@ async def get_session_details(session_id: str, db: Session = Depends(get_db), cu
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/sessions/{session_id}/messages")
-async def get_session_messages(session_id: str, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+async def get_session_messages(session_id: str, db: Session = Depends(get_db), current_user: dict = Depends(get_current_admin)):
     """Get messages for a specific session"""
     try:
         session_service = SessionService(db)
@@ -121,7 +122,7 @@ async def get_session_messages(session_id: str, db: Session = Depends(get_db), c
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.delete("/sessions/{session_id}")
-async def delete_session(session_id: str, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+async def delete_session(session_id: str, db: Session = Depends(get_db), current_user: dict = Depends(get_current_admin)):
     """Delete a chat session"""
     try:
         session_service = SessionService(db)
@@ -139,7 +140,7 @@ async def delete_session(session_id: str, db: Session = Depends(get_db), current
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/customers")
-async def get_all_customers(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+async def get_all_customers(db: Session = Depends(get_db), current_user: dict = Depends(get_current_admin)):
     """Get all customers for admin"""
     try:
         customer_service = CustomerService(db)
@@ -188,7 +189,7 @@ async def get_all_customers(db: Session = Depends(get_db), current_user: dict = 
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/customers/{customer_id}")
-async def get_customer_details(customer_id: int, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+async def get_customer_details(customer_id: int, db: Session = Depends(get_db), current_user: dict = Depends(get_current_admin)):
     """Get customer details"""
     try:
         customer_service = CustomerService(db)
@@ -234,7 +235,7 @@ async def get_customer_details(customer_id: int, db: Session = Depends(get_db), 
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.put("/customers/{customer_id}")
-async def update_customer(customer_id: int, customer_data: dict, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+async def update_customer(customer_id: int, customer_data: dict, db: Session = Depends(get_db), current_user: dict = Depends(get_current_admin)):
     """Update customer information"""
     try:
         customer_service = CustomerService(db)
@@ -271,7 +272,7 @@ async def update_customer(customer_id: int, customer_data: dict, db: Session = D
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.delete("/customers/{customer_id}")
-async def delete_customer(customer_id: int, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+async def delete_customer(customer_id: int, db: Session = Depends(get_db), current_user: dict = Depends(get_current_admin)):
     """Delete a customer and their chat sessions"""
     try:
         customer_service = CustomerService(db)

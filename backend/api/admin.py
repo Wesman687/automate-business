@@ -5,7 +5,7 @@ from database import get_db
 from services.session_service import SessionService
 from services.customer_service import CustomerService
 from services.email_reader_service import EmailReaderService
-from api.auth import get_current_user, get_current_user_or_redirect
+from api.auth import get_current_admin, get_current_user_or_redirect as get_current_user_or_redirect
 from api.schedule import router as schedule_router
 from datetime import datetime
 import logging
@@ -23,19 +23,19 @@ async def admin_root(request: Request, db: Session = Depends(get_db)):
     # Check authentication
     token = request.cookies.get('admin_token')
     if not token:
-        return RedirectResponse(url="/auth/login", status_code=302)
+        return RedirectResponse(url="/portal", status_code=302)
     
     # Validate token
     from services.auth_service import auth_service
     user_info = auth_service.validate_token(token)
     if not user_info:
-        return RedirectResponse(url="/auth/login", status_code=302)
+        return RedirectResponse(url="/portal", status_code=302)
     
     # Redirect to new React admin frontend
     return RedirectResponse(url="http://localhost:3000/admin", status_code=302)
 
 @router.get("/chat-logs/{session_id}", response_class=HTMLResponse)
-async def view_chat_log(session_id: str, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+async def view_chat_log(session_id: str, db: Session = Depends(get_db), user: dict = Depends(get_current_admin)):
     """View chat log for a specific session with customer info"""
     try:
         session_service = SessionService(db)
@@ -375,18 +375,18 @@ async def list_chat_logs(request: Request, db: Session = Depends(get_db)):
     # Check authentication
     token = request.cookies.get('admin_token')
     if not token:
-        return RedirectResponse(url="/auth/login", status_code=302)
+        return RedirectResponse(url="/portal", status_code=302)
     
     # Validate token
     user_info = auth_service.validate_token(token)
     if not user_info:
-        return RedirectResponse(url="/auth/login", status_code=302)
+        return RedirectResponse(url="/portal", status_code=302)
     
     # Get admin details
     admin_service = AdminService(db)
     admin = admin_service.get_admin_by_id(user_info['admin_id'])
     if not admin or not admin.is_active:
-        return RedirectResponse(url="/auth/login", status_code=302)
+        return RedirectResponse(url="/portal", status_code=302)
     
     user = {
         'username': admin.username,
@@ -614,18 +614,18 @@ async def admin_management_page(request: Request, db: Session = Depends(get_db))
     # Check authentication
     token = request.cookies.get('admin_token')
     if not token:
-        return RedirectResponse(url="/auth/login", status_code=302)
+        return RedirectResponse(url="/portal", status_code=302)
     
     # Validate token
     user_info = auth_service.validate_token(token)
     if not user_info:
-        return RedirectResponse(url="/auth/login", status_code=302)
+        return RedirectResponse(url="/portal", status_code=302)
     
     # Get admin details
     admin_service = AdminService(db)
     admin = admin_service.get_admin_by_id(user_info['admin_id'])
     if not admin or not admin.is_active:
-        return RedirectResponse(url="/auth/login", status_code=302)
+        return RedirectResponse(url="/portal", status_code=302)
     
     user = {
         'username': admin.username,
@@ -1077,7 +1077,7 @@ async def admin_management_page(request: Request, db: Session = Depends(get_db))
 
 # Customer Management Routes
 @router.get("/customers", response_class=HTMLResponse)
-async def customers_page(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+async def customers_page(db: Session = Depends(get_db), user: dict = Depends(get_current_admin)):
     """Customer management page"""
     try:
         customer_service = CustomerService(db)
@@ -1418,7 +1418,7 @@ async def customers_page(db: Session = Depends(get_db), user: dict = Depends(get
         return error_html
 
 @router.delete("/chat-logs/{session_id}")
-async def delete_chat_session(session_id: str, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+async def delete_chat_session(session_id: str, db: Session = Depends(get_db), user: dict = Depends(get_current_admin)):
     """Delete a chat session and all its messages"""
     try:
         session_service = SessionService(db)
@@ -1445,7 +1445,7 @@ async def delete_chat_session(session_id: str, db: Session = Depends(get_db), us
         raise HTTPException(status_code=500, detail=f"Error deleting chat session: {str(e)}")
 
 @router.delete("/customers/{customer_id}")
-async def delete_customer(customer_id: int, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+async def delete_customer(customer_id: int, db: Session = Depends(get_db), user: dict = Depends(get_current_admin)):
     """Delete a customer and optionally their chat sessions"""
     try:
         customer_service = CustomerService(db)
@@ -1480,7 +1480,7 @@ async def update_customer(
     customer_id: int, 
     customer_data: dict,
     db: Session = Depends(get_db), 
-    user: dict = Depends(get_current_user)
+    user: dict = Depends(get_current_admin)
 ):
     """Update customer information"""
     try:
@@ -1514,7 +1514,7 @@ async def update_customer(
         raise HTTPException(status_code=500, detail=f"Error updating customer: {str(e)}")
 
 @router.get("/customers/{customer_id}", response_class=HTMLResponse)
-async def view_customer_detail(customer_id: int, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+async def view_customer_detail(customer_id: int, db: Session = Depends(get_db), user: dict = Depends(get_current_admin)):
     """View detailed customer information"""
     try:
         customer_service = CustomerService(db)
@@ -1927,7 +1927,7 @@ async def view_customer_detail(customer_id: int, db: Session = Depends(get_db), 
 
 @router.get("/overview")
 async def get_dashboard_overview(
-    current_user=Depends(get_current_user),
+    current_user=Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """Get dashboard overview statistics"""
@@ -1981,7 +1981,7 @@ async def get_dashboard_overview(
 @router.get("/overview")
 async def get_admin_overview(
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_admin)
 ):
     """Get dashboard overview statistics"""
     try:

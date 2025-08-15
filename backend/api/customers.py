@@ -567,3 +567,46 @@ async def upload_customer_file(
         raise  # Re-raise validation errors
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error uploading file: {str(e)}")
+
+@router.get("/customers/{customer_id}/jobs")
+async def get_customer_jobs(customer_id: int, db: Session = Depends(get_db)):
+    """Get all jobs for a specific customer"""
+    from services.job_service import JobService
+    
+    job_service = JobService(db)
+    jobs = job_service.get_customer_jobs(customer_id)
+    
+    return {"jobs": jobs}
+
+@router.post("/customers/{customer_id}/set-password")
+async def set_customer_password(
+    customer_id: int,
+    password_data: dict,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Set password for an existing customer (admin only)"""
+    # Only admins can set customer passwords
+    if not current_user.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    password = password_data.get("password")
+    if not password:
+        raise HTTPException(status_code=400, detail="Password is required")
+    
+    customer_service = CustomerService(db)
+    customer = customer_service.get_customer_by_id(customer_id)
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    # Hash the password
+    from services.unified_auth_service import UnifiedAuthService
+    auth_service = UnifiedAuthService(db)
+    hashed_password = auth_service.hash_password(password)
+    
+    # Update customer with password
+    customer.password_hash = hashed_password
+    customer.is_authenticated = True
+    db.commit()
+    
+    return {"message": "Password set successfully", "customer_id": customer_id}

@@ -3,7 +3,7 @@ from pydantic import BaseModel, EmailStr
 from typing import List, Optional
 from services.email_service import email_service
 from services.admin_service import AdminService
-from services.auth_service import auth_service
+from services.auth_service import AuthService
 from sqlalchemy.orm import Session
 from database import get_db
 import secrets

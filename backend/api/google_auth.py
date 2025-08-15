@@ -5,7 +5,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from database import get_db
-from api.auth import get_current_user
+from api.auth import get_current_user  # Legacy import
+from api.auth import get_current_admin
 from services.google_calendar_service import google_calendar_service
 import logging
 
@@ -13,7 +14,7 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 @router.get("/api/auth/google/calendar")
-async def initiate_google_calendar_auth(current_user: dict = Depends(get_current_user)):
+async def initiate_google_calendar_auth(current_user: dict = Depends(get_current_admin)):
     """
     Initiate Google Calendar OAuth flow
     """
@@ -65,7 +66,7 @@ async def google_calendar_callback(
         raise HTTPException(status_code=500, detail="Failed to complete Google Calendar authentication")
 
 @router.get("/api/google/calendar/status")
-async def get_google_calendar_status(current_user: dict = Depends(get_current_user)):
+async def get_google_calendar_status(current_user: dict = Depends(get_current_admin)):
     """
     Check Google Calendar integration status
     """

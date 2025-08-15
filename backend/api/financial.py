@@ -20,7 +20,8 @@ from schemas.financial import (
     TimeEntryCreate,
     TimeEntryUpdate,
 )
-from api.auth import get_current_user
+from api.auth import get_current_user  # Legacy import
+from api.auth import get_current_admin
 
 router = APIRouter()
 
@@ -32,7 +33,7 @@ def get_invoices(
     start_date: Optional[date] = Query(None),
     end_date: Optional[date] = Query(None),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_admin)
 ):
     """Get all invoices with optional filtering"""
     query = db.query(Invoice)
@@ -52,7 +53,7 @@ def get_invoices(
 def get_invoice(
     invoice_id: int,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_admin)
 ):
     """Get a specific invoice"""
     invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
@@ -64,7 +65,7 @@ def get_invoice(
 def create_invoice(
     invoice: InvoiceCreate,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_admin)
 ):
     """Create a new invoice"""
     # Generate invoice number
@@ -93,7 +94,7 @@ def update_invoice(
     invoice_id: int,
     invoice_update: InvoiceUpdate,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_admin)
 ):
     """Update an invoice"""
     invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
@@ -122,7 +123,7 @@ def update_invoice(
 def delete_invoice(
     invoice_id: int,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_admin)
 ):
     """Delete an invoice"""
     invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
@@ -139,7 +140,7 @@ def get_recurring_payments(
     customer_id: Optional[int] = Query(None),
     status: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_admin)
 ):
     """Get all recurring payments with optional filtering"""
     query = db.query(RecurringPayment)
@@ -155,7 +156,7 @@ def get_recurring_payments(
 def get_recurring_payment(
     payment_id: int,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_admin)
 ):
     """Get a specific recurring payment"""
     payment = db.query(RecurringPayment).filter(RecurringPayment.id == payment_id).first()
@@ -167,7 +168,7 @@ def get_recurring_payment(
 def create_recurring_payment(
     payment: RecurringPaymentCreate,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_admin)
 ):
     """Create a new recurring payment"""
     db_payment = RecurringPayment(
@@ -187,7 +188,7 @@ def update_recurring_payment(
     payment_id: int,
     payment_update: RecurringPaymentUpdate,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_admin)
 ):
     """Update a recurring payment"""
     payment = db.query(RecurringPayment).filter(RecurringPayment.id == payment_id).first()
@@ -211,7 +212,7 @@ def get_jobs(
     status: Optional[str] = Query(None),
     priority: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_admin)
 ):
     """Get all jobs with optional filtering"""
     query = db.query(Job)
@@ -229,7 +230,7 @@ def get_jobs(
 def get_job(
     job_id: int,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_admin)
 ):
     """Get a specific job"""
     job = db.query(Job).filter(Job.id == job_id).first()
@@ -241,7 +242,7 @@ def get_job(
 def create_job(
     job: JobCreate,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_admin)
 ):
     """Create a new job"""
     job_data = job.dict()
@@ -260,7 +261,7 @@ def update_job(
     job_id: int,
     job_update: JobUpdate,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_admin)
 ):
     """Update a job"""
     job = db.query(Job).filter(Job.id == job_id).first()
@@ -291,7 +292,7 @@ def get_time_entries(
     start_date: Optional[date] = Query(None),
     end_date: Optional[date] = Query(None),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_admin)
 ):
     """Get all time entries with optional filtering"""
     query = db.query(TimeEntry)
@@ -311,7 +312,7 @@ def get_time_entries(
 def create_time_entry(
     time_entry: TimeEntryCreate,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_admin)
 ):
     """Create a new time entry"""
     # Calculate duration if end_time is provided
@@ -343,7 +344,7 @@ def update_time_entry(
     entry_id: int,
     entry_update: TimeEntryUpdate,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_admin)
 ):
     """Update a time entry"""
     time_entry = db.query(TimeEntry).filter(TimeEntry.id == entry_id).first()
@@ -378,7 +379,7 @@ def update_time_entry(
 def delete_time_entry(
     entry_id: int,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_admin)
 ):
     """Delete a time entry"""
     time_entry = db.query(TimeEntry).filter(TimeEntry.id == entry_id).first()
@@ -396,7 +397,7 @@ def get_financial_summary(
     year: Optional[int] = Query(None),
     month: Optional[int] = Query(None),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_admin)
 ):
     """Get financial summary with totals and metrics"""
     # Base queries

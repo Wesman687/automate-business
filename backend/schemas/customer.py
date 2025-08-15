@@ -23,6 +23,7 @@ class CustomerBase(BaseModel):
     state: Optional[str] = None
     zip_code: Optional[str] = None
     country: Optional[str] = None
+    business_name: Optional[str] = None
     business_site: Optional[str] = None
     business_type: Optional[str] = None
     pain_points: Optional[str] = None
@@ -32,7 +33,7 @@ class CustomerBase(BaseModel):
     notes: Optional[str] = None
 
 class CustomerCreate(CustomerBase):
-    pass
+    password: Optional[str] = None  # Optional password for customer authentication
 
 class CustomerUpdate(BaseModel):
     name: Optional[str] = None
@@ -42,6 +43,7 @@ class CustomerUpdate(BaseModel):
     state: Optional[str] = None
     zip_code: Optional[str] = None
     country: Optional[str] = None
+    business_name: Optional[str] = None
     business_site: Optional[str] = None
     business_type: Optional[str] = None
     pain_points: Optional[str] = None

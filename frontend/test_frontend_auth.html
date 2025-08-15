@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Frontend Auth Test</title>
+</head>
+<body>
+    <h1>Frontend Authentication Test</h1>
+    <button onclick="clearToken()">Clear Token (Simulate Issue)</button>
+    <button onclick="setValidToken()">Set Valid Token</button>
+    <button onclick="testAuth()">Test Authentication</button>
+    <div id="results"></div>
+    
+    <script>
+        function clearToken() {
+            localStorage.removeItem('admin_token');
+            document.getElementById('results').innerHTML = '<p style="color: orange;">Token cleared from localStorage</p>';
+        }
+        
+        function setValidToken() {
+            // This would be set by actual login - using placeholder for demo
+            localStorage.setItem('admin_token', 'placeholder_token');
+            document.getElementById('results').innerHTML = '<p style="color: green;">Placeholder token set in localStorage</p>';
+        }
+        
+        async function testAuth() {
+            const results = document.getElementById('results');
+            results.innerHTML = '';
+            
+            // Check localStorage token
+            const token = localStorage.getItem('admin_token');
+            results.innerHTML += `<p><strong>Token in localStorage:</strong> ${token ? 'Present' : 'NULL'}</p>`;
+            
+            if (!token) {
+                results.innerHTML += '<p style="color: red;">⚠️ No admin token found in localStorage. This would cause "Bearer null" error!</p>';
+                results.innerHTML += '<p style="color: green;">✅ Our fixes prevent sending null tokens by checking token before making requests.</p>';
+                return;
+            }
+            
+            if (token === 'placeholder_token') {
+                results.innerHTML += '<p style="color: orange;">Using placeholder token - would normally make real API call with proper token.</p>';
+                return;
+            }
+            
+            // Test appointments endpoint (this would work with real token)
+            try {
+                const response = await fetch('/api/appointments', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include'
+                });
+                
+                results.innerHTML += `<p>Appointments API response: ${response.status}</p>`;
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    results.innerHTML += `<p style="color: green;">✅ Appointments loaded: ${data.length} appointments</p>`;
+                } else {
+                    const error = await response.text();
+                    results.innerHTML += `<p style="color: red;">❌ Error: ${error}</p>`;
+                }
+            } catch (error) {
+                results.innerHTML += `<p style="color: red;">❌ Fetch error: ${error.message}</p>`;
+            }
+        }
+        
+        // Simulate the old behavior (what caused the bug)
+        function simulateOldBehavior() {
+            const token = localStorage.getItem('admin_token'); // This could be null
+            const headers = {
+                'Authorization': `Bearer ${token}`, // This would be "Bearer null"
+                'Content-Type': 'application/json'
+            };
+            console.log('Old behavior would send:', headers);
+        }
+        
+        // Show the fix
+        function simulateNewBehavior() {
+            const token = localStorage.getItem('admin_token');
+            
+            if (!token) {
+                console.log('New behavior: No token found, not making request');
+                return;
+            }
+            
+            const headers = {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            };
+            console.log('New behavior would send:', headers);
+        }
+        
+        // Run demo
+        document.addEventListener('DOMContentLoaded', function() {
+            testAuth();
+        });
+    </script>
+</body>
+</html>

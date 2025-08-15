@@ -36,11 +36,18 @@ export default function AppointmentsPage() {
   const fetchAppointments = async () => {
     try {
       const token = localStorage.getItem('admin_token');
+      if (!token) {
+        setError('Authentication required. Please login again.');
+        setLoading(false);
+        return;
+      }
+      
       const response = await fetch('/api/appointments', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
-        }
+        },
+        credentials: 'include'
       });
 
       if (response.ok) {
@@ -61,12 +68,18 @@ export default function AppointmentsPage() {
 
     try {
       const token = localStorage.getItem('admin_token');
+      if (!token) {
+        alert('Authentication required. Please login again.');
+        return;
+      }
+      
       const response = await fetch(`/api/appointments/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
-        }
+        },
+        credentials: 'include'
       });
 
       if (response.ok) {

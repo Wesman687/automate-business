@@ -131,6 +131,11 @@ export default function SmartAppointmentModal({ isOpen, onClose, onSave, appoint
   const fetchCustomers = async () => {
     try {
       const token = localStorage.getItem('admin_token');
+      if (!token) {
+        console.error('No admin token found');
+        return;
+      }
+      
       const response = await fetch('/api/customers', {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -152,6 +157,11 @@ export default function SmartAppointmentModal({ isOpen, onClose, onSave, appoint
     setLoadingSlots(true);
     try {
       const token = localStorage.getItem('admin_token');
+      if (!token) {
+        setError('Authentication required');
+        return;
+      }
+      
       const params = new URLSearchParams({
         duration_minutes: formData.duration_minutes.toString(),
         days_ahead: '14'
@@ -165,7 +175,8 @@ export default function SmartAppointmentModal({ isOpen, onClose, onSave, appoint
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
-        }
+        },
+        credentials: 'include'
       });
 
       if (response.ok) {
@@ -215,6 +226,10 @@ export default function SmartAppointmentModal({ isOpen, onClose, onSave, appoint
 
     try {
       const token = localStorage.getItem('admin_token');
+      if (!token) {
+        setError('Authentication required');
+        return;
+      }
       
       // Generate title if not provided
       const selectedCustomer = customers.find(c => c.id.toString() === formData.customer_id);
@@ -241,6 +256,7 @@ export default function SmartAppointmentModal({ isOpen, onClose, onSave, appoint
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify(appointmentData)
       });
 

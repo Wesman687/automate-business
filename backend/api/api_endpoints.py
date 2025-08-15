@@ -13,6 +13,9 @@ router = APIRouter(prefix="/api", tags=["api"])
 async def get_all_sessions(db: Session = Depends(get_db), current_user: dict = Depends(get_current_admin)):
     """Get all chat sessions with customer info for admin"""
     try:
+        print(f"🔍 Sessions endpoint - Current user: {current_user}")
+        print(f"🔍 Is admin: {current_user.get('is_admin', False)}")
+        
         session_service = SessionService(db)
         sessions_data = session_service.get_all_sessions_with_customers()
         

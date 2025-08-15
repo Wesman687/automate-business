@@ -38,7 +38,8 @@ async def unified_login(request: LoginRequest, response: Response, db: Session =
         max_age=60 * 60 * 24,  # 24 hours
         httponly=True,
         secure=False,  # Set to True in production with HTTPS
-        samesite="lax"
+        samesite="lax",
+        path="/"  # Make sure cookie is available for all paths
     )
     
     # Also set legacy cookie names for backward compatibility during migration
@@ -49,7 +50,8 @@ async def unified_login(request: LoginRequest, response: Response, db: Session =
             max_age=60 * 60 * 24,
             httponly=True,
             secure=False,
-            samesite="lax"
+            samesite="lax",
+            path="/"
         )
     else:
         response.set_cookie(
@@ -58,7 +60,8 @@ async def unified_login(request: LoginRequest, response: Response, db: Session =
             max_age=60 * 60 * 24,
             httponly=True,
             secure=False,
-            samesite="lax"
+            samesite="lax",
+            path="/"
         )
     
     return {
@@ -103,12 +106,24 @@ async def get_current_user_info(current_user: dict = Depends(get_current_user)):
 
 @router.get("/verify")
 async def verify_token(current_user: dict = Depends(get_current_user)):
-    """Verify if the current token is valid"""
-    return {
-        "valid": True,
-        "user_type": current_user["user_type"],
-        "email": current_user["email"]
-    }
+    """Verify if the current token is valid and return user info"""
+    try:
+        print(f"🔍 Auth verification for user: {current_user}")
+        return {
+            "valid": True,
+            "user": {
+                "user_id": current_user["user_id"],
+                "email": current_user["email"],
+                "name": current_user.get("name"),
+                "user_type": current_user["user_type"],
+                "is_admin": current_user.get("is_admin", False),
+                "is_customer": current_user.get("is_customer", False),
+                "is_super_admin": current_user.get("is_super_admin", False)
+            }
+        }
+    except Exception as e:
+        print(f"❌ Error in verify_token: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Auth verification failed: {str(e)}")
 
 # Legacy endpoints for backward compatibility
 @router.post("/admin-login")

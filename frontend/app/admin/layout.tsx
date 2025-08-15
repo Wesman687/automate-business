@@ -49,9 +49,15 @@ export default function AdminLayout({
 
         if (response.ok) {
           const userData = await response.json();
-          if (userData.user.is_admin) {
-            setUser(userData.user);
+          console.log('Auth verification response:', userData);
+          
+          // Handle both old and new response formats
+          const user = userData.user || userData;
+          
+          if (user && user.is_admin) {
+            setUser(user);
           } else {
+            console.log('User is not admin:', user);
             // Not an admin, redirect to customer portal
             router.push('/customer');
           }

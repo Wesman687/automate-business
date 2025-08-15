@@ -205,13 +205,30 @@ async def get_customers(
     db: Session = Depends(get_db), 
     current_user: dict = Depends(get_current_user)
 ):
-    """Get all customers with pagination and chat sessions"""
+    """Get customers - Admin sees all, customers see only themselves"""
     try:
         customer_service = CustomerService(db)
         session_service = SessionService(db)
         
-        # Get customers with basic pagination
-        customers = customer_service.get_customers(skip=skip, limit=limit)
+        # Check user authorization
+        is_admin = current_user.get('is_admin', False)
+        user_type = current_user.get('user_type')
+        user_id = current_user.get('user_id')
+        
+        print(f"🔍 Customers endpoint - User: {current_user}")
+        print(f"🔍 Is admin: {is_admin}, User type: {user_type}, User ID: {user_id}")
+        
+        if is_admin:
+            # Admin sees all customers
+            customers = customer_service.get_customers(skip=skip, limit=limit)
+        elif user_type == "customer" and user_id:
+            # Customer sees only themselves
+            customer = customer_service.get_customer(user_id)
+            if not customer:
+                raise HTTPException(status_code=404, detail="Customer not found")
+            customers = [customer]
+        else:
+            raise HTTPException(status_code=403, detail="Access denied")
         
         # Enhanced customer data with chat sessions
         enhanced_customers = []
@@ -270,10 +287,22 @@ async def get_customer(
     db: Session = Depends(get_db), 
     current_user: dict = Depends(get_current_user)
 ):
-    """Get a specific customer by ID with chat sessions"""
+    """Get a specific customer by ID - Admin sees any, customers see only themselves"""
     try:
         customer_service = CustomerService(db)
         session_service = SessionService(db)
+        
+        # Check user authorization
+        is_admin = current_user.get('is_admin', False)
+        user_type = current_user.get('user_type')
+        user_id = current_user.get('user_id')
+        
+        print(f"🔍 Get customer {customer_id} - User: {current_user}")
+        print(f"🔍 Is admin: {is_admin}, User type: {user_type}, User ID: {user_id}")
+        
+        # Authorization check
+        if not is_admin and (user_type != "customer" or user_id != customer_id):
+            raise HTTPException(status_code=403, detail="Access denied - can only view your own data")
         
         customer = customer_service.get_customer_by_id(customer_id)
         if not customer:
@@ -334,10 +363,22 @@ async def update_customer(
     db: Session = Depends(get_db), 
     current_user: dict = Depends(get_current_user)
 ):
-    """Update a customer"""
+    """Update a customer - Admin can update any, customers can update only themselves"""
     try:
         customer_service = CustomerService(db)
         session_service = SessionService(db)
+        
+        # Check user authorization
+        is_admin = current_user.get('is_admin', False)
+        user_type = current_user.get('user_type')
+        user_id = current_user.get('user_id')
+        
+        print(f"🔍 Update customer {customer_id} - User: {current_user}")
+        print(f"🔍 Is admin: {is_admin}, User type: {user_type}, User ID: {user_id}")
+        
+        # Authorization check
+        if not is_admin and (user_type != "customer" or user_id != customer_id):
+            raise HTTPException(status_code=403, detail="Access denied - can only update your own data")
         
         # Update the customer
         customer = customer_service.update_customer(customer_id, customer_data)
@@ -600,8 +641,8 @@ async def set_customer_password(
         raise HTTPException(status_code=404, detail="Customer not found")
     
     # Hash the password
-    from services.unified_auth_service import UnifiedAuthService
-    auth_service = UnifiedAuthService(db)
+    from services.auth_service import AuthService
+    auth_service = AuthService(db)
     hashed_password = auth_service.hash_password(password)
     
     # Update customer with password

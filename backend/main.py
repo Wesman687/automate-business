@@ -1,4 +1,4 @@
-﻿from fastapi import FastAPI, HTTPException, Request
+﻿from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from database.models import Base
 from database import engine
@@ -18,6 +18,7 @@ from api.voice_agent import router as voice_agent_router
 from api.admin_jobs import router as admin_jobs_router
 from api.admin_emails import router as admin_emails_router
 from api.admin_chat_logs import router as admin_chat_logs_router
+from api.auth import get_current_user
 import logging
 import os
 from datetime import datetime
@@ -209,9 +210,28 @@ async def get_users_test():
     db = next(db_gen)
     try:
         users = db.query(User).all()
-        return [{"id": u.id, "email": u.email, "user_type": u.user_type, "status": u.status, "name": u.name} for u in users]
+        return [{"id": u.id, "email": u.email, "user_type": u.user_type, "status": u.status, "name": u.name, "is_admin": u.is_admin, "is_customer": u.is_customer, "is_active": u.is_active} for u in users]
     finally:
         db.close()
+
+@app.get("/api/debug/auth")
+async def debug_auth(current_user: dict = Depends(get_current_user)):
+    """Debug endpoint to check current user authentication"""
+    return {
+        "authenticated": True,
+        "user_data": current_user,
+        "is_admin": current_user.get("is_admin", False),
+        "user_type": current_user.get("user_type"),
+        "user_id": current_user.get("user_id")
+    }
+
+@app.get("/api/debug/auth-simple")  
+async def debug_auth_simple():
+    """Simple auth test endpoint that doesn't require authentication"""
+    return {
+        "message": "This endpoint works without authentication",
+        "timestamp": datetime.utcnow().isoformat()
+    }
 
 @app.get("/")
 async def root():

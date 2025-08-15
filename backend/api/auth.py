@@ -15,13 +15,15 @@ def get_current_user(authorization: str = Header(None), request: Request = None,
     
     # If no header token, try to get from cookie (for browser requests)
     if not token and request:
-        print(f"🍪 Checking cookies: {dict(request.cookies)}")
+        all_cookies = dict(request.cookies)
+        print(f"🍪 All cookies received: {all_cookies}")
+        
         # Try both token names for backward compatibility during migration
         token = request.cookies.get('admin_token') or request.cookies.get('customer_token') or request.cookies.get('auth_token')
         if token:
             print(f"🍪 Found token in cookie: {token[:20]}...")
         else:
-            print("🚫 No token found in cookie")
+            print("🚫 No token found in any cookie")
     
     if not token:
         print("❌ No authentication token found")

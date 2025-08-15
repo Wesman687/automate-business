@@ -419,19 +419,33 @@ async def get_appointments(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get appointments with optional filtering"""
+    """Get appointments - Admin sees all/filtered, customers see only their own"""
     try:
         appointment_service = AppointmentService(db)
         
-        # Get appointments based on filters
-        if customer_id:
-            appointments = appointment_service.get_customer_appointments(customer_id)
-        elif start_date and end_date:
-            start = datetime.strptime(start_date, '%Y-%m-%d').date()
-            end = datetime.strptime(end_date, '%Y-%m-%d').date()
-            appointments = appointment_service.get_appointments_by_date_range(start, end)
+        # Check user authorization
+        is_admin = current_user.get('is_admin', False)
+        user_type = current_user.get('user_type')
+        user_id = current_user.get('user_id')
+        
+        print(f"🔍 Appointments endpoint - User: {current_user}")
+        print(f"🔍 Is admin: {is_admin}, User type: {user_type}, User ID: {user_id}")
+        
+        if is_admin:
+            # Admin can see appointments with any filters
+            if customer_id:
+                appointments = appointment_service.get_customer_appointments(customer_id)
+            elif start_date and end_date:
+                start = datetime.strptime(start_date, '%Y-%m-%d').date()
+                end = datetime.strptime(end_date, '%Y-%m-%d').date()
+                appointments = appointment_service.get_appointments_by_date_range(start, end)
+            else:
+                appointments = appointment_service.get_upcoming_appointments(30)
+        elif user_type == "customer" and user_id:
+            # Customer can only see their own appointments
+            appointments = appointment_service.get_customer_appointments(user_id)
         else:
-            appointments = appointment_service.get_upcoming_appointments(30)
+            raise HTTPException(status_code=403, detail="Access denied")
         
         # Convert to response format
         result = []
@@ -887,13 +901,26 @@ async def get_appointment(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get a specific appointment"""
+    """Get a specific appointment - Admin can view any, customers can view only their own"""
     try:
         appointment_service = AppointmentService(db)
         appointment = appointment_service.get_appointment(appointment_id)
         
         if not appointment:
             raise HTTPException(status_code=404, detail="Appointment not found")
+        
+        # Check user authorization
+        is_admin = current_user.get('is_admin', False)
+        user_type = current_user.get('user_type')
+        user_id = current_user.get('user_id')
+        
+        print(f"🔍 Get appointment {appointment_id} - User: {current_user}")
+        print(f"🔍 Is admin: {is_admin}, User type: {user_type}, User ID: {user_id}")
+        print(f"🔍 Appointment customer_id: {appointment.customer_id}")
+        
+        # Authorization check
+        if not is_admin and (user_type != "customer" or user_id != appointment.customer_id):
+            raise HTTPException(status_code=403, detail="Access denied - can only view your own appointments")
             
         customer = db.query(Customer).filter(Customer.id == appointment.customer_id).first()
         
@@ -926,13 +953,26 @@ async def update_appointment(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Update an existing appointment"""
+    """Update an existing appointment - Admin can update any, customers can update only their own"""
     try:
         appointment_service = AppointmentService(db)
         appointment = appointment_service.get_appointment(appointment_id)
         
         if not appointment:
             raise HTTPException(status_code=404, detail="Appointment not found")
+        
+        # Check user authorization
+        is_admin = current_user.get('is_admin', False)
+        user_type = current_user.get('user_type')
+        user_id = current_user.get('user_id')
+        
+        print(f"🔍 Update appointment {appointment_id} - User: {current_user}")
+        print(f"🔍 Is admin: {is_admin}, User type: {user_type}, User ID: {user_id}")
+        print(f"🔍 Appointment customer_id: {appointment.customer_id}")
+        
+        # Authorization check
+        if not is_admin and (user_type != "customer" or user_id != appointment.customer_id):
+            raise HTTPException(status_code=403, detail="Access denied - can only update your own appointments")
         
         # Update appointment fields
         update_data = appointment_data.dict(exclude_unset=True)
@@ -1212,25 +1252,49 @@ async def get_customer_appointments(
 ):
     """Get appointments for the currently authenticated customer or specified customer (admin only)"""
     
-    # Determine which customer's appointments to fetch
-    target_customer_id = None
-    print("Current user:", current_user)
-    
-    if current_user.get("user_type") == "customer":
-        # Customers can only see their own appointments
-        target_customer_id = current_user.get("user_id")
-    elif current_user.get("is_admin"):
-        # Admins can see any customer's appointments
-        if customer_id:
-            target_customer_id = customer_id
+    try:
+        # Check user authorization
+        is_admin = current_user.get('is_admin', False)
+        user_type = current_user.get('user_type')
+        user_id = current_user.get('user_id')
+        
+        print(f"📝 Customer appointments endpoint - User: {current_user}")
+        print(f"📝 Is admin: {is_admin}, User type: {user_type}, User ID: {user_id}")
+        
+        # Determine which customer's appointments to fetch
+        target_customer_id = None
+        
+        if is_admin:
+            # Admins can see any customer's appointments
+            if customer_id:
+                target_customer_id = customer_id
+            else:
+                # If no customer_id specified, return empty list for admin
+                return []
+        elif user_type == "customer" and user_id:
+            # Customers can only see their own appointments
+            target_customer_id = user_id
         else:
-            # If no customer_id specified, return error for admin
-            raise HTTPException(status_code=400, detail="Admin must specify customer_id parameter")
-    else:
-        # Unknown user type
-        raise HTTPException(status_code=403, detail="Access denied")
-    
-    appointment_service = AppointmentService(db)
-    appointments = appointment_service.get_customer_appointments(target_customer_id)
-    
-    return {"appointments": appointments}
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        if not target_customer_id:
+            raise HTTPException(status_code=400, detail="Customer ID required")
+        
+        # Get appointments for the target customer
+        appointment_service = AppointmentService(db)
+        appointments = appointment_service.get_customer_appointments(target_customer_id)
+        
+        print(f"📝 Fetching appointments for customer ID: {target_customer_id}")
+        
+        appointment_service = AppointmentService(db)
+        appointments = appointment_service.get_customer_appointments(target_customer_id)
+        
+        print(f"📝 Found {len(appointments) if appointments else 0} appointments")
+        
+        return {"appointments": appointments}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error in get_customer_appointments: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

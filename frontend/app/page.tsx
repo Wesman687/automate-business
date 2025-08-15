@@ -175,12 +175,15 @@ export default function Home() {
     })
   }} />
 
-      <Hero />
-      <Services />
-      <HowItWorks />
-      <TechCredibility />
-      <About />
-      <Contact />
+      {/* Add padding-top to account for fixed navigation */}
+      <div className="pt-16">
+        <Hero />
+        <Services />
+        <HowItWorks />
+        <TechCredibility />
+        <About />
+        <Contact />
+      </div>
     </main>
   )
 }

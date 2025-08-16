@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { Menu, X, User, LogIn, LogOut, ChevronDown, Home } from 'lucide-react';
 import { getApiUrl } from '@/lib/api';
 
@@ -11,12 +12,14 @@ export default function Navigation() {
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [userInfo, setUserInfo] = useState<any>(null);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const router = useRouter();
+  const pathname = usePathname();
 
   const navigation = [
-    { name: 'Home', href: '/' },
-    { name: 'About', href: '/about' },
-    { name: 'Services', href: '/services' },
-    { name: 'Contact', href: '/contact' },
+    { name: 'Home', href: '/', sectionId: null },
+    { name: 'About', href: '/about', sectionId: 'about' },
+    { name: 'Services', href: '/services', sectionId: 'services' },
+    { name: 'Contact', href: '/contact', sectionId: 'contact' },
   ];
 
   useEffect(() => {
@@ -89,14 +92,38 @@ export default function Navigation() {
     }
   };
 
-  const scrollToSection = (href: string) => {
-    if (href.startsWith('#')) {
-      const element = document.getElementById(href.substring(1));
+  const handleNavigation = (item: typeof navigation[0]) => {
+    setIsMenuOpen(false);
+    
+    // If we're on the home page and there's a section ID, scroll to it
+    if (pathname === '/' && item.sectionId) {
+      const element = document.getElementById(item.sectionId);
       if (element) {
         element.scrollIntoView({ behavior: 'smooth' });
+        return;
       }
     }
-    setIsMenuOpen(false);
+    
+    // If it's the home link, navigate to home
+    if (item.href === '/') {
+      router.push('/');
+      return;
+    }
+    
+    // For other pages, if we're not on home, navigate to home and then scroll
+    if (pathname !== '/' && item.sectionId) {
+      router.push('/');
+      // Wait for navigation to complete, then scroll
+      setTimeout(() => {
+        const element = document.getElementById(item.sectionId);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 100);
+    } else {
+      // Navigate to the page
+      router.push(item.href);
+    }
   };
 
   return (
@@ -117,7 +144,7 @@ export default function Navigation() {
             {navigation.map((item) => (
               <button
                 key={item.name}
-                onClick={() => scrollToSection(item.href)}
+                onClick={() => handleNavigation(item)}
                 className="text-gray-300 hover:text-electric-blue transition-colors cursor-pointer"
               >
                 {item.name}
@@ -215,7 +242,7 @@ export default function Navigation() {
             {navigation.map((item) => (
               <button
                 key={item.name}
-                onClick={() => scrollToSection(item.href)}
+                onClick={() => handleNavigation(item)}
                 className="block text-gray-300 hover:text-electric-blue transition-colors w-full text-left"
               >
                 {item.name}

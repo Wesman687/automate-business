@@ -178,11 +178,17 @@ export default function Home() {
       {/* Add padding-top to account for fixed navigation */}
       <div className="pt-16">
         <Hero />
-        <Services />
+        <div id="services">
+          <Services />
+        </div>
         <HowItWorks />
         <TechCredibility />
-        <About />
-        <Contact />
+        <div id="about">
+          <About />
+        </div>
+        <div id="contact">
+          <Contact />
+        </div>
       </div>
     </main>
   )

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiUrl } from '@/lib/api';
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
 const BACKEND_URL = getApiUrl();
 
 export async function GET(request: NextRequest) {

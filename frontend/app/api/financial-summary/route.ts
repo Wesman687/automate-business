@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
 const API_BASE_URL = process.env.NODE_ENV === 'production' 
   ? 'https://server.stream-lineai.com'
   : 'https://server.stream-lineai.com';

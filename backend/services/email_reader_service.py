@@ -192,7 +192,7 @@ class EmailReaderService:
             # Connect to IMAP server
             mail = imaplib.IMAP4_SSL(account.imap_server, account.imap_port)
             mail.login(account.email, account.password)
-            mail.select('INBOX')
+            mail.select('INBOX', readonly=True)
             
             # Search for unread emails from the last N days
             since_date = (datetime.now() - timedelta(days=days_back)).strftime("%d-%b-%Y")

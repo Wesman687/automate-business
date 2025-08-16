@@ -21,8 +21,7 @@ export default function Portal() {
 
   const checkExistingAuth = async () => {
     try {
-      const apiUrl = getApiUrl();
-      const response = await fetch(`${apiUrl}/auth/verify`, {
+      const response = await fetch('/api/auth/verify', {
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -57,8 +56,7 @@ export default function Portal() {
     setError('');
 
     try {
-      const apiUrl = getApiUrl();
-      const response = await fetch(`${apiUrl}/auth/login`, {
+      const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

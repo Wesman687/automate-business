@@ -176,6 +176,7 @@ export default function Home() {
   }} />
   
 
+
       {/* Add padding-top to account for fixed navigation */}
       <div className="pt-16">
         <Hero />

@@ -653,7 +653,7 @@ export default function UnifiedDashboard() {
               <Clock className="h-5 w-5 text-blue-400 mr-2" />
               In Progress Change Requests
             </h2>
-            <span className="bg-blue-400/20 text-blue-300 text-xs font-medium px-2.5 py-0.5 rounded-full">
+          <span className="bg-blue-400/20 text-blue-300 text-xs font-medium px-2.5 py-0.5 rounded-full">
               {inProgressRequests.length}
             </span>
           </div>

@@ -300,8 +300,9 @@ async def get_customer(
         print(f"🔍 Get customer {customer_id} - User: {current_user}")
         print(f"🔍 Is admin: {is_admin}, User type: {user_type}, User ID: {user_id}")
         
-        # Authorization check
+        # Authorization check - fixed to properly check admin status
         if not is_admin and (user_type != "customer" or user_id != customer_id):
+            print(f"❌ Access denied - is_admin: {is_admin}, user_type: {user_type}, user_id: {user_id}, customer_id: {customer_id}")
             raise HTTPException(status_code=403, detail="Access denied - can only view your own data")
         
         customer = customer_service.get_customer_by_id(customer_id)

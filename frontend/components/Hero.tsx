@@ -80,16 +80,16 @@ export default function Hero() {
                   }
                 }, 100)
               }}
-              className="btn-terminal text-lg px-8 py-4 rounded-lg font-mono hover:animate-glow"
+              className="bg-electric-blue hover:bg-electric-blue/90 text-black text-lg px-8 py-4 rounded-lg font-semibold transition-all duration-200 border border-electric-blue hover:shadow-lg hover:shadow-electric-blue/30 hover:scale-105"
             >
-              {'>'} Get Started
+              Get Started
             </button>
             
             <button
               onClick={() => {
                 window.location.href = '/portal'
               }}
-              className="bg-electric-blue hover:bg-electric-blue/80 text-white text-lg px-8 py-4 rounded-lg font-semibold transition-all duration-200 border border-electric-blue"
+              className="bg-transparent hover:bg-electric-blue/10 text-electric-blue text-lg px-8 py-4 rounded-lg font-semibold transition-all duration-200 border border-electric-blue hover:shadow-lg hover:shadow-electric-blue/20 hover:scale-105"
             >
               Schedule Appointment
             </button>

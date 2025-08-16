@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Edit, Mail, Phone, Building, Globe, Calendar, MessageSquare, DollarSign, Briefcase } from 'lucide-react';
 import Link from 'next/link';
 import EditCustomerModal from '@/components/EditCustomerModal';
+import { fetchWithAuth } from '@/lib/api';
 
 interface Customer {
   id: number;
@@ -153,14 +154,7 @@ export default function CustomerDetail() {
 
   const fetchCustomer = async () => {
     try {
-      const token = localStorage.getItem('admin_token');
-      const response = await fetch(`/api/customers/${customerId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include'
-      });
+      const response = await fetchWithAuth(`/api/customers/${customerId}`);
 
       if (response.ok) {
         const data = await response.json();
@@ -180,14 +174,8 @@ export default function CustomerDetail() {
 
   const handleUpdateCustomer = async (updatedData: Partial<Customer>) => {
     try {
-      const token = localStorage.getItem('admin_token');
-      const response = await fetch(`/api/customers/${customerId}`, {
+      const response = await fetchWithAuth(`/api/customers/${customerId}`, {
         method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include',
         body: JSON.stringify(updatedData)
       });
 

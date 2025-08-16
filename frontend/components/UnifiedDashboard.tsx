@@ -5,6 +5,7 @@ import { AlertCircle, Calendar, Clock, MessageSquare, CheckCircle, Users, Briefc
 import ChangeRequestCard from './ChangeRequestCard';
 import ChangeRequestModal from './ChangeRequestModal';
 import SmartAppointmentModal from './SmartAppointmentModal';
+import EmailManager from './EmailManager';
 import { fetchWithAuth } from '@/lib/api';
 
 interface ChangeRequest {
@@ -92,6 +93,7 @@ export default function UnifiedDashboard() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [chatLogs, setChatLogs] = useState<ChatLog[]>([]);
     const [unreadEmails, setUnreadEmails] = useState<any[]>([]);
+  const [showEmailManager, setShowEmailManager] = useState(false);
   
   const markChatLogAsSeen = async (sessionId: number) => {
     try {
@@ -136,16 +138,13 @@ export default function UnifiedDashboard() {
       const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
       const serverBaseUrl = 'https://server.stream-lineai.com';
       
-      // Email endpoint - always use server for email operations
-      const emailEndpoint = `${serverBaseUrl}/api/admin/emails/unread`;
-
       // Fetch all dashboard data using the new fetchWithAuth function
       const [overviewRes, requestsRes, appointmentsRes, chatLogsRes, emailsRes] = await Promise.all([
         fetchWithAuth('/api/admin/overview'),
         fetchWithAuth('/api/admin/change-requests'),
         fetchWithAuth('/api/appointments?upcoming=true'),
         fetchWithAuth('/api/sessions'), // Updated to use the new chat sessions endpoint
-        fetch(emailEndpoint, { credentials: 'include' }) // Email still uses direct fetch
+        fetchWithAuth('/api/emails/unread') // Use frontend API route for emails
       ]);
 
       if (overviewRes.ok) {
@@ -156,6 +155,13 @@ export default function UnifiedDashboard() {
           upcoming_appointments: 0,
           unread_emails: 0
         };
+        
+        // Update email count from actual API response
+        if (emailsRes.ok) {
+          const emailsData = await emailsRes.json();
+          overviewStats.unread_emails = emailsData.count || emailsData.emails?.length || 0;
+        }
+        
         setStats(overviewStats);
       } else {
         console.error('❌ Overview API error:', overviewRes.status, await overviewRes.text());
@@ -377,7 +383,10 @@ export default function UnifiedDashboard() {
           </div>
         </div>
 
-        <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-6">
+        <div 
+          onClick={() => setShowEmailManager(true)}
+          className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-6 cursor-pointer hover:bg-white/10 transition-colors"
+        >
           <div className="flex items-center">
             <Mail className="h-8 w-8 text-purple-400" />
             <div className="ml-4">
@@ -693,6 +702,13 @@ export default function UnifiedDashboard() {
         onSave={handleAppointmentSave}
         appointment={editingAppointment}
       />
+
+      {/* Email Manager */}
+      {showEmailManager && (
+        <EmailManager 
+          onClose={() => setShowEmailManager(false)} 
+        />
+      )}
     </div>
   );
 }

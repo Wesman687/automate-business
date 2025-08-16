@@ -327,3 +327,122 @@ class EmailReaderService:
             logger.error(f"Error getting email stats: {str(e)}")
         
         return stats
+
+    def get_email_by_id(self, email_id: str) -> Optional[UnreadEmail]:
+        """Get full email content by ID"""
+        if not self.is_server:
+            logger.warning("Email retrieval attempted on local environment - returning None")
+            return None
+            
+        try:
+            # Parse email_id to get account and message ID
+            account_name, msg_id = email_id.split('_', 1)
+            
+            # Find the account
+            account = None
+            for acc in self.accounts:
+                if acc.account_name == account_name:
+                    account = acc
+                    break
+            
+            if not account:
+                logger.error(f"Account {account_name} not found")
+                return None
+            
+            mail = None
+            try:
+                # Connect to email server
+                mail = imaplib.IMAP4_SSL(account.imap_server, account.imap_port)
+                mail.login(account.email, account.password)
+                mail.select('INBOX')
+                
+                # Fetch the email
+                status, msg_data = mail.fetch(msg_id, '(RFC822)')
+                
+                if status != 'OK':
+                    return None
+                
+                # Parse the email
+                raw_email = msg_data[0][1]
+                msg = email.message_from_bytes(raw_email)
+                
+                # Extract email details
+                from_address = self._decode_header_value(msg.get('From', ''))
+                subject = self._decode_header_value(msg.get('Subject', ''))
+                date_str = msg.get('Date', '')
+                
+                # Parse date
+                try:
+                    received_date = email.utils.parsedate_to_datetime(date_str)
+                except:
+                    received_date = datetime.now()
+                
+                # Get full email body
+                body = self._get_email_body(msg)
+                preview = self._get_email_preview(msg)
+                
+                # Check if important
+                is_important = self._is_important_email(msg, from_address, subject)
+                
+                # Create email object
+                return UnreadEmail(
+                    id=email_id,
+                    account=account.account_name,
+                    from_address=from_address,
+                    subject=subject,
+                    received_date=received_date,
+                    preview=preview,
+                    is_important=is_important,
+                    body=body
+                )
+                
+            finally:
+                if mail:
+                    try:
+                        mail.close()
+                        mail.logout()
+                    except:
+                        pass
+                        
+        except Exception as e:
+            logger.error(f"Error getting email {email_id}: {str(e)}")
+            return None
+
+    def mark_email_read(self, email_id: str) -> bool:
+        """Mark an email as read"""
+        return self.mark_email_as_read(email_id)
+
+    def get_accounts(self) -> List[EmailAccount]:
+        """Get list of configured email accounts"""
+        return self.accounts
+
+    def _get_email_body(self, msg) -> str:
+        """Extract full email body"""
+        body = ""
+        
+        if msg.is_multipart():
+            for part in msg.walk():
+                content_type = part.get_content_type()
+                if content_type == "text/plain":
+                    try:
+                        part_body = part.get_payload(decode=True)
+                        if part_body:
+                            body += part_body.decode('utf-8', errors='ignore')
+                    except:
+                        continue
+                elif content_type == "text/html" and not body:
+                    try:
+                        part_body = part.get_payload(decode=True)
+                        if part_body:
+                            body = part_body.decode('utf-8', errors='ignore')
+                    except:
+                        continue
+        else:
+            try:
+                body = msg.get_payload(decode=True)
+                if body:
+                    body = body.decode('utf-8', errors='ignore')
+            except:
+                body = ""
+        
+        return body

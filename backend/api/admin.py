@@ -2037,3 +2037,122 @@ async def get_admin_overview(
         logger = logging.getLogger(__name__)
         logger.error(f"Error getting admin overview: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to get dashboard overview")
+
+# Email Management Endpoints
+@router.get("/emails/unread")
+async def get_unread_emails(db: Session = Depends(get_db), user: dict = Depends(get_current_admin)):
+    """Get unread emails from all configured email accounts"""
+    try:
+        email_reader = EmailReaderService()
+        unread_emails = email_reader.get_unread_emails()
+        
+        return {
+            "emails": [
+                {
+                    "id": email.id,
+                    "account": email.account,
+                    "from": email.from_address,
+                    "subject": email.subject,
+                    "received_date": email.received_date.isoformat(),
+                    "preview": email.preview,
+                    "is_important": email.is_important
+                }
+                for email in unread_emails
+            ],
+            "count": len(unread_emails)
+        }
+    except Exception as e:
+        logger.error(f"Error getting unread emails: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to get unread emails")
+
+@router.get("/emails/{email_id}")
+async def get_email_details(email_id: str, db: Session = Depends(get_db), user: dict = Depends(get_current_admin)):
+    """Get full email content by ID"""
+    try:
+        email_reader = EmailReaderService()
+        email_details = email_reader.get_email_by_id(email_id)
+        
+        if not email_details:
+            raise HTTPException(status_code=404, detail="Email not found")
+        
+        return {
+            "id": email_details.id,
+            "account": email_details.account,
+            "from": email_details.from_address,
+            "subject": email_details.subject,
+            "received_date": email_details.received_date.isoformat(),
+            "body": email_details.body,
+            "preview": email_details.preview,
+            "is_important": email_details.is_important
+        }
+    except Exception as e:
+        logger.error(f"Error getting email details: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to get email details")
+
+@router.post("/emails/send")
+async def send_admin_email(
+    to_email: str,
+    subject: str,
+    body: str,
+    from_account: str = "tech",
+    html_body: str = None,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_admin)
+):
+    """Send email from admin interface"""
+    try:
+        from services.email_service import email_service
+        
+        success = email_service.send_email(
+            from_account=from_account,
+            to_emails=[to_email],
+            subject=subject,
+            body=body,
+            html_body=html_body
+        )
+        
+        if success:
+            return {"message": "Email sent successfully", "status": "success"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to send email")
+            
+    except Exception as e:
+        logger.error(f"Error sending email: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
+
+@router.post("/emails/{email_id}/mark-read")
+async def mark_email_read(email_id: str, db: Session = Depends(get_db), user: dict = Depends(get_current_admin)):
+    """Mark an email as read"""
+    try:
+        email_reader = EmailReaderService()
+        success = email_reader.mark_email_read(email_id)
+        
+        if success:
+            return {"message": "Email marked as read", "status": "success"}
+        else:
+            raise HTTPException(status_code=404, detail="Email not found or already read")
+            
+    except Exception as e:
+        logger.error(f"Error marking email as read: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to mark email as read")
+
+@router.get("/emails/accounts")
+async def get_email_accounts(db: Session = Depends(get_db), user: dict = Depends(get_current_admin)):
+    """Get list of configured email accounts"""
+    try:
+        email_reader = EmailReaderService()
+        accounts = email_reader.get_accounts()
+        
+        return {
+            "accounts": [
+                {
+                    "name": account.account_name,
+                    "email": account.email,
+                    "status": "active"
+                }
+                for account in accounts
+            ]
+        }
+    except Exception as e:
+        logger.error(f"Error getting email accounts: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to get email accounts")

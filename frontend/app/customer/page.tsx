@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Calendar, Clock, User, Phone, Mail, MapPin, Building2, Globe, LogOut, Edit, Save, X, Plus } from 'lucide-react';
 import { getApiUrl } from '@/lib/api';
+import EditCustomerModal from '@/components/EditCustomerModal';
 
 interface Customer {
   id: number;
@@ -31,9 +32,7 @@ export default function CustomerDashboard() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [isEditing, setIsEditing] = useState(false);
-  const [editData, setEditData] = useState<Customer | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
@@ -61,7 +60,6 @@ export default function CustomerDashboard() {
       if (response.ok) {
         const userData = await response.json();
         setCustomer(userData.user);
-        setEditData(userData.user);
       } else {
         // Not authenticated, redirect to portal
         router.push('/portal');
@@ -95,47 +93,52 @@ export default function CustomerDashboard() {
   };
 
   const handleEdit = () => {
-    setIsEditing(true);
+    setIsEditModalOpen(true);
   };
 
-  const handleCancelEdit = () => {
-    setIsEditing(false);
-    setEditData(customer);
-  };
-
-  const handleSave = async () => {
-    if (!editData) return;
+  const handleUpdateCustomer = async (updatedData: Partial<Customer>, passwordData?: { password: string }) => {
+    if (!customer) return;
     
-    setSaving(true);
     try {
+      // If password change is requested, handle it separately first
+      if (passwordData?.password) {
+        const apiUrl = getApiUrl();
+        const passwordResponse = await fetch(`${apiUrl}/api/customers/${customer.id}/set-password`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ password: passwordData.password })
+        });
+
+        if (!passwordResponse.ok) {
+          setError('Failed to update password');
+          return;
+        }
+      }
+
+      // Update customer data
       const apiUrl = getApiUrl();
-      const response = await fetch(`${apiUrl}/api/customers/${customer?.id}`, {
+      const response = await fetch(`${apiUrl}/api/customers/${customer.id}`, {
         method: 'PUT',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(editData),
+        body: JSON.stringify(updatedData),
       });
 
       if (response.ok) {
         const updatedCustomer = await response.json();
         setCustomer(updatedCustomer);
-        setIsEditing(false);
+        setIsEditModalOpen(false);
       } else {
         setError('Failed to update information');
       }
     } catch (error) {
       console.error('Error updating customer:', error);
       setError('Failed to update information');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleInputChange = (field: keyof Customer, value: string) => {
-    if (editData) {
-      setEditData({ ...editData, [field]: value });
     }
   };
 
@@ -304,33 +307,13 @@ export default function CustomerDashboard() {
             <div className="bg-dark-card rounded-xl border border-dark-border p-6">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-semibold text-white">Your Information</h3>
-                {!isEditing ? (
-                  <button
-                    onClick={handleEdit}
-                    className="flex items-center gap-2 bg-electric-blue/20 hover:bg-electric-blue/30 text-electric-blue px-4 py-2 rounded-lg transition-colors"
-                  >
-                    <Edit className="h-4 w-4" />
-                    Edit
-                  </button>
-                ) : (
-                  <div className="flex gap-2">
-                    <button
-                      onClick={handleSave}
-                      disabled={saving}
-                      className="flex items-center gap-2 bg-neon-green/20 hover:bg-neon-green/30 text-neon-green px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
-                    >
-                      <Save className="h-4 w-4" />
-                      {saving ? 'Saving...' : 'Save'}
-                    </button>
-                    <button
-                      onClick={handleCancelEdit}
-                      className="flex items-center gap-2 bg-gray-600/20 hover:bg-gray-600/30 text-gray-300 px-4 py-2 rounded-lg transition-colors"
-                    >
-                      <X className="h-4 w-4" />
-                      Cancel
-                    </button>
-                  </div>
-                )}
+                <button
+                  onClick={handleEdit}
+                  className="flex items-center gap-2 bg-electric-blue/20 hover:bg-electric-blue/30 text-electric-blue px-4 py-2 rounded-lg transition-colors"
+                >
+                  <Edit className="h-4 w-4" />
+                  Edit
+                </button>
               </div>
 
               <div className="grid md:grid-cols-2 gap-6">
@@ -340,16 +323,7 @@ export default function CustomerDashboard() {
                       <User className="inline h-4 w-4 mr-2" />
                       Full Name
                     </label>
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        value={editData?.name || ''}
-                        onChange={(e) => handleInputChange('name', e.target.value)}
-                        className="w-full px-3 py-2 bg-dark-bg border border-dark-border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-electric-blue"
-                      />
-                    ) : (
-                      <p className="text-white">{customer.name || 'Not provided'}</p>
-                    )}
+                    <p className="text-white">{customer.name || 'Not provided'}</p>
                   </div>
 
                   <div>
@@ -358,7 +332,6 @@ export default function CustomerDashboard() {
                       Email
                     </label>
                     <p className="text-white">{customer.email}</p>
-                    <p className="text-xs text-gray-500">Email cannot be changed</p>
                   </div>
 
                   <div>
@@ -366,16 +339,7 @@ export default function CustomerDashboard() {
                       <Phone className="inline h-4 w-4 mr-2" />
                       Phone
                     </label>
-                    {isEditing ? (
-                      <input
-                        type="tel"
-                        value={editData?.phone || ''}
-                        onChange={(e) => handleInputChange('phone', e.target.value)}
-                        className="w-full px-3 py-2 bg-dark-bg border border-dark-border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-electric-blue"
-                      />
-                    ) : (
-                      <p className="text-white">{customer.phone || 'Not provided'}</p>
-                    )}
+                    <p className="text-white">{customer.phone || 'Not provided'}</p>
                   </div>
 
                   <div>
@@ -383,16 +347,7 @@ export default function CustomerDashboard() {
                       <Building2 className="inline h-4 w-4 mr-2" />
                       Company
                     </label>
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        value={editData?.company || ''}
-                        onChange={(e) => handleInputChange('company', e.target.value)}
-                        className="w-full px-3 py-2 bg-dark-bg border border-dark-border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-electric-blue"
-                      />
-                    ) : (
-                      <p className="text-white">{customer.company || 'Not provided'}</p>
-                    )}
+                    <p className="text-white">{customer.business_type || 'Not provided'}</p>
                   </div>
                 </div>
 
@@ -402,16 +357,7 @@ export default function CustomerDashboard() {
                       <MapPin className="inline h-4 w-4 mr-2" />
                       Address
                     </label>
-                    {isEditing ? (
-                      <textarea
-                        value={editData?.address || ''}
-                        onChange={(e) => handleInputChange('address', e.target.value)}
-                        rows={3}
-                        className="w-full px-3 py-2 bg-dark-bg border border-dark-border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-electric-blue"
-                      />
-                    ) : (
-                      <p className="text-white">{customer.address || 'Not provided'}</p>
-                    )}
+                    <p className="text-white">{customer.address || 'Not provided'}</p>
                   </div>
 
                   <div>
@@ -419,45 +365,27 @@ export default function CustomerDashboard() {
                       <Globe className="inline h-4 w-4 mr-2" />
                       Business Website
                     </label>
-                    {isEditing ? (
-                      <input
-                        type="url"
-                        value={editData?.business_site || ''}
-                        onChange={(e) => handleInputChange('business_site', e.target.value)}
-                        className="w-full px-3 py-2 bg-dark-bg border border-dark-border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-electric-blue"
-                      />
-                    ) : (
-                      <p className="text-white">
-                        {customer.business_site ? (
-                          <a 
-                            href={customer.business_site} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-electric-blue hover:text-electric-blue/80"
-                          >
-                            {customer.business_site}
-                          </a>
-                        ) : (
-                          'Not provided'
-                        )}
-                      </p>
-                    )}
+                    <p className="text-white">
+                      {customer.business_site ? (
+                        <a 
+                          href={customer.business_site} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-electric-blue hover:text-electric-blue/80"
+                        >
+                          {customer.business_site}
+                        </a>
+                      ) : (
+                        'Not provided'
+                      )}
+                    </p>
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
                       Business Type
                     </label>
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        value={editData?.business_type || ''}
-                        onChange={(e) => handleInputChange('business_type', e.target.value)}
-                        className="w-full px-3 py-2 bg-dark-bg border border-dark-border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-electric-blue"
-                      />
-                    ) : (
-                      <p className="text-white">{customer.business_type || 'Not provided'}</p>
-                    )}
+                    <p className="text-white">{customer.business_type || 'Not provided'}</p>
                   </div>
                 </div>
               </div>
@@ -617,6 +545,16 @@ export default function CustomerDashboard() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Edit Customer Modal */}
+      {customer && (
+        <EditCustomerModal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          customer={customer}
+          onSave={handleUpdateCustomer}
+        />
       )}
     </div>
   );

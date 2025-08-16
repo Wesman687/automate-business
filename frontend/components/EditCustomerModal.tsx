@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Save, User, Mail, Phone, Building, Globe, MessageSquare, FileText } from 'lucide-react';
+import { X, Save, User, Mail, Phone, Building, Globe, MessageSquare, FileText, Lock, EyeOff, Eye } from 'lucide-react';
 import { formatPhoneNumber, handlePhoneChange, isValidPhoneNumber } from '@/utils/phoneFormatter';
 
 interface Customer {
@@ -20,7 +20,7 @@ interface Customer {
   status: string;
   notes?: string;
   file_path?: string;
-  created_at: string;
+  created_at?: string;
   chat_sessions?: any[];
 }
 
@@ -28,7 +28,7 @@ interface EditCustomerModalProps {
   customer: Customer;
   isOpen: boolean;
   onClose: () => void;
-  onSave: (updatedCustomer: Partial<Customer>) => Promise<void>;
+  onSave: (updatedCustomer: Partial<Customer>, passwordData?: { password: string }) => Promise<void>;
 }
 
 export default function EditCustomerModal({ customer, isOpen, onClose, onSave }: EditCustomerModalProps) {
@@ -47,6 +47,15 @@ export default function EditCustomerModal({ customer, isOpen, onClose, onSave }:
     status: 'lead',
     notes: ''
   });
+  
+  // Password change state
+  const [passwordData, setPasswordData] = useState({
+    password: '',
+    confirmPassword: ''
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [changePassword, setChangePassword] = useState(false);
   
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -69,6 +78,15 @@ export default function EditCustomerModal({ customer, isOpen, onClose, onSave }:
         status: customer.status || 'lead',
         notes: customer.notes || ''
       });
+      
+      // Reset password fields when customer changes
+      setPasswordData({
+        password: '',
+        confirmPassword: ''
+      });
+      setChangePassword(false);
+      setShowPassword(false);
+      setShowConfirmPassword(false);
     }
   }, [customer]);
 
@@ -99,6 +117,21 @@ export default function EditCustomerModal({ customer, isOpen, onClose, onSave }:
       }
     }
 
+    // Password validation if changing password
+    if (changePassword) {
+      if (!passwordData.password) {
+        newErrors.password = 'Password is required';
+      } else if (passwordData.password.length < 8) {
+        newErrors.password = 'Password must be at least 8 characters long';
+      }
+
+      if (!passwordData.confirmPassword) {
+        newErrors.confirmPassword = 'Please confirm your password';
+      } else if (passwordData.password !== passwordData.confirmPassword) {
+        newErrors.confirmPassword = 'Passwords do not match';
+      }
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -121,6 +154,43 @@ export default function EditCustomerModal({ customer, isOpen, onClose, onSave }:
         [field]: ''
       }));
     }
+  };
+
+  const handlePasswordChange = (field: 'password' | 'confirmPassword', value: string) => {
+    setPasswordData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+
+    // Real-time validation for immediate feedback
+    const newErrors = { ...errors };
+    
+    if (field === 'password') {
+      if (value.length === 0) {
+        delete newErrors.password;
+      } else if (value.length < 8) {
+        newErrors.password = 'Password must be at least 8 characters long';
+      } else {
+        delete newErrors.password;
+      }
+      
+      // Also check confirm password if it exists
+      if (passwordData.confirmPassword && value !== passwordData.confirmPassword) {
+        newErrors.confirmPassword = 'Passwords do not match';
+      } else if (passwordData.confirmPassword && value === passwordData.confirmPassword) {
+        delete newErrors.confirmPassword;
+      }
+    } else if (field === 'confirmPassword') {
+      if (value.length === 0) {
+        delete newErrors.confirmPassword;
+      } else if (passwordData.password !== value) {
+        newErrors.confirmPassword = 'Passwords do not match';
+      } else {
+        delete newErrors.confirmPassword;
+      }
+    }
+
+    setErrors(newErrors);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -149,7 +219,10 @@ export default function EditCustomerModal({ customer, isOpen, onClose, onSave }:
         notes: formData.notes.trim() || undefined
       };
 
-      await onSave(updateData);
+      // Include password data if changing password
+      const passwordUpdateData = changePassword ? { password: passwordData.password } : undefined;
+
+      await onSave(updateData, passwordUpdateData);
       onClose();
     } catch (error) {
       console.error('Error updating customer:', error);
@@ -386,6 +459,94 @@ export default function EditCustomerModal({ customer, isOpen, onClose, onSave }:
               className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
               placeholder="Enter any additional notes about this customer"
             />
+          </div>
+
+          {/* Password Change Section */}
+          <div className="border-t border-gray-700 pt-6">
+            <div className="flex items-center justify-between mb-4">
+              <label className="block text-sm font-medium text-gray-300">
+                <Lock className="h-4 w-4 inline mr-1" />
+                Change Password
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  setChangePassword(!changePassword);
+                  if (!changePassword) {
+                    // Reset password fields when enabling
+                    setPasswordData({ password: '', confirmPassword: '' });
+                    setErrors(prev => {
+                      const newErrors = { ...prev };
+                      delete newErrors.password;
+                      delete newErrors.confirmPassword;
+                      return newErrors;
+                    });
+                  }
+                }}
+                className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                  changePassword 
+                    ? 'bg-cyan-600 text-white hover:bg-cyan-700' 
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                {changePassword ? 'Cancel' : 'Change Password'}
+              </button>
+            </div>
+
+            {changePassword && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    New Password *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={passwordData.password}
+                      onChange={(e) => handlePasswordChange('password', e.target.value)}
+                      className={`w-full px-3 py-2 bg-gray-800 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 pr-10 ${
+                        errors.password ? 'border-red-500' : 'border-gray-600'
+                      }`}
+                      placeholder="Enter new password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-300"
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  {errors.password && <p className="text-red-400 text-sm mt-1">{errors.password}</p>}
+                  <p className="text-gray-500 text-xs mt-1">Minimum 8 characters</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Confirm Password *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      value={passwordData.confirmPassword}
+                      onChange={(e) => handlePasswordChange('confirmPassword', e.target.value)}
+                      className={`w-full px-3 py-2 bg-gray-800 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 pr-10 ${
+                        errors.confirmPassword ? 'border-red-500' : 'border-gray-600'
+                      }`}
+                      placeholder="Confirm new password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-300"
+                    >
+                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  {errors.confirmPassword && <p className="text-red-400 text-sm mt-1">{errors.confirmPassword}</p>}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Footer */}

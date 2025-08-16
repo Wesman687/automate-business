@@ -172,8 +172,21 @@ export default function CustomerDetail() {
     }
   };
 
-  const handleUpdateCustomer = async (updatedData: Partial<Customer>) => {
+  const handleUpdateCustomer = async (updatedData: Partial<Customer>, passwordData?: { password: string }) => {
     try {
+      // If password change is requested, handle it separately first
+      if (passwordData?.password) {
+        const passwordResponse = await fetchWithAuth(`/api/customers/${customerId}/set-password`, {
+          method: 'POST',
+          body: JSON.stringify({ password: passwordData.password })
+        });
+
+        if (!passwordResponse.ok) {
+          throw new Error('Failed to update password');
+        }
+      }
+
+      // Update customer data
       const response = await fetchWithAuth(`/api/customers/${customerId}`, {
         method: 'PUT',
         body: JSON.stringify(updatedData)

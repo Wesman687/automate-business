@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Plus, Edit, Trash2, Eye, MessageSquare, Search, Filter, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import { fetchWithAuth } from '@/lib/api';
+import EditCustomerModal from '@/components/EditCustomerModal';
 
 interface Customer {
   id: number;
@@ -79,10 +80,24 @@ export default function Customers() {
     setShowEditModal(true);
   };
 
-  const updateCustomer = async (customerData: Partial<Customer>) => {
+  const updateCustomer = async (customerData: Partial<Customer>, passwordData?: { password: string }) => {
     if (!editingCustomer) return;
 
     try {
+      // If password change is requested, handle it separately first
+      if (passwordData?.password) {
+        const passwordResponse = await fetchWithAuth(`/api/customers/${editingCustomer.id}/set-password`, {
+          method: 'POST',
+          body: JSON.stringify({ password: passwordData.password })
+        });
+
+        if (!passwordResponse.ok) {
+          alert('Error updating password');
+          return;
+        }
+      }
+
+      // Update customer data
       const response = await fetchWithAuth(`/api/customers/${editingCustomer.id}`, {
         method: 'PUT',
         body: JSON.stringify(customerData),
@@ -384,6 +399,7 @@ export default function Customers() {
       {showEditModal && editingCustomer && (
         <EditCustomerModal
           customer={editingCustomer}
+          isOpen={showEditModal}
           onSave={updateCustomer}
           onClose={() => {
             setShowEditModal(false);
@@ -391,183 +407,6 @@ export default function Customers() {
           }}
         />
       )}
-    </div>
-  );
-}
-
-// Edit Customer Modal Component
-function EditCustomerModal({ 
-  customer, 
-  onSave, 
-  onClose 
-}: { 
-  customer: Customer; 
-  onSave: (data: Partial<Customer>) => void; 
-  onClose: () => void; 
-}) {
-  const [formData, setFormData] = useState({
-    name: customer.name || '',
-    email: customer.email || '',
-    phone: customer.phone || '',
-    address: customer.address || '',
-    business_type: customer.business_type || '',
-    business_site: customer.business_site || '',
-    additional_websites: customer.additional_websites || '',
-    status: customer.status || 'lead',
-    notes: customer.notes || '',
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSave(formData);
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-gray-800 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <h2 className="text-xl font-bold text-white mb-4">Edit Customer</h2>
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
-                Name
-              </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({...formData, name: e.target.value})}
-                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                placeholder="Customer name"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
-                Email *
-              </label>
-              <input
-                type="email"
-                required
-                value={formData.email}
-                onChange={(e) => setFormData({...formData, email: e.target.value})}
-                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                placeholder="customer@example.com"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
-                Phone
-              </label>
-              <input
-                type="tel"
-                value={formData.phone}
-                onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                placeholder="(555) 123-4567"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
-                Status
-              </label>
-              <select
-                value={formData.status}
-                onChange={(e) => setFormData({...formData, status: e.target.value})}
-                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-              >
-                <option value="lead">Lead</option>
-                <option value="customer">Customer</option>
-              </select>
-            </div>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">
-              Address
-            </label>
-            <textarea
-              value={formData.address}
-              onChange={(e) => setFormData({...formData, address: e.target.value})}
-              rows={2}
-              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-              placeholder="Street address, city, state, zip"
-            />
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
-                Business Type
-              </label>
-              <input
-                type="text"
-                value={formData.business_type}
-                onChange={(e) => setFormData({...formData, business_type: e.target.value})}
-                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                placeholder="Restaurant, Retail, etc."
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
-                Business Website
-              </label>
-              <input
-                type="url"
-                value={formData.business_site}
-                onChange={(e) => setFormData({...formData, business_site: e.target.value})}
-                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                placeholder="https://example.com"
-              />
-            </div>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">
-              Additional Websites
-            </label>
-            <input
-              type="text"
-              value={formData.additional_websites}
-              onChange={(e) => setFormData({...formData, additional_websites: e.target.value})}
-              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-              placeholder="Additional websites (comma separated)"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">
-              Notes
-            </label>
-            <textarea
-              value={formData.notes}
-              onChange={(e) => setFormData({...formData, notes: e.target.value})}
-              rows={3}
-              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-              placeholder="Additional notes about this customer..."
-            />
-          </div>
-          
-          <div className="flex justify-end space-x-2 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-cyan-600 text-white rounded hover:bg-cyan-700 transition-colors"
-            >
-              Save Changes
-            </button>
-          </div>
-        </form>
-      </div>
     </div>
   );
 }

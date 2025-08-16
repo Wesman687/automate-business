@@ -9,7 +9,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from database.models import Base
-from database.database import SQLALCHEMY_DATABASE_URL
+from database import DATABASE_URL
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -32,7 +32,7 @@ target_metadata = Base.metadata
 
 def get_database_url():
     """Get database URL from environment or config"""
-    return SQLALCHEMY_DATABASE_URL
+    return DATABASE_URL
 
 
 def run_migrations_offline() -> None:

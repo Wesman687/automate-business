@@ -2043,7 +2043,7 @@ async def get_admin_overview(
 async def get_unread_emails(db: Session = Depends(get_db), user: dict = Depends(get_current_admin)):
     """Get unread emails from all configured email accounts"""
     try:
-        email_reader = EmailReaderService()
+        email_reader = EmailReaderService(db_session=db)
         unread_emails = email_reader.get_unread_emails()
         
         return {
@@ -2055,7 +2055,8 @@ async def get_unread_emails(db: Session = Depends(get_db), user: dict = Depends(
                     "subject": email.subject,
                     "received_date": email.received_date.isoformat(),
                     "preview": email.preview,
-                    "is_important": email.is_important
+                    "is_important": email.is_important,
+                    "is_read": email.is_read
                 }
                 for email in unread_emails
             ],
@@ -2069,7 +2070,7 @@ async def get_unread_emails(db: Session = Depends(get_db), user: dict = Depends(
 async def get_email_details(email_id: str, db: Session = Depends(get_db), user: dict = Depends(get_current_admin)):
     """Get full email content by ID"""
     try:
-        email_reader = EmailReaderService()
+        email_reader = EmailReaderService(db_session=db)
         email_details = email_reader.get_email_by_id(email_id)
         
         if not email_details:
@@ -2083,7 +2084,8 @@ async def get_email_details(email_id: str, db: Session = Depends(get_db), user: 
             "received_date": email_details.received_date.isoformat(),
             "body": email_details.body,
             "preview": email_details.preview,
-            "is_important": email_details.is_important
+            "is_important": email_details.is_important,
+            "is_read": email_details.is_read
         }
     except Exception as e:
         logger.error(f"Error getting email details: {str(e)}")
@@ -2101,7 +2103,10 @@ async def send_admin_email(
 ):
     """Send email from admin interface"""
     try:
-        from services.email_service import email_service
+        from services.email_service import EmailService
+        
+        # Create EmailService with database session
+        email_service = EmailService(db_session=db)
         
         success = email_service.send_email(
             from_account=from_account,
@@ -2140,7 +2145,7 @@ async def mark_email_read(email_id: str, db: Session = Depends(get_db), user: di
 async def get_email_accounts(db: Session = Depends(get_db), user: dict = Depends(get_current_admin)):
     """Get list of configured email accounts"""
     try:
-        email_reader = EmailReaderService()
+        email_reader = EmailReaderService(db_session=db)
         accounts = email_reader.get_accounts()
         
         return {
@@ -2156,3 +2161,60 @@ async def get_email_accounts(db: Session = Depends(get_db), user: dict = Depends
     except Exception as e:
         logger.error(f"Error getting email accounts: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to get email accounts")
+
+@router.post("/emails/accounts")
+async def add_email_account(
+    account_data: dict,
+    db: Session = Depends(get_db), 
+    user: dict = Depends(get_current_admin)
+):
+    """Add a new email account to the database"""
+    try:
+        from models.email_account import EmailAccount
+        
+        # Validate required fields
+        required_fields = ['name', 'email', 'password', 'imap_server', 'imap_port', 'smtp_server', 'smtp_port']
+        for field in required_fields:
+            if field not in account_data or not account_data[field]:
+                raise HTTPException(status_code=400, detail=f"Missing required field: {field}")
+        
+        # Check if email already exists
+        existing_account = db.query(EmailAccount).filter(EmailAccount.email == account_data['email']).first()
+        if existing_account:
+            raise HTTPException(status_code=400, detail="Email account already exists")
+        
+        # Create new email account
+        new_account = EmailAccount(
+            name=account_data['name'],
+            email=account_data['email'],
+            password=account_data['password'],  # In production, encrypt this
+            imap_server=account_data['imap_server'],
+            imap_port=int(account_data['imap_port']),
+            smtp_server=account_data['smtp_server'],
+            smtp_port=int(account_data['smtp_port']),
+            is_active=True,
+            created_by=user.get('user_id', 'system')
+        )
+        
+        db.add(new_account)
+        db.commit()
+        db.refresh(new_account)
+        
+        logger.info(f"Email account added: {account_data['email']} by user {user.get('user_id')}")
+        
+        return {
+            "message": "Email account added successfully",
+            "account_id": new_account.id,
+            "account": {
+                "name": new_account.name,
+                "email": new_account.email,
+                "status": "active"
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error adding email account: {str(e)}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to add email account")

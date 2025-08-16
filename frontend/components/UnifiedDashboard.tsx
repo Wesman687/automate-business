@@ -94,6 +94,7 @@ export default function UnifiedDashboard() {
   const [chatLogs, setChatLogs] = useState<ChatLog[]>([]);
     const [unreadEmails, setUnreadEmails] = useState<any[]>([]);
   const [showEmailManager, setShowEmailManager] = useState(false);
+  const [selectedEmailId, setSelectedEmailId] = useState<string | undefined>();
   
   const markChatLogAsSeen = async (sessionId: number) => {
     try {
@@ -134,9 +135,10 @@ export default function UnifiedDashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      // Determine if we're running locally and need to use server endpoints
-      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
       const serverBaseUrl = 'https://server.stream-lineai.com';
+      
+      // Email endpoint - always use server for email operations
+      const emailEndpoint = `${serverBaseUrl}/api/admin/emails/unread`;
       
       // Fetch all dashboard data using the new fetchWithAuth function
       const [overviewRes, requestsRes, appointmentsRes, chatLogsRes, emailsRes] = await Promise.all([
@@ -144,7 +146,7 @@ export default function UnifiedDashboard() {
         fetchWithAuth('/api/admin/change-requests'),
         fetchWithAuth('/api/appointments?upcoming=true'),
         fetchWithAuth('/api/sessions'), // Updated to use the new chat sessions endpoint
-        fetchWithAuth('/api/emails/unread') // Use frontend API route for emails
+        fetch(emailEndpoint, { credentials: 'include' }) // Email uses direct server API
       ]);
 
       if (overviewRes.ok) {
@@ -155,15 +157,6 @@ export default function UnifiedDashboard() {
           upcoming_appointments: 0,
           unread_emails: 0
         };
-        
-        // Update email count from actual API response
-        if (emailsRes.ok) {
-          const emailsData = await emailsRes.json();
-          overviewStats.unread_emails = emailsData.count || emailsData.emails?.length || 0;
-        } else if (isLocal) {
-          // In development, set email count to 0 since emails aren't available
-          overviewStats.unread_emails = 0;
-        }
         
         setStats(overviewStats);
       } else {
@@ -224,9 +217,14 @@ export default function UnifiedDashboard() {
       if (emailsRes.ok) {
         const emailsData = await emailsRes.json();
         setUnreadEmails(emailsData.emails || []);
-      } else if (isLocal) {
-        // If running locally and server email fails, show a helpful message
-        console.warn('Email fetching failed - this is expected when running locally without server access');
+        // Update email count in stats
+        setStats(prev => ({
+          ...prev,
+          unread_emails: emailsData.count || emailsData.emails?.length || 0
+        }));
+      } else {
+        // If email fetching fails, set empty array
+        console.warn('Email fetching failed');
         setUnreadEmails([]);
       }
 
@@ -592,9 +590,18 @@ export default function UnifiedDashboard() {
               <Mail className="h-5 w-5 text-purple-400 mr-2" />
               Unread Emails
             </h2>
-            <span className="bg-purple-400/20 text-purple-300 text-xs font-medium px-2.5 py-0.5 rounded-full">
-              {unreadEmails.length}
-            </span>
+            <div className="flex items-center space-x-3">
+              <span className="bg-purple-400/20 text-purple-300 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                {unreadEmails.length}
+              </span>
+              <button
+                onClick={() => setShowEmailManager(true)}
+                className="bg-purple-500 hover:bg-purple-600 text-white px-3 py-1.5 rounded-lg flex items-center space-x-2 transition-colors text-sm"
+              >
+                <Mail className="h-4 w-4" />
+                <span>Email Manager</span>
+              </button>
+            </div>
           </div>
           
           <div className="space-y-3 max-h-96 overflow-y-auto">
@@ -602,7 +609,14 @@ export default function UnifiedDashboard() {
               <p className="text-gray-400 text-sm">No unread emails</p>
             ) : (
               unreadEmails.map(email => (
-                <div key={email.id} className="border border-white/10 rounded-lg p-4 bg-white/5">
+                <div 
+                  key={email.id} 
+                  onClick={() => {
+                    setSelectedEmailId(email.id);
+                    setShowEmailManager(true);
+                  }}
+                  className="border border-white/10 rounded-lg p-4 bg-white/5 cursor-pointer hover:bg-white/10 transition-colors"
+                >
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
@@ -628,28 +642,6 @@ export default function UnifiedDashboard() {
                     </div>
                   </div>
                   <p className="text-sm text-gray-300 truncate mb-2">{email.preview}</p>
-                  <div className="flex justify-end">
-                    <button 
-                      onClick={async () => {
-                        // Mark email as read on server
-                        try {
-                          await fetchWithAuth(`/api/admin/emails/mark-read/${email.id}`, {
-                            method: 'POST'
-                          });
-                          // Refresh dashboard data to update counts
-                          fetchDashboardData();
-                        } catch (error) {
-                          console.error('Error marking email as read:', error);
-                        }
-                        
-                        // TODO: Open email client or webmail
-                        console.log('Opening email:', email.id);
-                      }}
-                      className="text-xs text-purple-400 hover:text-purple-300 font-medium transition-colors"
-                    >
-                      Open Email →
-                    </button>
-                  </div>
                 </div>
               ))
             )}
@@ -709,7 +701,11 @@ export default function UnifiedDashboard() {
       {/* Email Manager */}
       {showEmailManager && (
         <EmailManager 
-          onClose={() => setShowEmailManager(false)} 
+          selectedEmailId={selectedEmailId}
+          onClose={() => {
+            setShowEmailManager(false);
+            setSelectedEmailId(undefined);
+          }}
         />
       )}
     </div>

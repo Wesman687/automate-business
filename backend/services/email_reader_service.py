@@ -27,12 +27,14 @@ class UnreadEmail:
     received_date: datetime
     preview: str
     is_important: bool = False
+    is_read: bool = False  # Add read status
     body: str = ""
 
 class EmailReaderService:
-    def __init__(self):
+    def __init__(self, db_session=None):
         # Only initialize on server - check if we're in production environment
         self.is_server = self._is_production_server()
+        self.db_session = db_session
         if self.is_server:
             self.accounts = self._load_email_accounts()
         else:
@@ -51,6 +53,31 @@ class EmailReaderService:
         return any(server_indicators)
     
     def _load_email_accounts(self) -> List[EmailAccount]:
+        """Load email accounts from database first, then fallback to environment variables"""
+        accounts = []
+        
+        # Load from database first (preferred method)
+        if self.db_session:
+            db_accounts = self._load_db_accounts()
+            accounts.extend(db_accounts)
+            
+            # If we have database accounts, prefer those over env vars
+            if db_accounts:
+                logger.info(f"Loaded {len(db_accounts)} email accounts from database")
+                return accounts
+        
+        # Fallback to environment variables if no database accounts
+        env_accounts = self._load_env_accounts()
+        accounts.extend(env_accounts)
+        
+        if env_accounts:
+            logger.info(f"Loaded {len(env_accounts)} email accounts from environment variables")
+        else:
+            logger.warning("No email accounts found in database or environment variables")
+        
+        return accounts
+    
+    def _load_env_accounts(self) -> List[EmailAccount]:
         """Load email account configurations from environment variables"""
         accounts = []
         
@@ -81,6 +108,30 @@ class EmailReaderService:
             ))
         
         return accounts
+    
+    def _load_db_accounts(self) -> List[EmailAccount]:
+        """Load email accounts from database"""
+        try:
+            from models.email_account import EmailAccount as DBEmailAccount
+            
+            db_accounts = self.db_session.query(DBEmailAccount).filter(
+                DBEmailAccount.is_active == True
+            ).all()
+            
+            accounts = []
+            for db_account in db_accounts:
+                accounts.append(EmailAccount(
+                    email=db_account.email,
+                    password=db_account.password,  # In production, decrypt this
+                    imap_server=db_account.imap_server,
+                    imap_port=db_account.imap_port,
+                    account_name=db_account.name
+                ))
+            
+            return accounts
+        except Exception as e:
+            logger.error(f"Error loading email accounts from database: {str(e)}")
+            return []
     
     def _decode_header_value(self, value: str) -> str:
         """Decode email header value"""

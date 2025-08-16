@@ -1,9 +1,20 @@
 {
   "folders": [
-    { "path": "frontend" },
-    { "path": "backend" },
-	{ "path": "streamlineai-badge-npm"},
-    { "path": "Resources" },
+    {
+      "path": "frontend"
+    },
+    {
+      "path": "backend"
+    },
+    {
+      "path": "streamlineai-badge-npm"
+    },
+    {
+      "path": "Resources"
+    },
+    {
+      "path": ".git"
+    }
   ],
   "settings": {
     // Workspace-level toggles that apply to both folders:

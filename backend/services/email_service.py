@@ -14,13 +14,14 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 class EmailService:
-    def __init__(self):
+    def __init__(self, db_session=None):
         # ALWAYS use production email server - emails MUST be sent to server, never locally
         self.smtp_server = os.getenv('SMTP_SERVER', 'mail.stream-lineai.com')
         self.smtp_port = int(os.getenv('SMTP_PORT', 587))
         self.use_tls = os.getenv('SMTP_USE_TLS', 'true').lower() == 'true'
+        self.db_session = db_session
         
-        # Email accounts
+        # Email accounts (fallback to env vars if database not available)
         self.no_reply_email = os.getenv('NO_REPLY_EMAIL')
         self.no_reply_password = os.getenv('NO_REPLY_PASSWORD')
         
@@ -29,6 +30,33 @@ class EmailService:
         
         self.tech_email = os.getenv('TECH_EMAIL')
         self.tech_password = os.getenv('TECH_PASSWORD')
+
+    def _get_account_credentials(self, from_account: str):
+        """Get email credentials from database first, then fallback to environment"""
+        if self.db_session:
+            try:
+                from models.email_account import EmailAccount
+                
+                # Try to find account in database by name or email
+                db_account = self.db_session.query(EmailAccount).filter(
+                    (EmailAccount.name.ilike(f"%{from_account}%")) |
+                    (EmailAccount.email.contains(from_account))
+                ).filter(EmailAccount.is_active == True).first()
+                
+                if db_account:
+                    return db_account.email, db_account.password, db_account.smtp_server, db_account.smtp_port
+            except Exception as e:
+                logger.warning(f"Could not load account from database: {str(e)}")
+        
+        # Fallback to environment variables
+        if from_account == 'tech':
+            return self.tech_email, self.tech_password, 'smtp.gmail.com', 587
+        elif from_account == 'sales':
+            return self.sales_email, self.sales_password, 'smtp.gmail.com', 587
+        elif from_account == 'no-reply':
+            return self.no_reply_email, self.no_reply_password, 'smtp.gmail.com', 587
+        else:
+            raise ValueError(f"Unknown email account: {from_account}")
 
     def send_email(
         self,
@@ -59,18 +87,14 @@ class EmailService:
         logger.info(f"   Subject: {subject}")
         
         try:
-            # Get account credentials
-            if from_account == 'no-reply':
-                from_email = self.no_reply_email
-                password = self.no_reply_password
-            elif from_account == 'sales':
-                from_email = self.sales_email
-                password = self.sales_password
-            elif from_account == 'tech':
-                from_email = self.tech_email
-                password = self.tech_password
-            else:
-                raise ValueError(f"Invalid from_account: {from_account}")
+            # Get account credentials from database or environment
+            from_email, password, smtp_server, smtp_port = self._get_account_credentials(from_account)
+            
+            if not from_email or not password:
+                raise ValueError(f"Email credentials not found for account: {from_account}")
+            
+            logger.info(f"📧 Sending email from {from_email} to {to_emails}")
+            logger.info(f"   Using SMTP: {smtp_server}:{smtp_port}")
 
             # Create message
             message = MIMEMultipart('alternative')
@@ -106,9 +130,9 @@ class EmailService:
             # Send email
             context = ssl.create_default_context()
             
-            with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
-                if self.use_tls:
-                    server.starttls(context=context)
+            # Use account-specific SMTP server settings
+            with smtplib.SMTP(smtp_server, smtp_port) as server:
+                server.starttls(context=context)
                 server.login(from_email, password)
                 
                 # Combine all recipients

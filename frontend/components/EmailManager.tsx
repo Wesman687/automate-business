@@ -11,22 +11,45 @@ interface Email {
   received_date: string;
   preview: string;
   is_important: boolean;
+  is_read: boolean; // Add read status
   body?: string;
 }
 
 interface EmailManagerProps {
   onClose?: () => void;
+  selectedEmailId?: string; // Optional email ID to open directly
 }
 
-export default function EmailManager({ onClose }: EmailManagerProps) {
+export default function EmailManager({ onClose, selectedEmailId }: EmailManagerProps) {
   const [emails, setEmails] = useState<Email[]>([]);
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showCompose, setShowCompose] = useState(false);
+  const [showAddAccount, setShowAddAccount] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedAccount, setSelectedAccount] = useState<string>('all'); // Account filter
   const [error, setError] = useState('');
-  const [isProduction, setIsProduction] = useState(false);
+  const [emailAccounts, setEmailAccounts] = useState<Array<{name: string, value: string, email: string}>>([]);
+
+  // Company email accounts - easily configurable
+  // To add more company emails, simply add them to this array
+  const companyEmailAccounts = [
+    { name: 'Tech Support', value: 'tech', email: 'tech@stream-lineai.com' },
+    { name: 'Sales', value: 'sales', email: 'sales@stream-lineai.com' },
+    { name: 'No Reply', value: 'no-reply', email: 'no-reply@stream-lineai.com' },
+    
+    // ✅ TO ADD MORE EMAILS: Uncomment and modify the lines below
+    // { name: 'Customer Service', value: 'support', email: 'support@stream-lineai.com' },
+    // { name: 'Billing', value: 'billing', email: 'billing@stream-lineai.com' },
+    // { name: 'Marketing', value: 'marketing', email: 'marketing@stream-lineai.com' },
+    // { name: 'HR', value: 'hr', email: 'hr@stream-lineai.com' },
+    
+    // Then make sure to configure these email accounts on the server:
+    // 1. Add environment variables for each account (EMAIL, PASSWORD, IMAP_SERVER)
+    // 2. Update the backend EmailReaderService to include the new accounts
+    // 3. Update the backend EmailService to support sending from these accounts
+  ];
 
   // Compose email state
   const [composeData, setComposeData] = useState({
@@ -37,45 +60,63 @@ export default function EmailManager({ onClose }: EmailManagerProps) {
   });
   const [sending, setSending] = useState(false);
 
+  // Add new email account state
+  const [newAccountData, setNewAccountData] = useState({
+    name: '',
+    email: '',
+    password: '',
+    imap_server: 'imap.gmail.com',
+    imap_port: '993',
+    smtp_server: 'smtp.gmail.com',
+    smtp_port: '587'
+  });
+  const [addingAccount, setAddingAccount] = useState(false);
+
   useEffect(() => {
-    // Check if we're in production environment
-    const checkEnvironment = () => {
-      const isDev = window.location.hostname === 'localhost' || 
-                   window.location.hostname === '127.0.0.1' ||
-                   window.location.hostname.includes('localhost');
-      setIsProduction(!isDev);
-      if (!isDev) {
-        setError('Email functionality is only available on the production server. This is a development environment.');
-        setLoading(false);
-      } else {
-        fetchEmails();
-      }
-    };
-    
-    checkEnvironment();
+    fetchEmails();
+    fetchEmailAccounts();
   }, []);
 
-  const fetchEmails = async () => {
-    if (!isProduction) {
-      // Show mock data for development
-      setEmails([
-        {
-          id: 'dev-1',
-          account: 'Development',
-          from: 'dev@example.com',
-          subject: 'Development Mode - No Real Emails',
-          received_date: new Date().toISOString(),
-          preview: 'Email functionality is only available on the production server.',
-          is_important: false
-        }
-      ]);
-      setLoading(false);
-      return;
+  // Auto-select email if selectedEmailId is provided
+  useEffect(() => {
+    if (selectedEmailId && emails.length > 0) {
+      const email = emails.find(e => e.id === selectedEmailId);
+      if (email) {
+        selectEmail(email);
+      }
     }
+  }, [selectedEmailId, emails]);
 
+  const fetchEmailAccounts = async () => {
+    try {
+      // Try to fetch from server, but fall back to local config
+      const response = await fetch('https://server.stream-lineai.com/api/admin/emails/accounts', {
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        // Map server accounts to our format
+        const serverAccounts = data.accounts?.map((account: any) => ({
+          name: account.name,
+          value: account.name.toLowerCase(),
+          email: account.email
+        })) || [];
+        setEmailAccounts(serverAccounts.length > 0 ? serverAccounts : companyEmailAccounts);
+      } else {
+        setEmailAccounts(companyEmailAccounts);
+      }
+    } catch (error) {
+      console.error('Error fetching email accounts:', error);
+      setEmailAccounts(companyEmailAccounts);
+    }
+  };
+
+  const fetchEmails = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/emails/unread', {
+      // Always use server API for emails
+      const response = await fetch('https://server.stream-lineai.com/api/admin/emails/unread', {
         credentials: 'include',
       });
 
@@ -94,29 +135,14 @@ export default function EmailManager({ onClose }: EmailManagerProps) {
   };
 
   const refreshEmails = async () => {
-    if (!isProduction) {
-      setRefreshing(true);
-      // Simulate refresh delay in development
-      setTimeout(() => setRefreshing(false), 1000);
-      return;
-    }
-    
     setRefreshing(true);
     await fetchEmails();
     setRefreshing(false);
   };
 
   const selectEmail = async (email: Email) => {
-    if (!isProduction) {
-      setSelectedEmail({
-        ...email,
-        body: 'This is a development environment. Email functionality is only available on the production server where actual email accounts are configured.'
-      });
-      return;
-    }
-
     try {
-      const response = await fetch(`/api/emails/${email.id}`, {
+      const response = await fetch(`https://server.stream-lineai.com/api/admin/emails/${email.id}`, {
         credentials: 'include',
       });
 
@@ -133,19 +159,13 @@ export default function EmailManager({ onClose }: EmailManagerProps) {
   };
 
   const markAsRead = async (emailId: string) => {
-    if (!isProduction) {
-      setError('Email actions are only available on the production server.');
-      return;
-    }
-
     try {
-      const response = await fetch(`/api/emails/${emailId}`, {
+      const response = await fetch(`https://server.stream-lineai.com/api/admin/emails/${emailId}/mark-read`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify({ action: 'mark-read' }),
       });
 
       if (!response.ok) {
@@ -161,11 +181,6 @@ export default function EmailManager({ onClose }: EmailManagerProps) {
   };
 
   const sendEmail = async () => {
-    if (!isProduction) {
-      setError('Email sending is only available on the production server.');
-      return;
-    }
-
     if (!composeData.to_email || !composeData.subject || !composeData.body) {
       setError('Please fill in all required fields');
       return;
@@ -173,7 +188,7 @@ export default function EmailManager({ onClose }: EmailManagerProps) {
 
     try {
       setSending(true);
-      const response = await fetch('/api/emails/send', {
+      const response = await fetch('https://server.stream-lineai.com/api/admin/emails/send', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -208,11 +223,6 @@ export default function EmailManager({ onClose }: EmailManagerProps) {
   };
 
   const replyToEmail = (email: Email) => {
-    if (!isProduction) {
-      setError('Email replies are only available on the production server.');
-      return;
-    }
-    
     setComposeData({
       to_email: email.from,
       subject: email.subject.startsWith('Re:') ? email.subject : `Re: ${email.subject}`,
@@ -222,10 +232,59 @@ export default function EmailManager({ onClose }: EmailManagerProps) {
     setShowCompose(true);
   };
 
-  const filteredEmails = emails.filter(email =>
-    email.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    email.from.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const addEmailAccount = async () => {
+    if (!newAccountData.name || !newAccountData.email || !newAccountData.password) {
+      setError('Please fill in all required fields');
+      return;
+    }
+
+    try {
+      setAddingAccount(true);
+      const response = await fetch('https://server.stream-lineai.com/api/admin/emails/accounts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(newAccountData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to add email account');
+      }
+
+      // Reset form
+      setNewAccountData({
+        name: '',
+        email: '',
+        password: '',
+        imap_server: 'imap.gmail.com',
+        imap_port: '993',
+        smtp_server: 'smtp.gmail.com',
+        smtp_port: '587'
+      });
+      setShowAddAccount(false);
+      setError('');
+      
+      // Refresh email accounts
+      await fetchEmailAccounts();
+      
+      alert('Email account added successfully!');
+    } catch (error) {
+      console.error('Error adding email account:', error);
+      setError(error instanceof Error ? error.message : 'Failed to add email account');
+    } finally {
+      setAddingAccount(false);
+    }
+  };
+
+  const filteredEmails = emails.filter(email => {
+    const matchesSearch = email.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         email.from.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesAccount = selectedAccount === 'all' || email.account === selectedAccount;
+    return matchesSearch && matchesAccount;
+  });
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -256,6 +315,14 @@ export default function EmailManager({ onClose }: EmailManagerProps) {
           </div>
           
           <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setShowAddAccount(true)}
+              className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
+            >
+              <Mail className="h-4 w-4" />
+              <span>Add Email</span>
+            </button>
+            
             <button
               onClick={() => setShowCompose(true)}
               className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
@@ -302,8 +369,8 @@ export default function EmailManager({ onClose }: EmailManagerProps) {
           {/* Email List */}
           <div className="w-1/3 border-r border-white/10 flex flex-col">
             
-            {/* Search */}
-            <div className="p-4 border-b border-white/10">
+            {/* Search and Filters */}
+            <div className="p-4 border-b border-white/10 space-y-3">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <input
@@ -311,9 +378,23 @@ export default function EmailManager({ onClose }: EmailManagerProps) {
                   placeholder="Search emails..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg pl-10 pr-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-gray-200 border border-white/10 rounded-lg pl-10 pr-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
+              
+              {/* Account Filter */}
+              <select
+                value={selectedAccount}
+                onChange={(e) => setSelectedAccount(e.target.value)}
+                className="w-full bg-gray-800 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">All Accounts</option>
+                {emailAccounts.map(account => (
+                  <option key={account.value} value={account.value}>
+                    {account.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Email List */}
@@ -334,17 +415,25 @@ export default function EmailManager({ onClose }: EmailManagerProps) {
                     onClick={() => selectEmail(email)}
                     className={`p-4 border-b border-white/5 cursor-pointer transition-colors hover:bg-white/5 ${
                       selectedEmail?.id === email.id ? 'bg-blue-500/20 border-blue-500/30' : ''
-                    }`}
+                    } ${email.is_read ? 'opacity-60' : ''}`}
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center space-x-2">
-                          <p className="font-medium text-white truncate">{email.from}</p>
+                          {/* Read/Unread indicator */}
+                          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                            email.is_read ? 'bg-gray-500' : 'bg-blue-400'
+                          }`} />
+                          <p className={`font-medium truncate ${
+                            email.is_read ? 'text-gray-400' : 'text-white'
+                          }`}>{email.from}</p>
                           {email.is_important && (
                             <AlertCircle className="h-4 w-4 text-red-400 flex-shrink-0" />
                           )}
                         </div>
-                        <p className="text-sm font-medium text-gray-200 truncate">{email.subject}</p>
+                        <p className={`text-sm font-medium truncate ml-4 ${
+                          email.is_read ? 'text-gray-500' : 'text-gray-200'
+                        }`}>{email.subject}</p>
                       </div>
                       <div className="text-right ml-2 flex-shrink-0">
                         <p className="text-xs text-gray-400">{formatDate(email.received_date)}</p>
@@ -353,7 +442,9 @@ export default function EmailManager({ onClose }: EmailManagerProps) {
                         </span>
                       </div>
                     </div>
-                    <p className="text-sm text-gray-300 truncate">{email.preview}</p>
+                    <p className={`text-sm truncate ml-6 ${
+                      email.is_read ? 'text-gray-500' : 'text-gray-300'
+                    }`}>{email.preview}</p>
                   </div>
                 ))
               )}
@@ -440,10 +531,15 @@ export default function EmailManager({ onClose }: EmailManagerProps) {
                     onChange={(e) => setComposeData({ ...composeData, from_account: e.target.value })}
                     className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="tech">Tech Account</option>
-                    <option value="sales">Sales Account</option>
-                    <option value="no-reply">No Reply</option>
+                    {emailAccounts.map(account => (
+                      <option key={account.value} value={account.value}>
+                        {account.name} ({account.email})
+                      </option>
+                    ))}
                   </select>
+                  {emailAccounts.length === 0 && (
+                    <p className="text-xs text-gray-400 mt-1">Loading email accounts...</p>
+                  )}
                 </div>
                 
                 <div>
@@ -499,6 +595,138 @@ export default function EmailManager({ onClose }: EmailManagerProps) {
                   <Send className="h-4 w-4" />
                 )}
                 <span>{sending ? 'Sending...' : 'Send Email'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Email Account Modal */}
+      {showAddAccount && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-60 flex items-center justify-center p-4">
+          <div className="bg-dark-bg border border-white/10 rounded-lg shadow-2xl w-full max-w-2xl">
+            <div className="flex items-center justify-between p-6 border-b border-white/10">
+              <h3 className="text-lg font-semibold text-white">Add Email Account</h3>
+              <button
+                onClick={() => setShowAddAccount(false)}
+                className="text-gray-400 hover:text-white"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Account Name *</label>
+                  <input
+                    type="text"
+                    value={newAccountData.name}
+                    onChange={(e) => setNewAccountData({ ...newAccountData, name: e.target.value })}
+                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g., Customer Support"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Email Address *</label>
+                  <input
+                    type="email"
+                    value={newAccountData.email}
+                    onChange={(e) => setNewAccountData({ ...newAccountData, email: e.target.value })}
+                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="support@stream-lineai.com"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">App Password *</label>
+                <input
+                  type="password"
+                  value={newAccountData.password}
+                  onChange={(e) => setNewAccountData({ ...newAccountData, password: e.target.value })}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Gmail App Password (16 characters)"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  For Gmail: Generate an App Password in your Google Account settings
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">IMAP Server</label>
+                  <input
+                    type="text"
+                    value={newAccountData.imap_server}
+                    onChange={(e) => setNewAccountData({ ...newAccountData, imap_server: e.target.value })}
+                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">IMAP Port</label>
+                  <input
+                    type="text"
+                    value={newAccountData.imap_port}
+                    onChange={(e) => setNewAccountData({ ...newAccountData, imap_port: e.target.value })}
+                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">SMTP Server</label>
+                  <input
+                    type="text"
+                    value={newAccountData.smtp_server}
+                    onChange={(e) => setNewAccountData({ ...newAccountData, smtp_server: e.target.value })}
+                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">SMTP Port</label>
+                  <input
+                    type="text"
+                    value={newAccountData.smtp_port}
+                    onChange={(e) => setNewAccountData({ ...newAccountData, smtp_port: e.target.value })}
+                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="bg-blue-500/20 border border-blue-500/30 rounded-lg p-3">
+                <p className="text-blue-300 text-sm">
+                  <strong>Setup Instructions:</strong><br/>
+                  1. Enable 2-factor authentication on your Google account<br/>
+                  2. Generate an App Password: Google Account → Security → 2-Step Verification → App passwords<br/>
+                  3. Use the 16-character app password (not your regular password)<br/>
+                  4. Default settings work for most Gmail accounts
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end space-x-3 p-6 border-t border-white/10">
+              <button
+                onClick={() => setShowAddAccount(false)}
+                className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={addEmailAccount}
+                disabled={addingAccount}
+                className="bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white px-6 py-2 rounded-lg flex items-center space-x-2 transition-colors"
+              >
+                {addingAccount ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                ) : (
+                  <Mail className="h-4 w-4" />
+                )}
+                <span>{addingAccount ? 'Adding...' : 'Add Account'}</span>
               </button>
             </div>
           </div>

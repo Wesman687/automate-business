@@ -8,6 +8,23 @@ const BACKEND_URL = getApiUrl();
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    // Check if we're in development
+    const isDev = process.env.NODE_ENV === 'development';
+    
+    if (isDev) {
+      // Return mock data for development
+      return NextResponse.json({
+        id: params.id,
+        account: 'Development',
+        from: 'dev@example.com',
+        subject: 'Development Mode',
+        received_date: new Date().toISOString(),
+        body: 'Email functionality is only available on the production server where actual email accounts are configured.',
+        preview: 'Development mode email preview',
+        is_important: false
+      });
+    }
+
     const emailId = params.id;
     
     // Forward cookies from the request
@@ -43,6 +60,16 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    // Check if we're in development
+    const isDev = process.env.NODE_ENV === 'development';
+    
+    if (isDev) {
+      return NextResponse.json({
+        message: "Email actions are only available on the production server",
+        status: "dev_mode"
+      });
+    }
+
     const emailId = params.id;
     const { action } = await request.json();
     

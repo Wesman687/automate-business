@@ -8,6 +8,18 @@ const BACKEND_URL = getApiUrl();
 
 export async function GET(request: NextRequest) {
   try {
+    // Check if we're in development
+    const isDev = process.env.NODE_ENV === 'development';
+    
+    if (isDev) {
+      // Return mock data for development
+      return NextResponse.json({
+        emails: [],
+        count: 0,
+        message: "Email functionality is only available on the production server"
+      });
+    }
+
     // Forward cookies from the request
     const cookies = request.headers.get('cookie');
     const headers: Record<string, string> = {
@@ -33,7 +45,12 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error fetching unread emails:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch unread emails' }, 
+      { 
+        emails: [], 
+        count: 0, 
+        error: 'Failed to fetch unread emails',
+        message: 'Email functionality requires production server access'
+      }, 
       { status: 500 }
     );
   }

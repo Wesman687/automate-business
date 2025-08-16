@@ -26,6 +26,7 @@ export default function EmailManager({ onClose }: EmailManagerProps) {
   const [showCompose, setShowCompose] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState('');
+  const [isProduction, setIsProduction] = useState(false);
 
   // Compose email state
   const [composeData, setComposeData] = useState({
@@ -37,10 +38,41 @@ export default function EmailManager({ onClose }: EmailManagerProps) {
   const [sending, setSending] = useState(false);
 
   useEffect(() => {
-    fetchEmails();
+    // Check if we're in production environment
+    const checkEnvironment = () => {
+      const isDev = window.location.hostname === 'localhost' || 
+                   window.location.hostname === '127.0.0.1' ||
+                   window.location.hostname.includes('localhost');
+      setIsProduction(!isDev);
+      if (!isDev) {
+        setError('Email functionality is only available on the production server. This is a development environment.');
+        setLoading(false);
+      } else {
+        fetchEmails();
+      }
+    };
+    
+    checkEnvironment();
   }, []);
 
   const fetchEmails = async () => {
+    if (!isProduction) {
+      // Show mock data for development
+      setEmails([
+        {
+          id: 'dev-1',
+          account: 'Development',
+          from: 'dev@example.com',
+          subject: 'Development Mode - No Real Emails',
+          received_date: new Date().toISOString(),
+          preview: 'Email functionality is only available on the production server.',
+          is_important: false
+        }
+      ]);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       const response = await fetch('/api/emails/unread', {
@@ -62,12 +94,27 @@ export default function EmailManager({ onClose }: EmailManagerProps) {
   };
 
   const refreshEmails = async () => {
+    if (!isProduction) {
+      setRefreshing(true);
+      // Simulate refresh delay in development
+      setTimeout(() => setRefreshing(false), 1000);
+      return;
+    }
+    
     setRefreshing(true);
     await fetchEmails();
     setRefreshing(false);
   };
 
   const selectEmail = async (email: Email) => {
+    if (!isProduction) {
+      setSelectedEmail({
+        ...email,
+        body: 'This is a development environment. Email functionality is only available on the production server where actual email accounts are configured.'
+      });
+      return;
+    }
+
     try {
       const response = await fetch(`/api/emails/${email.id}`, {
         credentials: 'include',
@@ -86,6 +133,11 @@ export default function EmailManager({ onClose }: EmailManagerProps) {
   };
 
   const markAsRead = async (emailId: string) => {
+    if (!isProduction) {
+      setError('Email actions are only available on the production server.');
+      return;
+    }
+
     try {
       const response = await fetch(`/api/emails/${emailId}`, {
         method: 'POST',
@@ -109,6 +161,11 @@ export default function EmailManager({ onClose }: EmailManagerProps) {
   };
 
   const sendEmail = async () => {
+    if (!isProduction) {
+      setError('Email sending is only available on the production server.');
+      return;
+    }
+
     if (!composeData.to_email || !composeData.subject || !composeData.body) {
       setError('Please fill in all required fields');
       return;
@@ -151,6 +208,11 @@ export default function EmailManager({ onClose }: EmailManagerProps) {
   };
 
   const replyToEmail = (email: Email) => {
+    if (!isProduction) {
+      setError('Email replies are only available on the production server.');
+      return;
+    }
+    
     setComposeData({
       to_email: email.from,
       subject: email.subject.startsWith('Re:') ? email.subject : `Re: ${email.subject}`,

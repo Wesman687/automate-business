@@ -160,6 +160,9 @@ export default function UnifiedDashboard() {
         if (emailsRes.ok) {
           const emailsData = await emailsRes.json();
           overviewStats.unread_emails = emailsData.count || emailsData.emails?.length || 0;
+        } else if (isLocal) {
+          // In development, set email count to 0 since emails aren't available
+          overviewStats.unread_emails = 0;
         }
         
         setStats(overviewStats);

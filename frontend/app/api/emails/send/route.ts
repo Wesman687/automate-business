@@ -8,6 +8,16 @@ const BACKEND_URL = getApiUrl();
 
 export async function POST(request: NextRequest) {
   try {
+    // Check if we're in development
+    const isDev = process.env.NODE_ENV === 'development';
+    
+    if (isDev) {
+      return NextResponse.json({
+        message: "Email sending is only available on the production server",
+        status: "dev_mode"
+      });
+    }
+
     const emailData = await request.json();
     
     // Forward cookies from the request

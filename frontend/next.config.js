@@ -45,15 +45,6 @@ const nextConfig = {
         source: '/robots.txt',
         destination: '/robots.txt'
       },
-      // Admin API routes
-      {
-        source: '/api/:path*',
-        destination: 'http://localhost:8005/api/:path*',
-      },
-      {
-        source: '/auth/:path*',
-        destination: 'http://localhost:8005/auth/:path*',
-      },
     ]
   }
 }

@@ -1,0 +1,29 @@
+{
+  "folders": [
+    { "path": "frontend" },
+    { "path": "backend" },
+	{ "path": "streamlineai-badge-npm"},
+    { "path": "Resources" },
+  ],
+  "settings": {
+    // Workspace-level toggles that apply to both folders:
+    "git.autofetch": false,
+    "git.decorations.enabled": false,
+    "files.watcherExclude": {
+      "**/node_modules/**": true,
+      "**/.git/**": true,
+      "**/.next/**": true,
+      "**/dist/**": true,
+      "**/build/**": true,
+      "**/coverage/**": true
+    },
+    "search.exclude": {
+      "**/node_modules": true,
+      "**/.git": true,
+      "**/.next": true,
+      "**/dist": true,
+      "**/build": true,
+      "**/coverage": true
+    }
+  }
+}

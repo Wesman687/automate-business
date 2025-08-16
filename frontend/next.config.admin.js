@@ -5,14 +5,7 @@ const nextConfig = {
   },
   async rewrites() {
     return [
-      {
-        source: '/api/:path*',
-        destination: 'http://localhost:8005/api/:path*',
-      },
-      {
-        source: '/auth/:path*',
-        destination: 'http://localhost:8005/auth/:path*',
-      },
+
     ];
   },
   async headers() {

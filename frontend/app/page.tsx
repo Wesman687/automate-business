@@ -174,6 +174,7 @@ export default function Home() {
       "dateModified": "2025-01-04"
     })
   }} />
+  
 
       {/* Add padding-top to account for fixed navigation */}
       <div className="pt-16">

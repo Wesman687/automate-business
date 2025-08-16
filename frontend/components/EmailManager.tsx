@@ -166,6 +166,7 @@ export default function EmailManager({ onClose, selectedEmailId }: EmailManagerP
           'Content-Type': 'application/json',
         },
         credentials: 'include',
+        
       });
 
       if (!response.ok) {

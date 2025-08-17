@@ -32,38 +32,28 @@ async def unified_login(request: LoginRequest, response: Response, db: Session =
     # Create access token
     token = auth_service.create_access_token(user_data)
     
-    # Set cookie for browser sessions
-    response.set_cookie(
-        key="auth_token",
-        value=token,
-        max_age=60 * 60 * 24,  # 24 hours
-        httponly=True,
-        secure=False,  # Set to True in production with HTTPS
-        samesite="lax",
-        path="/"  # Make sure cookie is available for all paths
-    )
+    # Environment-aware cookie settings
+    import os
+    is_production = os.getenv('ENVIRONMENT', 'development') == 'production'
+    is_https = os.getenv('HTTPS_ENABLED', 'false').lower() == 'true' or is_production
+    
+    cookie_settings = {
+        "max_age": 60 * 60 * 24,  # 24 hours
+        "httponly": True,
+        "secure": is_https,  # True in production with HTTPS
+        "samesite": "none" if is_production else "lax",  # "none" for cross-domain in production
+        "path": "/",
+        "domain": ".stream-lineai.com" if is_production else None  # Allow subdomain sharing
+    }
+    
+    # Set main auth cookie
+    response.set_cookie(key="auth_token", value=token, **cookie_settings)
     
     # Also set legacy cookie names for backward compatibility during migration
     if user_data["user_type"] == "admin":
-        response.set_cookie(
-            key="admin_token",
-            value=token,
-            max_age=60 * 60 * 24,
-            httponly=True,
-            secure=False,
-            samesite="lax",
-            path="/"
-        )
+        response.set_cookie(key="admin_token", value=token, **cookie_settings)
     else:
-        response.set_cookie(
-            key="customer_token", 
-            value=token,
-            max_age=60 * 60 * 24,
-            httponly=True,
-            secure=False,
-            samesite="lax",
-            path="/"
-        )
+        response.set_cookie(key="customer_token", value=token, **cookie_settings)
     
     return {
         "token": token,

@@ -61,6 +61,10 @@ const deleteCustomer = async (customerId: number) => {
     alert('Error deleting customer');
   }
 };
+  const editCustomer = (customer: Customer) => {
+    setEditingCustomer(customer);
+    setShowEditModal(true);
+  };
 
 const updateCustomer = async (
   customerData: Partial<Customer>,

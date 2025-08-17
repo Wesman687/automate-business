@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Menu, X, User, LogIn, LogOut, ChevronDown, Home } from 'lucide-react';
 import { getApiUrl } from '@/lib/api';
-import { doLogout } from '@/hooks/useAuth'; // Assuming you have a logOut function to handle logout
+import { dologout } from '@/hooks/useAuth'; // Assuming you have a logOut function to handle logout
 export default function Navigation() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -44,7 +44,7 @@ export default function Navigation() {
   };
 
   const handleLogout = async () => {
-    doLogout()
+    dologout()
     setIsLoggedIn(false);
     setUserInfo(null);
     setShowUserDropdown(false);

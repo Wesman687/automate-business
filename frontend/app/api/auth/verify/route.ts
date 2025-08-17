@@ -1,16 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getApiUrl } from '@/lib/api';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
-
-const BACKEND_URL = getApiUrl();
 
 export async function GET(request: NextRequest) {
   try {
     const cookies = request.headers.get('cookie');
     
-    const response = await fetch(`${BACKEND_URL}/auth/verify`, {
+    // Use localhost for the backend call (Next.js API route acts as proxy)
+    const response = await fetch(`http://localhost:8005/auth/verify`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

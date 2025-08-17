@@ -23,9 +23,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://server.stream-lineai.com' 
-  : 'http://localhost:8005'
+// Use Next.js API routes instead of direct server calls
+const API_BASE_URL = '/api'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
@@ -44,9 +43,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const validateToken = async (tokenToValidate: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/validate`, {
+      // Use Next.js API route instead of direct server call
+      const response = await fetch(`${API_BASE_URL}/auth/verify`, {
+        method: 'GET',
+        credentials: 'include', // Important for cookies
         headers: {
-          'Authorization': `Bearer ${tokenToValidate}`
+          'Content-Type': 'application/json',
         }
       })
       

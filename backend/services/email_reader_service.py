@@ -9,6 +9,7 @@ import logging
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
+email_logger = logging.getLogger('email')  # Dedicated email logger
 
 @dataclass
 class EmailAccount:
@@ -219,18 +220,27 @@ class EmailReaderService:
             logger.warning("Email reading attempted on local environment - returning empty list")
             return []
         
+        # Log the email reading operation
+        email_logger.info(f"📧 EMAIL_READ_START | Accounts: {len(self.accounts)} | Days back: {days_back} | Limit: {limit}")
+        
         all_emails = []
         
         for account in self.accounts:
             try:
+                email_logger.info(f"📧 EMAIL_READ_ACCOUNT_START | Account: {account.account_name} | Email: {account.email}")
                 emails = self._get_unread_emails_from_account(account, days_back, limit)
                 all_emails.extend(emails)
+                email_logger.info(f"📧 EMAIL_READ_ACCOUNT_SUCCESS | Account: {account.account_name} | Found: {len(emails)} unread emails")
             except Exception as e:
+                email_logger.error(f"📧 EMAIL_READ_ACCOUNT_FAILED | Account: {account.account_name} | Error: {str(e)}")
                 logger.error(f"Error fetching emails from {account.email}: {str(e)}")
                 continue
         
         # Sort by received date (newest first)
         all_emails.sort(key=lambda x: x.received_date, reverse=True)
+        
+        final_count = len(all_emails[:limit])
+        email_logger.info(f"📧 EMAIL_READ_COMPLETE | Total found: {len(all_emails)} | Returning: {final_count}")
         
         return all_emails[:limit]
     
@@ -339,8 +349,12 @@ class EmailReaderService:
                     break
             
             if not account:
+                email_logger.error(f"📧 EMAIL_MARK_READ_FAILED | Email: {email_id} | Error: Account {account_name} not found")
                 logger.error(f"Account {account_name} not found")
                 return False
+            
+            # Log the mark as read attempt
+            email_logger.info(f"📧 EMAIL_MARK_READ_START | Email: {email_id} | Account: {account_name}")
             
             # Connect and mark as read
             mail = imaplib.IMAP4_SSL(account.imap_server, account.imap_port)
@@ -352,9 +366,14 @@ class EmailReaderService:
             mail.close()
             mail.logout()
             
+            # Success logging
+            email_logger.info(f"📧 EMAIL_MARK_READ_SUCCESS | Email: {email_id} | Account: {account_name}")
+            logger.info(f"Email {email_id} marked as read successfully")
+            
             return True
             
         except Exception as e:
+            email_logger.error(f"📧 EMAIL_MARK_READ_FAILED | Email: {email_id} | Error: {str(e)}")
             logger.error(f"Error marking email {email_id} as read: {str(e)}")
             return False
     
@@ -385,6 +404,9 @@ class EmailReaderService:
             logger.warning("Email retrieval attempted on local environment - returning None")
             return None
             
+        # Log the email retrieval attempt
+        email_logger.info(f"📧 EMAIL_GET_BY_ID_START | Email: {email_id}")
+            
         try:
             # Parse email_id to get account and message ID
             account_name, msg_id = email_id.split('_', 1)
@@ -397,6 +419,7 @@ class EmailReaderService:
                     break
             
             if not account:
+                email_logger.error(f"📧 EMAIL_GET_BY_ID_ACCOUNT_NOT_FOUND | Email: {email_id} | Account: {account_name}")
                 logger.error(f"Account {account_name} not found")
                 return None
             
@@ -436,7 +459,7 @@ class EmailReaderService:
                 is_important = self._is_important_email(msg, from_address, subject)
                 
                 # Create email object
-                return UnreadEmail(
+                email_obj = UnreadEmail(
                     id=email_id,
                     account=account.account_name,
                     from_address=from_address,
@@ -447,6 +470,9 @@ class EmailReaderService:
                     body=body
                 )
                 
+                email_logger.info(f"📧 EMAIL_GET_BY_ID_SUCCESS | Email: {email_id} | Subject: {subject} | From: {from_address}")
+                return email_obj
+                
             finally:
                 if mail:
                     try:
@@ -456,6 +482,7 @@ class EmailReaderService:
                         pass
                         
         except Exception as e:
+            email_logger.error(f"📧 EMAIL_GET_BY_ID_FAILED | Email: {email_id} | Error: {str(e)}")
             logger.error(f"Error getting email {email_id}: {str(e)}")
             return None
 
@@ -485,8 +512,12 @@ class EmailReaderService:
                     break
             
             if not account:
+                email_logger.error(f"📧 EMAIL_MARK_UNREAD_FAILED | Email: {email_id} | Error: Account {account_name} not found")
                 logger.error(f"Account {account_name} not found")
                 return False
+            
+            # Log the mark as unread attempt
+            email_logger.info(f"📧 EMAIL_MARK_UNREAD_START | Email: {email_id} | Account: {account_name}")
             
             mail = None
             try:
@@ -498,10 +529,13 @@ class EmailReaderService:
                 # Remove SEEN flag (mark as unread)
                 mail.store(msg_id, '-FLAGS', '\\Seen')
                 
+                # Success logging
+                email_logger.info(f"📧 EMAIL_MARK_UNREAD_SUCCESS | Email: {email_id} | Account: {account_name}")
                 logger.info(f"Email {email_id} marked as unread")
                 return True
                 
             except Exception as e:
+                email_logger.error(f"📧 EMAIL_MARK_UNREAD_FAILED | Email: {email_id} | Error: {str(e)}")
                 logger.error(f"Error marking email as unread: {str(e)}")
                 return False
             finally:

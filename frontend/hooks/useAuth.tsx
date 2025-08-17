@@ -32,13 +32,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // TEMPORARY: Disable automatic token validation to stop infinite loop
+    // TODO: Fix the cookie/authentication issue then re-enable
+    console.log('🚫 AuthProvider: Automatic token validation disabled to prevent infinite loop');
+    setLoading(false);
+    
+    // Original code (commented out):
     // Check for existing token on mount
-    const savedToken = localStorage.getItem('admin_token')
-    if (savedToken) {
-      validateToken(savedToken)
-    } else {
-      setLoading(false)
-    }
+    // const savedToken = localStorage.getItem('admin_token')
+    // if (savedToken) {
+    //   validateToken(savedToken)
+    // } else {
+    //   setLoading(false)
+    // }
   }, [])
 
   const validateToken = async (tokenToValidate: string) => {

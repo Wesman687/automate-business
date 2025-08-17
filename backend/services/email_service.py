@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 logger = logging.getLogger(__name__)
+email_logger = logging.getLogger('email')  # Dedicated email logger
 
 class EmailService:
     def __init__(self, db_session=None):
@@ -83,6 +84,15 @@ class EmailService:
             bcc_emails: List of BCC emails (optional)
         """
         
+        # Enhanced email logging
+        email_logger.info(f"📧 EMAIL_SEND_START | From: {from_account} | To: {', '.join(to_emails)} | Subject: {subject}")
+        if cc_emails:
+            email_logger.info(f"📧 EMAIL_SEND_CC | CC: {', '.join(cc_emails)}")
+        if bcc_emails:
+            email_logger.info(f"📧 EMAIL_SEND_BCC | BCC: {', '.join(bcc_emails)}")
+        if attachments:
+            email_logger.info(f"📧 EMAIL_SEND_ATTACHMENTS | Files: {', '.join(attachments)}")
+        
         logger.info(f"📧 Sending email from {from_account} to {to_emails}")
         logger.info(f"   Subject: {subject}")
         
@@ -144,10 +154,14 @@ class EmailService:
                 
                 server.send_message(message, to_addrs=all_recipients)
                 
+            # Success logging
+            email_logger.info(f"📧 EMAIL_SEND_SUCCESS | From: {from_account} | To: {', '.join(to_emails)} | Subject: {subject}")
             logger.info(f"Email sent successfully from {from_email} to {to_emails}")
             return True
             
         except Exception as e:
+            # Failure logging
+            email_logger.error(f"📧 EMAIL_SEND_FAILED | From: {from_account} | To: {', '.join(to_emails)} | Subject: {subject} | Error: {str(e)}")
             logger.error(f"Failed to send email from {from_account}: {str(e)}")
             return False
 

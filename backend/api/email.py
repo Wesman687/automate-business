@@ -8,6 +8,9 @@ from sqlalchemy.orm import Session
 from database import get_db
 import secrets
 import time
+import logging
+
+email_logger = logging.getLogger('email')  # Dedicated email logger
 
 router = APIRouter(prefix="/email", tags=["email"])
 
@@ -33,6 +36,9 @@ password_reset_tokens = {}
 async def send_email(request: EmailRequest):
     """Send email through the email service"""
     try:
+        # Log the email API request
+        email_logger.info(f"📧 EMAIL_API_SEND_REQUEST | From: {request.from_account} | To: {', '.join(request.to_emails)} | Subject: {request.subject}")
+        
         success = email_service.send_email(
             from_account=request.from_account,
             to_emails=request.to_emails,
@@ -42,11 +48,14 @@ async def send_email(request: EmailRequest):
         )
         
         if success:
+            email_logger.info(f"📧 EMAIL_API_SEND_SUCCESS | From: {request.from_account} | To: {', '.join(request.to_emails)} | Subject: {request.subject}")
             return {"message": "Email sent successfully", "status": "success"}
         else:
+            email_logger.error(f"📧 EMAIL_API_SEND_FAILED | From: {request.from_account} | To: {', '.join(request.to_emails)} | Subject: {request.subject}")
             raise HTTPException(status_code=500, detail="Failed to send email")
             
     except Exception as e:
+        email_logger.error(f"📧 EMAIL_API_SEND_ERROR | From: {request.from_account} | To: {', '.join(request.to_emails)} | Subject: {request.subject} | Error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Email service error: {str(e)}")
 
 @router.post("/send-notification")

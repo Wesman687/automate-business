@@ -11,6 +11,7 @@ from datetime import datetime
 import logging
 
 logger = logging.getLogger(__name__)
+email_logger = logging.getLogger('email')  # Dedicated email logger
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 router.include_router(schedule_router)
@@ -2129,15 +2130,21 @@ async def send_admin_email(
 async def mark_email_read(email_id: str, db: Session = Depends(get_db), user: dict = Depends(get_current_admin)):
     """Mark an email as read"""
     try:
+        # Log the API request
+        email_logger.info(f"📧 EMAIL_API_MARK_READ_REQUEST | Email: {email_id} | User: {user.get('email', 'unknown')}")
+        
         email_reader = EmailReaderService(db_session=db)
         success = email_reader.mark_email_read(email_id)
         
         if success:
+            email_logger.info(f"📧 EMAIL_API_MARK_READ_SUCCESS | Email: {email_id} | User: {user.get('email', 'unknown')}")
             return {"message": "Email marked as read", "status": "success"}
         else:
+            email_logger.warning(f"📧 EMAIL_API_MARK_READ_NOT_FOUND | Email: {email_id} | User: {user.get('email', 'unknown')}")
             raise HTTPException(status_code=404, detail="Email not found or already read")
             
     except Exception as e:
+        email_logger.error(f"📧 EMAIL_API_MARK_READ_ERROR | Email: {email_id} | User: {user.get('email', 'unknown')} | Error: {str(e)}")
         logger.error(f"Error marking email as read: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to mark email as read")
 
@@ -2145,15 +2152,21 @@ async def mark_email_read(email_id: str, db: Session = Depends(get_db), user: di
 async def mark_email_unread(email_id: str, db: Session = Depends(get_db), user: dict = Depends(get_current_admin)):
     """Mark an email as unread"""
     try:
+        # Log the API request
+        email_logger.info(f"📧 EMAIL_API_MARK_UNREAD_REQUEST | Email: {email_id} | User: {user.get('email', 'unknown')}")
+        
         email_reader = EmailReaderService(db_session=db)
         success = email_reader.mark_email_unread(email_id)
         
         if success:
+            email_logger.info(f"📧 EMAIL_API_MARK_UNREAD_SUCCESS | Email: {email_id} | User: {user.get('email', 'unknown')}")
             return {"message": "Email marked as unread", "status": "success"}
         else:
+            email_logger.warning(f"📧 EMAIL_API_MARK_UNREAD_NOT_FOUND | Email: {email_id} | User: {user.get('email', 'unknown')}")
             raise HTTPException(status_code=404, detail="Email not found")
             
     except Exception as e:
+        email_logger.error(f"📧 EMAIL_API_MARK_UNREAD_ERROR | Email: {email_id} | User: {user.get('email', 'unknown')} | Error: {str(e)}")
         logger.error(f"Error marking email as unread: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to mark email as unread")
 
@@ -2166,6 +2179,9 @@ async def reply_to_email(
 ):
     """Reply to an email"""
     try:
+        # Log the reply request
+        email_logger.info(f"📧 EMAIL_API_REPLY_REQUEST | Original: {email_id} | User: {user.get('email', 'unknown')} | To: {reply_data.get('to_emails', 'unknown')}")
+        
         from services.email_service import EmailService
         
         # Get original email details
@@ -2173,6 +2189,7 @@ async def reply_to_email(
         original_email = email_reader.get_email_by_id(email_id)
         
         if not original_email:
+            email_logger.warning(f"📧 EMAIL_API_REPLY_ORIGINAL_NOT_FOUND | Original: {email_id} | User: {user.get('email', 'unknown')}")
             raise HTTPException(status_code=404, detail="Original email not found")
         
         # Create EmailService with database session
@@ -2180,6 +2197,9 @@ async def reply_to_email(
         
         # Format reply subject
         reply_subject = f"Re: {original_email.subject}" if not original_email.subject.startswith("Re:") else original_email.subject
+        
+        # Log the actual reply details
+        email_logger.info(f"📧 EMAIL_API_REPLY_SENDING | Original: {email_id} | Subject: {reply_subject} | To: {original_email.from_address}")
         
         success = email_service.send_email(
             from_account=reply_data.get('from_account', original_email.account.lower()),
@@ -2190,8 +2210,10 @@ async def reply_to_email(
         )
         
         if success:
+            email_logger.info(f"📧 EMAIL_API_REPLY_SUCCESS | Original: {email_id} | User: {user.get('email', 'unknown')}")
             return {"message": "Reply sent successfully", "status": "success"}
         else:
+            email_logger.error(f"📧 EMAIL_API_REPLY_FAILED | Original: {email_id} | User: {user.get('email', 'unknown')}")
             raise HTTPException(status_code=500, detail="Failed to send reply")
             
     except Exception as e:
@@ -2207,6 +2229,9 @@ async def forward_email(
 ):
     """Forward an email"""
     try:
+        # Log the forward request
+        email_logger.info(f"📧 EMAIL_API_FORWARD_REQUEST | Original: {email_id} | User: {user.get('email', 'unknown')} | To: {forward_data.get('to_emails', [])}")
+        
         from services.email_service import EmailService
         
         # Get original email details
@@ -2214,6 +2239,7 @@ async def forward_email(
         original_email = email_reader.get_email_by_id(email_id)
         
         if not original_email:
+            email_logger.warning(f"📧 EMAIL_API_FORWARD_ORIGINAL_NOT_FOUND | Original: {email_id} | User: {user.get('email', 'unknown')}")
             raise HTTPException(status_code=404, detail="Original email not found")
         
         # Create EmailService with database session
@@ -2222,6 +2248,9 @@ async def forward_email(
         # Format forward subject and body
         forward_subject = f"Fwd: {original_email.subject}" if not original_email.subject.startswith("Fwd:") else original_email.subject
         forward_body = f"{forward_data['body']}\n\n--- Forwarded Message ---\nFrom: {original_email.from_address}\nSubject: {original_email.subject}\nDate: {original_email.received_date}\n\n{original_email.body}"
+        
+        # Log the actual forward details
+        email_logger.info(f"📧 EMAIL_API_FORWARD_SENDING | Original: {email_id} | Subject: {forward_subject} | To: {', '.join(forward_data['to_emails'])}")
         
         success = email_service.send_email(
             from_account=forward_data.get('from_account', 'tech'),
@@ -2232,8 +2261,10 @@ async def forward_email(
         )
         
         if success:
+            email_logger.info(f"📧 EMAIL_API_FORWARD_SUCCESS | Original: {email_id} | User: {user.get('email', 'unknown')}")
             return {"message": "Email forwarded successfully", "status": "success"}
         else:
+            email_logger.error(f"📧 EMAIL_API_FORWARD_FAILED | Original: {email_id} | User: {user.get('email', 'unknown')}")
             raise HTTPException(status_code=500, detail="Failed to forward email")
             
     except Exception as e:

@@ -12,16 +12,13 @@ export default function AdminPage() {
   const router = useRouter()
 
   useEffect(() => {
-    checkAuthentication()
-  }, [])
-
-  const checkAuthentication = async () => {
-    // DISABLED: Use AuthProvider instead of direct auth calls
-    // This was causing cookie-based auth requests on admin page
-    console.log('🔑 Admin: Auth check disabled, using AuthProvider');
+    // DISABLED: Auth check completely disabled - JWT AuthProvider handles this
+    console.log('🔑 Admin: Auth check completely disabled');
     setIsAuthenticated(true);
     setAuthLoading(false);
-  }
+  }, [])
+
+  // checkAuthentication function removed - using JWT AuthProvider instead
 
   const handleLogout = async () => {
     try {

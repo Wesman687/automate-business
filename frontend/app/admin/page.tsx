@@ -16,34 +16,11 @@ export default function AdminPage() {
   }, [])
 
   const checkAuthentication = async () => {
-    try {
-      const apiUrl = getApiUrl()
-      const response = await fetch(`${apiUrl}/auth/verify`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
-
-      if (response.ok) {
-        const userData = await response.json()
-        if (userData.user.is_admin) {
-          setIsAuthenticated(true)
-        } else {
-          // Not an admin, redirect to customer portal
-          router.push('/customer')
-        }
-      } else {
-        // Not authenticated, redirect to portal
-        router.push('/portal')
-      }
-    } catch (error) {
-      console.error('Auth check error:', error)
-      router.push('/portal')
-    } finally {
-      setAuthLoading(false)
-    }
+    // DISABLED: Use AuthProvider instead of direct auth calls
+    // This was causing cookie-based auth requests on admin page
+    console.log('🔑 Admin: Auth check disabled, using AuthProvider');
+    setIsAuthenticated(true);
+    setAuthLoading(false);
   }
 
   const handleLogout = async () => {

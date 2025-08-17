@@ -20,10 +20,13 @@ export default function Portal() {
 
   useEffect(() => {
     // Check if user is already authenticated via JWT
+    console.log('🔑 Portal: Auth state check - authLoading:', authLoading, 'isAuthenticated:', isAuthenticated, 'user:', user?.email || 'null');
+    
     if (!authLoading && isAuthenticated && user) {
       console.log('🔑 Portal: User already authenticated via JWT, redirecting...');
       redirectBasedOnRole(user);
     } else if (!authLoading) {
+      console.log('🔑 Portal: User not authenticated, showing login form');
       setCheckingAuth(false);
     }
   }, [authLoading, isAuthenticated, user]);

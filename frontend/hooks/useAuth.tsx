@@ -51,8 +51,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const validateToken = async (tokenToValidate: string) => {
     console.log('🔑 JWT Validation: Starting validation...')
+    console.log('🔑 JWT Validation: Token to validate:', tokenToValidate.substring(0, 30) + '...')
+    console.log('🔑 JWT Validation: API_BASE_URL:', API_BASE_URL)
+    console.log('🔑 JWT Validation: Full URL:', `${API_BASE_URL}/auth/verify`)
     
     try {
+      console.log('🔑 JWT Validation: About to make fetch request with Authorization header...')
       const response = await fetch(`${API_BASE_URL}/auth/verify`, {
         method: 'GET',
         headers: {
@@ -62,6 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
       
       console.log('🔑 JWT Validation: Response status:', response.status)
+      console.log('🔑 JWT Validation: Response headers:', Object.fromEntries(response.headers.entries()))
       
       if (response.ok) {
         const userData = await response.json()

@@ -260,8 +260,18 @@ export default function UnifiedDashboard() {
 
   const updateChangeRequestStatus = async (requestId: number, newStatus: string) => {
     try {
-      const response = await fetchWithAuth(`/api/admin/change-requests/${requestId}`, {
+      const token = localStorage.getItem('admin_token');
+      if (!token) {
+        console.error('🔑 Dashboard: No JWT token for update status');
+        return;
+      }
+      
+      const response = await fetch(`https://server.stream-lineai.com/api/admin/change-requests/${requestId}`, {
         method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ status: newStatus })
       });
 
@@ -283,8 +293,18 @@ export default function UnifiedDashboard() {
 
   const handleSaveRequest = async (updatedRequest: Partial<ChangeRequest>) => {
     try {
-      const response = await fetchWithAuth(`/api/admin/change-requests/${updatedRequest.id}`, {
+      const token = localStorage.getItem('admin_token');
+      if (!token) {
+        console.error('🔑 Dashboard: No JWT token for save request');
+        return;
+      }
+      
+      const response = await fetch(`https://server.stream-lineai.com/api/admin/change-requests/${updatedRequest.id}`, {
         method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify(updatedRequest)
       });
 
@@ -322,8 +342,18 @@ export default function UnifiedDashboard() {
     }
 
     try {
-      const response = await fetchWithAuth(`/api/appointments/${appointmentId}`, {
+      const token = localStorage.getItem('admin_token');
+      if (!token) {
+        console.error('🔑 Dashboard: No JWT token for cancel appointment');
+        return;
+      }
+      
+      const response = await fetch(`https://server.stream-lineai.com/api/appointments/${appointmentId}`, {
         method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ status: 'cancelled' })
       });
 

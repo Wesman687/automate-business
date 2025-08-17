@@ -3,17 +3,18 @@
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { Menu, X, User, LogIn, LogOut, ChevronDown, Home } from 'lucide-react';
-import { getApiUrl } from '@/lib/api';
-import { dologout } from '@/hooks/useAuth'; // Assuming you have a logOut function to handle logout
+import { Menu, X, User, LogOut, ChevronDown, Home } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+
 export default function Navigation() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [checkingAuth, setCheckingAuth] = useState(true);
-  const [userInfo, setUserInfo] = useState<any>(null);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
+
   const router = useRouter();
   const pathname = usePathname();
+
+  // 🔑 Use the hook INSIDE the component
+  const { user, isAuthenticated, loading, logout } = useAuth();
 
   const navigation = [
     { name: 'Home', href: '/', sectionId: null },
@@ -23,47 +24,28 @@ export default function Navigation() {
   ];
 
   useEffect(() => {
-    checkAuthStatus();
-  }, []);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (showUserDropdown) {
-        setShowUserDropdown(false);
-      }
+    const handleClickOutside = () => {
+      if (showUserDropdown) setShowUserDropdown(false);
     };
-
     document.addEventListener('click', handleClickOutside);
-    return () => {
-      document.removeEventListener('click', handleClickOutside);
-    };
+    return () => document.removeEventListener('click', handleClickOutside);
   }, [showUserDropdown]);
 
-  const checkAuthStatus = async () => {
-    setCheckingAuth(false);
-  };
-
   const handleLogout = async () => {
-    dologout()
-    setIsLoggedIn(false);
-    setUserInfo(null);
+    await logout();               // ← from context
     setShowUserDropdown(false);
-    window.location.href = '/';
+    setIsMenuOpen(false);
+    router.replace('/');          // soft redirect (use window.location if you want a hard reload)
   };
 
   const getDashboardLink = () => {
-    if (!userInfo) return '/portal';
-    if (userInfo.is_admin) {
-      return '/admin';
-    } else {
-      return '/customer';
-    }
+    if (!user) return '/portal';
+    return user.is_admin ? '/admin' : '/customer';
   };
 
-  const handleNavigation = (item: typeof navigation[0]) => {
+  const handleNavigation = (item: typeof navigation[number]) => {
     setIsMenuOpen(false);
-    
-    // If we're on the home page and there's a section ID, scroll to it
+
     if (pathname === '/' && item.sectionId) {
       const element = document.getElementById(item.sectionId);
       if (element) {
@@ -71,25 +53,19 @@ export default function Navigation() {
         return;
       }
     }
-    
-    // If it's the home link, navigate to home
+
     if (item.href === '/') {
       router.push('/');
       return;
     }
-    
-    // For other pages, if we're not on home, navigate to home and then scroll
+
     if (pathname !== '/' && item.sectionId) {
       router.push('/');
-      // Wait for navigation to complete, then scroll
       setTimeout(() => {
         const element = document.getElementById(item.sectionId);
-        if (element) {
-          element.scrollIntoView({ behavior: 'smooth' });
-        }
+        if (element) element.scrollIntoView({ behavior: 'smooth' });
       }, 100);
     } else {
-      // Navigate to the page
       router.push(item.href);
     }
   };
@@ -118,32 +94,32 @@ export default function Navigation() {
                 {item.name}
               </button>
             ))}
-            
-            {/* User Authentication Area */}
-            {!checkingAuth && (
-              isLoggedIn ? (
+
+            {/* User area */}
+            {!loading && (
+              isAuthenticated ? (
                 <div className="relative">
                   <button
-                    onClick={() => setShowUserDropdown(!showUserDropdown)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowUserDropdown(!showUserDropdown);
+                    }}
                     className="flex items-center gap-2 bg-electric-blue/20 hover:bg-electric-blue/30 text-electric-blue px-4 py-2 rounded-lg border border-electric-blue/30 transition-all duration-200"
                   >
                     <User className="h-4 w-4" />
                     <span className="hidden lg:block">
-                      {userInfo?.name || userInfo?.email || 'User'}
+                      {user?.name || user?.email || 'User'}
                     </span>
                     <ChevronDown className="h-4 w-4" />
                   </button>
-                  
-                  {/* Dropdown Menu */}
+
                   {showUserDropdown && (
                     <div className="absolute right-0 mt-2 w-56 bg-dark-card border border-dark-border rounded-lg shadow-xl z-50">
                       <div className="p-3 border-b border-dark-border">
                         <div className="text-sm text-gray-300">Signed in as</div>
-                        <div className="text-white font-medium truncate">
-                          {userInfo?.email}
-                        </div>
+                        <div className="text-white font-medium truncate">{user?.email}</div>
                         <div className="text-xs text-electric-blue capitalize">
-                          {userInfo?.is_admin ? 'Admin' : 'Customer'}
+                          {user?.is_admin ? 'Admin' : 'Customer'}
                         </div>
                       </div>
                       <div className="py-2">
@@ -184,7 +160,6 @@ export default function Navigation() {
                 </Link>
               )
             )}
-
           </div>
 
           {/* Mobile menu button */}
@@ -193,11 +168,7 @@ export default function Navigation() {
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               className="text-gray-300 hover:text-white"
             >
-              {isMenuOpen ? (
-                <X className="h-6 w-6" />
-              ) : (
-                <Menu className="h-6 w-6" />
-              )}
+              {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
           </div>
         </div>
@@ -216,19 +187,16 @@ export default function Navigation() {
                 {item.name}
               </button>
             ))}
-            
+
             <div className="pt-4 border-t border-dark-border space-y-3">
-              {/* User Authentication Area */}
-              {!checkingAuth && (
-                isLoggedIn ? (
+              {!loading && (
+                isAuthenticated ? (
                   <div className="space-y-2">
                     <div className="px-4 py-2 bg-dark-bg rounded-lg border border-dark-border">
                       <div className="text-xs text-gray-400">Signed in as</div>
-                      <div className="text-white text-sm font-medium truncate">
-                        {userInfo?.email}
-                      </div>
+                      <div className="text-white text-sm font-medium truncate">{user?.email}</div>
                       <div className="text-xs text-electric-blue capitalize">
-                        {userInfo?.is_admin ? 'Admin' : 'Customer'}
+                        {user?.is_admin ? 'Admin' : 'Customer'}
                       </div>
                     </div>
                     <Link

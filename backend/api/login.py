@@ -7,6 +7,9 @@ from services.auth_service import AuthService
 from services.admin_service import AdminService
 from api.auth import get_current_user, get_current_super_admin
 from typing import Optional
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["unified-authentication"])
 
@@ -37,14 +40,27 @@ async def unified_login(request: LoginRequest, response: Response, db: Session =
     is_production = os.getenv('ENVIRONMENT', 'development') == 'production'
     is_https = os.getenv('HTTPS_ENABLED', 'false').lower() == 'true' or is_production
     
+    # Debug logging for production
+    logger.info(f"🔧 Cookie Config Debug:")
+    logger.info(f"   ENVIRONMENT: {os.getenv('ENVIRONMENT', 'not_set')}")
+    logger.info(f"   HTTPS_ENABLED: {os.getenv('HTTPS_ENABLED', 'not_set')}")
+    logger.info(f"   is_production: {is_production}")
+    logger.info(f"   is_https: {is_https}")
+    
     cookie_settings = {
         "max_age": 60 * 60 * 24,  # 24 hours
         "httponly": True,
         "secure": is_https,  # True in production with HTTPS
         "samesite": "none" if is_production else "lax",  # "none" for cross-domain in production
         "path": "/",
-        "domain": ".stream-lineai.com" if is_production else None  # Allow subdomain sharing
     }
+    
+    # Add domain only if in production and if it works with your setup
+    if is_production:
+        # Try without domain first - some setups work better this way
+        cookie_settings["domain"] = None
+    
+    logger.info(f"🍪 Cookie settings: {cookie_settings}")
     
     # Set main auth cookie
     response.set_cookie(key="auth_token", value=token, **cookie_settings)
@@ -54,6 +70,14 @@ async def unified_login(request: LoginRequest, response: Response, db: Session =
         response.set_cookie(key="admin_token", value=token, **cookie_settings)
     else:
         response.set_cookie(key="customer_token", value=token, **cookie_settings)
+    
+    # ALSO set cookies without domain restriction as backup
+    if is_production:
+        backup_settings = cookie_settings.copy()
+        backup_settings["domain"] = None
+        response.set_cookie(key="backup_auth_token", value=token, **backup_settings)
+        if user_data["user_type"] == "admin":
+            response.set_cookie(key="backup_admin_token", value=token, **backup_settings)
     
     return {
         "token": token,
@@ -357,3 +381,59 @@ async def remove_super_admin(
     except Exception as e:
         print(f"❌ Error removing super admin status: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error removing super admin status: {str(e)}")
+
+@router.get("/debug/auth-status")
+async def debug_auth_status(request: Request, db: Session = Depends(get_db)):
+    """Debug endpoint to check authentication status and cookie configuration"""
+    import os
+    
+    # Get environment info
+    env_info = {
+        "ENVIRONMENT": os.getenv('ENVIRONMENT', 'not_set'),
+        "HTTPS_ENABLED": os.getenv('HTTPS_ENABLED', 'not_set'),
+        "is_production": os.getenv('ENVIRONMENT', 'development') == 'production',
+    }
+    
+    # Get all cookies
+    all_cookies = dict(request.cookies)
+    
+    # Check for auth tokens
+    auth_tokens = {
+        "auth_token": request.cookies.get('auth_token'),
+        "admin_token": request.cookies.get('admin_token'),
+        "customer_token": request.cookies.get('customer_token')
+    }
+    
+    # Try to validate any available token
+    auth_status = "No valid authentication"
+    user_info = None
+    
+    for token_name, token_value in auth_tokens.items():
+        if token_value:
+            try:
+                auth_service = AuthService(db)
+                user_data = auth_service.verify_token(token_value)
+                if user_data:
+                    auth_status = f"Valid {token_name}"
+                    user_info = {
+                        "email": user_data.get('email'),
+                        "user_type": user_data.get('user_type'),
+                        "is_admin": user_data.get('is_admin')
+                    }
+                    break
+            except:
+                continue
+    
+    return {
+        "status": "debug_info",
+        "environment": env_info,
+        "cookies_received": list(all_cookies.keys()),
+        "auth_tokens": {k: f"{v[:10]}..." if v else None for k, v in auth_tokens.items()},
+        "authentication_status": auth_status,
+        "user_info": user_info,
+        "request_headers": {
+            "host": request.headers.get("host"),
+            "origin": request.headers.get("origin"),
+            "user_agent": request.headers.get("user-agent", "")[:100]
+        }
+    }

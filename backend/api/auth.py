@@ -19,7 +19,12 @@ def get_current_user(authorization: str = Header(None), request: Request = None,
         print(f"🍪 All cookies received: {all_cookies}")
         
         # Try both token names for backward compatibility during migration
-        token = request.cookies.get('admin_token') or request.cookies.get('customer_token') or request.cookies.get('auth_token')
+        token = (request.cookies.get('auth_token') or 
+                request.cookies.get('admin_token') or 
+                request.cookies.get('customer_token') or
+                request.cookies.get('backup_auth_token') or 
+                request.cookies.get('backup_admin_token'))
+        
         if token:
             print(f"🍪 Found token in cookie: {token[:20]}...")
         else:

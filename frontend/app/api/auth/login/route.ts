@@ -33,32 +33,33 @@ export async function POST(request: NextRequest) {
       const nextResponse = NextResponse.json(data);
       
       // Copy cookies from backend response to frontend response
-      const setCookieHeader = response.headers.get('set-cookie');
-      console.log('🔍 LOGIN API: Backend set-cookie header:', setCookieHeader);
+      const setCookieHeaders = response.headers.getSetCookie(); // Get all set-cookie headers
+      console.log('🔍 LOGIN API: Backend set-cookie headers:', setCookieHeaders);
       
-      if (setCookieHeader) {
-        // Parse and set cookies for the frontend domain
-        const cookies = setCookieHeader.split(',').map(cookie => cookie.trim());
-        console.log('🔍 LOGIN API: Parsed cookies:', cookies);
-        
-        cookies.forEach(cookie => {
+      if (setCookieHeaders && setCookieHeaders.length > 0) {
+        // Parse and set each cookie
+        setCookieHeaders.forEach((cookieHeader, index) => {
+          console.log(`🔍 LOGIN API: Processing cookie header ${index}:`, cookieHeader);
+          
           // Extract cookie parts
-          const [nameValue, ...attributes] = cookie.split(';');
+          const [nameValue, ...attributes] = cookieHeader.split(';');
           const [name, value] = nameValue.split('=');
           
-          console.log(`🔍 LOGIN API: Setting cookie ${name}=${value}`);
-          
-          // Set cookie with modified attributes for cross-domain
-          nextResponse.cookies.set(name.trim(), value.trim(), {
-            httpOnly: false, // Make accessible to JavaScript for debugging
-            secure: false,   // Disable for debugging
-            sameSite: 'lax', // Use lax for debugging
-            path: '/',
-            maxAge: 60 * 60 * 24 // 24 hours
-          });
+          if (name && value) {
+            console.log(`🔍 LOGIN API: Setting cookie ${name.trim()}=${value.trim()}`);
+            
+            // Set cookie with modified attributes for debugging
+            nextResponse.cookies.set(name.trim(), value.trim(), {
+              httpOnly: false, // Make accessible to JavaScript for debugging
+              secure: false,   // Disable for debugging
+              sameSite: 'lax', // Use lax for debugging
+              path: '/',
+              maxAge: 60 * 60 * 24 // 24 hours
+            });
+          }
         });
       } else {
-        console.log('❌ LOGIN API: No set-cookie header from backend!');
+        console.log('❌ LOGIN API: No set-cookie headers from backend!');
       }
       
       console.log('🔍 LOGIN API: Response cookies being set:', nextResponse.cookies.getAll());

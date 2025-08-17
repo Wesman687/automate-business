@@ -9,8 +9,9 @@ import React, {
   useState,
   useCallback,
 } from 'react';
-import { getApiUrl } from '@/lib/api';
-import { setTokenGetter, getAuthToken } from '@/lib/authToken'; // ⬅️ import
+import { setTokenGetter, getAuthToken } from '@/lib/authToken';
+import { verify as verifySvc, login as apiLogin, logout as apiLogout } from '@/lib/services/auth';
+
 
 type User = {
   id?: number;
@@ -39,13 +40,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const verifying = useRef(false);
 
-  // --- TOKEN WIRING (this is where tokenGetter is used) ---
-  // Keep the JWT in memory; optionally mirror to localStorage
+  // ---- Token wiring ----
   const tokenRef = useRef<string | null>(null);
 
   const setToken = useCallback((t: string | null) => {
     tokenRef.current = t;
-    // Optional persistence; remove if you want memory-only
+    // optional persistence; keep if you want header auth to survive reloads
     try {
       if (t) localStorage.setItem('auth_token', t);
       else localStorage.removeItem('auth_token');
@@ -53,30 +53,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    // Tell the HTTP client how to read the current token
+    // let the HTTP client read the current token whenever it sends requests
     setTokenGetter(() => tokenRef.current);
-    // Rehydrate on first load (optional)
+    // rehydrate on first load (optional)
     setToken(getAuthToken());
   }, [setToken]);
-  // --- END TOKEN WIRING ---
+  // ----------------------
 
-  // Verify current session using the Next proxy (forwards cookies to API)
-  const refresh = useCallback(async () => {
-    if (verifying.current) return;
-    verifying.current = true;
-    try {
-      const res = await fetch('/api/check-auth', { cache: 'no-store' });
-      if (!res.ok) {
-        setUser(null);
-        return;
-      }
-      const data = await res.json();
-      const u = data?.user ?? data;
-      setUser(u ?? null);
-    } finally {
-      verifying.current = false;
-    }
-  }, []);
+  // Verify current session (via Next proxy -> FastAPI)
+const refresh = useCallback(async () => {
+  try {
+    const data = await verifySvc();          // <— use the service
+    const u = data?.user ?? data;
+    setUser(u ?? null);
+  } catch {
+    setUser(null);
+  }
+}, []);
 
   // On mount, try to restore session
   useEffect(() => {
@@ -91,38 +84,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })();
   }, [refresh]);
 
-  // Login: call API directly so Set-Cookie lands on API domain,
-  // and also capture the JWT from the response body for Authorization header usage.
+  // Login: hit backend (no proxy) so Set-Cookie lands on API domain; also capture JWT from body
   const login = useCallback(
     async (email: string, password: string) => {
-      const apiBase = getApiUrl();
-      const res = await fetch(`${apiBase}/auth/login`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-
-      if (!res.ok) return false;
-
-      // Capture token from body (your backend returns { token, user, ... })
       try {
-        const data = await res.json();
+        const data = await apiLogin(email, password); // { token, user? }
         if (data?.token) setToken(data.token);
+        await refresh();
+        return true;
       } catch {
-        // if body is empty or not JSON, ignore
+        return false;
       }
-
-      await refresh();
-      return true;
     },
     [refresh, setToken]
   );
 
-  // Logout via proxy and clear the token
-  const logout = useCallback(async () => {
+  // Logout via service; always clear local token & user
+  const doLogout = useCallback(async () => {
     try {
-      await fetch('/api/logout', { method: 'POST' });
+      await apiLogout();
     } finally {
       setToken(null);
       setUser(null);
@@ -136,10 +116,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isAdmin: !!(user && (user.is_admin || user.user_type === 'admin')),
       loading,
       login,
-      logout,
+      logout: doLogout,   // <-- expose the wrapper
       refresh,
     }),
-    [user, loading, login, refresh, logout]
+    [user, loading, login, doLogout, refresh]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

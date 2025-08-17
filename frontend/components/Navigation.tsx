@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Menu, X, User, LogIn, LogOut, ChevronDown, Home } from 'lucide-react';
 import { getApiUrl } from '@/lib/api';
-
+import { doLogout } from '@/hooks/useAuth'; // Assuming you have a logOut function to handle logout
 export default function Navigation() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -40,16 +40,11 @@ export default function Navigation() {
   }, [showUserDropdown]);
 
   const checkAuthStatus = async () => {
-    // DISABLED: Use AuthProvider instead of direct auth calls
-    // This was causing infinite cookie-based auth requests
-    console.log('🔑 Navigation: Auth check disabled, using AuthProvider');
     setCheckingAuth(false);
   };
 
   const handleLogout = async () => {
-    // DISABLED: Use AuthProvider logout instead of cookie-based logout
-    console.log('🔑 Navigation: Logout disabled - clear localStorage instead');
-    localStorage.removeItem('admin_token');
+    doLogout()
     setIsLoggedIn(false);
     setUserInfo(null);
     setShowUserDropdown(false);

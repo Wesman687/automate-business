@@ -47,20 +47,13 @@ export default function Navigation() {
   };
 
   const handleLogout = async () => {
-    try {
-      const apiUrl = getApiUrl();
-      await fetch(`${apiUrl}/auth/logout`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-      setIsLoggedIn(false);
-      setUserInfo(null);
-      setShowUserDropdown(false);
-      window.location.href = '/';
-    } catch (error) {
-      console.error('Logout error:', error);
-      window.location.href = '/';
-    }
+    // DISABLED: Use AuthProvider logout instead of cookie-based logout
+    console.log('🔑 Navigation: Logout disabled - clear localStorage instead');
+    localStorage.removeItem('admin_token');
+    setIsLoggedIn(false);
+    setUserInfo(null);
+    setShowUserDropdown(false);
+    window.location.href = '/';
   };
 
   const getDashboardLink = () => {

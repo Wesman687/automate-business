@@ -721,8 +721,8 @@ export default function UnifiedDashboard() {
         appointment={editingAppointment}
       />
 
-      {/* Email Manager */}
-      {showEmailManager && (
+      {/* Email Manager - TEMPORARILY DISABLED to stop cookie spam */}
+      {false && showEmailManager && (
         <EmailManager 
           selectedEmailId={selectedEmailId}
           onClose={() => {

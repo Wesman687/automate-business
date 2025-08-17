@@ -21,17 +21,10 @@ export default function AdminPage() {
   // checkAuthentication function removed - using JWT AuthProvider instead
 
   const handleLogout = async () => {
-    try {
-      const apiUrl = getApiUrl()
-      await fetch(`${apiUrl}/auth/logout`, {
-        method: 'POST',
-        credentials: 'include',
-      })
-      router.push('/')
-    } catch (error) {
-      console.error('Logout error:', error)
-      router.push('/')
-    }
+    // DISABLED: Use localStorage clear instead of cookie-based logout
+    console.log('🔑 Admin: Logout disabled - clear localStorage instead');
+    localStorage.removeItem('admin_token');
+    router.push('/');
   }
 
   if (authLoading) {

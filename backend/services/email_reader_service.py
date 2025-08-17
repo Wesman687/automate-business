@@ -463,6 +463,59 @@ class EmailReaderService:
         """Mark an email as read"""
         return self.mark_email_as_read(email_id)
 
+    def mark_email_unread(self, email_id: str) -> bool:
+        """Mark an email as unread"""
+        return self.mark_email_as_unread(email_id)
+
+    def mark_email_as_unread(self, email_id: str) -> bool:
+        """Mark an email as unread by removing the SEEN flag"""
+        if not self.is_server:
+            logger.warning("Email marking attempted on local environment - returning False")
+            return False
+            
+        try:
+            # Parse email_id to get account and message ID
+            account_name, msg_id = email_id.split('_', 1)
+            
+            # Find the account
+            account = None
+            for acc in self.accounts:
+                if acc.account_name == account_name:
+                    account = acc
+                    break
+            
+            if not account:
+                logger.error(f"Account {account_name} not found")
+                return False
+            
+            mail = None
+            try:
+                # Connect to email server
+                mail = imaplib.IMAP4_SSL(account.imap_server, account.imap_port)
+                mail.login(account.email, account.password)
+                mail.select('INBOX')
+                
+                # Remove SEEN flag (mark as unread)
+                mail.store(msg_id, '-FLAGS', '\\Seen')
+                
+                logger.info(f"Email {email_id} marked as unread")
+                return True
+                
+            except Exception as e:
+                logger.error(f"Error marking email as unread: {str(e)}")
+                return False
+            finally:
+                if mail:
+                    try:
+                        mail.close()
+                        mail.logout()
+                    except:
+                        pass
+                        
+        except Exception as e:
+            logger.error(f"Error parsing email ID or connecting: {str(e)}")
+            return False
+
     def get_accounts(self) -> List[EmailAccount]:
         """Get list of configured email accounts"""
         return self.accounts

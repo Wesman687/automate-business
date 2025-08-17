@@ -2129,7 +2129,7 @@ async def send_admin_email(
 async def mark_email_read(email_id: str, db: Session = Depends(get_db), user: dict = Depends(get_current_admin)):
     """Mark an email as read"""
     try:
-        email_reader = EmailReaderService()
+        email_reader = EmailReaderService(db_session=db)
         success = email_reader.mark_email_read(email_id)
         
         if success:
@@ -2140,6 +2140,105 @@ async def mark_email_read(email_id: str, db: Session = Depends(get_db), user: di
     except Exception as e:
         logger.error(f"Error marking email as read: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to mark email as read")
+
+@router.post("/emails/{email_id}/mark-unread")
+async def mark_email_unread(email_id: str, db: Session = Depends(get_db), user: dict = Depends(get_current_admin)):
+    """Mark an email as unread"""
+    try:
+        email_reader = EmailReaderService(db_session=db)
+        success = email_reader.mark_email_unread(email_id)
+        
+        if success:
+            return {"message": "Email marked as unread", "status": "success"}
+        else:
+            raise HTTPException(status_code=404, detail="Email not found")
+            
+    except Exception as e:
+        logger.error(f"Error marking email as unread: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to mark email as unread")
+
+@router.post("/emails/{email_id}/reply")
+async def reply_to_email(
+    email_id: str,
+    reply_data: dict,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_admin)
+):
+    """Reply to an email"""
+    try:
+        from services.email_service import EmailService
+        
+        # Get original email details
+        email_reader = EmailReaderService(db_session=db)
+        original_email = email_reader.get_email_by_id(email_id)
+        
+        if not original_email:
+            raise HTTPException(status_code=404, detail="Original email not found")
+        
+        # Create EmailService with database session
+        email_service = EmailService(db_session=db)
+        
+        # Format reply subject
+        reply_subject = f"Re: {original_email.subject}" if not original_email.subject.startswith("Re:") else original_email.subject
+        
+        success = email_service.send_email(
+            from_account=reply_data.get('from_account', original_email.account.lower()),
+            to_emails=[original_email.from_address],
+            subject=reply_subject,
+            body=reply_data['body'],
+            html_body=reply_data.get('html_body')
+        )
+        
+        if success:
+            return {"message": "Reply sent successfully", "status": "success"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to send reply")
+            
+    except Exception as e:
+        logger.error(f"Error sending reply: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to send reply: {str(e)}")
+
+@router.post("/emails/{email_id}/forward")
+async def forward_email(
+    email_id: str,
+    forward_data: dict,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_admin)
+):
+    """Forward an email"""
+    try:
+        from services.email_service import EmailService
+        
+        # Get original email details
+        email_reader = EmailReaderService(db_session=db)
+        original_email = email_reader.get_email_by_id(email_id)
+        
+        if not original_email:
+            raise HTTPException(status_code=404, detail="Original email not found")
+        
+        # Create EmailService with database session
+        email_service = EmailService(db_session=db)
+        
+        # Format forward subject and body
+        forward_subject = f"Fwd: {original_email.subject}" if not original_email.subject.startswith("Fwd:") else original_email.subject
+        forward_body = f"{forward_data['body']}\n\n--- Forwarded Message ---\nFrom: {original_email.from_address}\nSubject: {original_email.subject}\nDate: {original_email.received_date}\n\n{original_email.body}"
+        
+        success = email_service.send_email(
+            from_account=forward_data.get('from_account', 'tech'),
+            to_emails=forward_data['to_emails'],
+            subject=forward_subject,
+            body=forward_body,
+            html_body=forward_data.get('html_body')
+        )
+        
+        if success:
+            return {"message": "Email forwarded successfully", "status": "success"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to forward email")
+            
+    except Exception as e:
+        logger.error(f"Error forwarding email: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to forward email: {str(e)}")
 
 @router.get("/emails/accounts")
 async def get_email_accounts(db: Session = Depends(get_db), user: dict = Depends(get_current_admin)):

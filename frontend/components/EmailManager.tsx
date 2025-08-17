@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Mail, Send, Reply, MoreHorizontal, Search, RefreshCw, X, Eye, Clock, AlertCircle } from 'lucide-react';
+import { Mail, Send, Reply, MoreHorizontal, Search, RefreshCw, X, Eye, EyeOff, Clock, AlertCircle, Forward } from 'lucide-react';
 
 interface Email {
   id: string;
@@ -166,7 +166,7 @@ export default function EmailManager({ onClose, selectedEmailId }: EmailManagerP
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        
+
       });
 
       if (!response.ok) {
@@ -179,6 +179,48 @@ export default function EmailManager({ onClose, selectedEmailId }: EmailManagerP
       console.error('Error marking email as read:', error);
       setError('Failed to mark email as read');
     }
+  };
+
+  const markAsUnread = async (emailId: string) => {
+    try {
+      const response = await fetch(`https://server.stream-lineai.com/api/admin/emails/${emailId}/mark-unread`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to mark email as unread');
+      }
+
+      // Refresh emails list
+      await fetchEmails();
+    } catch (error) {
+      console.error('Error marking email as unread:', error);
+      setError('Failed to mark email as unread');
+    }
+  };
+
+  const replyToEmail = (email: Email) => {
+    setComposeData({
+      to_email: email.from,
+      subject: email.subject.startsWith('Re:') ? email.subject : `Re: ${email.subject}`,
+      body: `\n\n--- Original Message ---\nFrom: ${email.from}\nSubject: ${email.subject}\nDate: ${new Date(email.received_date).toLocaleString()}\n\n${email.body || ''}`,
+      from_account: email.account.toLowerCase()
+    });
+    setShowCompose(true);
+  };
+
+  const forwardEmail = (email: Email) => {
+    setComposeData({
+      to_email: '',
+      subject: email.subject.startsWith('Fwd:') ? email.subject : `Fwd: ${email.subject}`,
+      body: `\n\n--- Forwarded Message ---\nFrom: ${email.from}\nSubject: ${email.subject}\nDate: ${new Date(email.received_date).toLocaleString()}\n\n${email.body || ''}`,
+      from_account: 'tech'
+    });
+    setShowCompose(true);
   };
 
   const sendEmail = async () => {
@@ -221,16 +263,6 @@ export default function EmailManager({ onClose, selectedEmailId }: EmailManagerP
     } finally {
       setSending(false);
     }
-  };
-
-  const replyToEmail = (email: Email) => {
-    setComposeData({
-      to_email: email.from,
-      subject: email.subject.startsWith('Re:') ? email.subject : `Re: ${email.subject}`,
-      body: `\\n\\n--- Original Message ---\\nFrom: ${email.from}\\nSubject: ${email.subject}\\nDate: ${new Date(email.received_date).toLocaleString()}\\n\\n${email.body || email.preview}`,
-      from_account: 'tech'
-    });
-    setShowCompose(true);
   };
 
   const addEmailAccount = async () => {
@@ -283,7 +315,17 @@ export default function EmailManager({ onClose, selectedEmailId }: EmailManagerP
   const filteredEmails = emails.filter(email => {
     const matchesSearch = email.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          email.from.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesAccount = selectedAccount === 'all' || email.account === selectedAccount;
+    
+    // Make account filtering case-insensitive and flexible
+    const matchesAccount = selectedAccount === 'all' || 
+                          email.account.toLowerCase() === selectedAccount.toLowerCase() ||
+                          email.account.toLowerCase().includes(selectedAccount.toLowerCase());
+    
+    // Debug logging
+    if (selectedAccount !== 'all') {
+      console.log(`Filtering debug - Selected: "${selectedAccount}", Email account: "${email.account}", Matches: ${matchesAccount}`);
+    }
+    
     return matchesSearch && matchesAccount;
   });
 
@@ -470,19 +512,37 @@ export default function EmailManager({ onClose, selectedEmailId }: EmailManagerP
                     <div className="flex items-center space-x-2 ml-4">
                       <button
                         onClick={() => replyToEmail(selectedEmail)}
-                        className="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-lg flex items-center space-x-2 transition-colors"
+                        className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg flex items-center space-x-2 transition-colors"
                       >
                         <Reply className="h-4 w-4" />
                         <span>Reply</span>
                       </button>
                       
                       <button
-                        onClick={() => markAsRead(selectedEmail.id)}
-                        className="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-lg flex items-center space-x-2 transition-colors"
+                        onClick={() => forwardEmail(selectedEmail)}
+                        className="bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg flex items-center space-x-2 transition-colors"
                       >
-                        <Eye className="h-4 w-4" />
-                        <span>Mark Read</span>
+                        <Forward className="h-4 w-4" />
+                        <span>Forward</span>
                       </button>
+                      
+                      {selectedEmail.is_read ? (
+                        <button
+                          onClick={() => markAsUnread(selectedEmail.id)}
+                          className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded-lg flex items-center space-x-2 transition-colors"
+                        >
+                          <EyeOff className="h-4 w-4" />
+                          <span>Mark Unread</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => markAsRead(selectedEmail.id)}
+                          className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-2 rounded-lg flex items-center space-x-2 transition-colors"
+                        >
+                          <Eye className="h-4 w-4" />
+                          <span>Mark Read</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

@@ -100,6 +100,9 @@ cors_origins = [
     "https://stream-lineai.com", 
     "https://www.stream-lineai.com",
     "https://server.stream-lineai.com",
+    # Vercel deployment domains
+    "https://automate-business-7w1cnzwpd-wesman687s-projects.vercel.app",
+    "https://automate-dev-seven.vercel.app",
     # Add your current IP
     "http://67.190.222.150",
     "https://67.190.222.150",
@@ -113,17 +116,21 @@ cors_origins = [
 if os.getenv('CORS_ALLOW_ALL', 'false').lower() == 'true':
     cors_origins = ["*"]  # Allow all origins in development
 
-# Custom CORS configuration for IP ranges
+# Custom CORS configuration for IP ranges and Vercel deployments
 def is_allowed_ip_range(origin: str) -> bool:
-    """Check if origin matches allowed IP patterns"""
+    """Check if origin matches allowed IP patterns or Vercel deployment patterns"""
     import re
     # Pattern for your IP range (67.190.222.*)
-    ip_patterns = [
+    allowed_patterns = [
         r"https?://67\.190\.222\.\d+",  # Matches 67.190.222.* 
         r"https?://67\.190\.222\.\d+:\d+",  # With port numbers
+        # Vercel deployment patterns
+        r"https://automate-business.*\.vercel\.app",  # Any automate-business deployment
+        r"https://automate-dev.*\.vercel\.app",  # Any automate-dev deployment
+        r"https://.*-wesman687s-projects\.vercel\.app",  # Any of your Vercel projects
     ]
     
-    for pattern in ip_patterns:
+    for pattern in allowed_patterns:
         if re.match(pattern, origin):
             return True
     return False

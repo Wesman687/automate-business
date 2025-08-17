@@ -62,7 +62,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${tokenToValidate}` // JWT standard
-        }
+        },
+        credentials: 'omit' // IMPORTANT: Prevent browser from sending cookies
       })
       
       console.log('🔑 JWT Validation: Response status:', response.status)
@@ -98,7 +99,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, password }),
+        credentials: 'omit' // IMPORTANT: Prevent browser from sending cookies
       })
 
       if (response.ok) {

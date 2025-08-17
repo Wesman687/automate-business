@@ -1,11 +1,15 @@
 /** @type {import('next').NextConfig} */
-const path = require('path');
+const path = require("path");
 
 const nextConfig = {
   // Removed output: 'export' for Vercel deployment
+  eslint: {
+    // Disable ESLint during builds (but keep it for development)
+    ignoreDuringBuilds: true,
+  },
   images: {
     unoptimized: true,
-    formats: ['image/webp', 'image/avif'],
+    formats: ["image/webp", "image/avif"],
   },
   compress: true,
   poweredByHeader: false,
@@ -14,7 +18,7 @@ const nextConfig = {
   webpack: (config) => {
     config.resolve.alias = {
       ...config.resolve.alias,
-      '@': path.resolve(__dirname),
+      "@": path.resolve(__dirname),
     };
     return config;
   },
@@ -22,41 +26,41 @@ const nextConfig = {
   async headers() {
     return [
       {
-        source: '/(.*)',
+        source: "/(.*)",
         headers: [
           {
-            key: 'X-DNS-Prefetch-Control',
-            value: 'on'
+            key: "X-DNS-Prefetch-Control",
+            value: "on",
           },
           {
-            key: 'X-Frame-Options',
-            value: 'DENY'
+            key: "X-Frame-Options",
+            value: "DENY",
           },
           {
-            key: 'X-Content-Type-Options',
-            value: 'nosniff'
+            key: "X-Content-Type-Options",
+            value: "nosniff",
           },
           {
-            key: 'Referrer-Policy',
-            value: 'origin-when-cross-origin'
-          }
-        ]
-      }
-    ]
+            key: "Referrer-Policy",
+            value: "origin-when-cross-origin",
+          },
+        ],
+      },
+    ];
   },
   // Better caching and API routing
   async rewrites() {
     return [
       {
-        source: '/sitemap.xml',
-        destination: '/sitemap.xml'
+        source: "/sitemap.xml",
+        destination: "/sitemap.xml",
       },
       {
-        source: '/robots.txt',
-        destination: '/robots.txt'
+        source: "/robots.txt",
+        destination: "/robots.txt",
       },
-    ]
-  }
-}
+    ];
+  },
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;

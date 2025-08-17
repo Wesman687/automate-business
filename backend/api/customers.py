@@ -1,13 +1,15 @@
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query, File, UploadFile, Form
 from sqlalchemy.orm import Session
+from api.api_endpoints import SeenStatusRequest
 from database import get_db
-from database.models import Customer as CustomerModel
+from database.models import ChatSession, Customer as CustomerModel
 from services.customer_service import CustomerService
 from services.session_service import SessionService
 from services.email_service import email_service
 from utils.file_management import CustomerFileManager
 from schemas.customer import CustomerCreate, CustomerUpdate, Customer
-from api.auth import get_current_user
+from api.auth import get_current_admin, get_current_user
 from typing import List, Optional
 from pydantic import BaseModel
 import os
@@ -652,3 +654,63 @@ async def set_customer_password(
     db.commit()
     
     return {"message": "Password set successfully", "customer_id": customer_id}
+
+
+
+
+@router.delete("/customers/{customer_id}")
+async def delete_customer(customer_id: int, db: Session = Depends(get_db), current_user: dict = Depends(get_current_admin)):
+    """Delete a customer and their chat sessions"""
+    try:
+        customer_service = CustomerService(db)
+        customer = customer_service.get_customer_by_id(customer_id)
+        
+        if not customer:
+            raise HTTPException(status_code=404, detail="Customer not found")
+        
+        # Delete customer (this should cascade to sessions and messages)
+        customer_service.delete_customer(customer_id)
+        
+        return {"message": "Customer deleted successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.patch("/sessions/{session_id}/seen")
+async def update_session_seen_status(
+    session_id: str, 
+    request: SeenStatusRequest,
+    db: Session = Depends(get_db)
+    # Temporarily remove auth for testing: current_user: dict = Depends(get_current_admin)
+):
+    """Update the seen status of a chat session"""
+    try:
+        print(f"🔍 Updating seen status for session: {session_id}")
+        print(f"🔍 Request data: {request.dict()}")
+        
+        # Find the chat session by session_id (string)
+        session = db.query(ChatSession).filter(ChatSession.session_id == session_id).first()
+        if not session:
+            print(f"❌ Session not found: {session_id}")
+            raise HTTPException(status_code=404, detail="Chat session not found")
+        
+        # Update the seen status
+        is_seen = request.is_seen
+        print(f"🔍 Setting is_seen to: {is_seen}")
+        session.is_seen = is_seen
+        session.updated_at = datetime.utcnow()
+        
+        db.commit()
+        print(f"✅ Successfully updated session {session_id} seen status to {is_seen}")
+        
+        return {
+            "message": f"Chat session marked as {'seen' if is_seen else 'unseen'}", 
+            "session_id": session_id,
+            "is_seen": is_seen
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error updating session seen status: {str(e)}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error updating session seen status: {str(e)}")

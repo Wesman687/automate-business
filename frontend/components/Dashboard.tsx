@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { AlertCircle, Calendar, Clock, MessageSquare, CheckCircle, Users, Briefcase, Mail, X } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { AlertCircle, Calendar, Clock, MessageSquare, Mail } from 'lucide-react';
 import ChangeRequestCard from './ChangeRequestCard';
 import ChangeRequestModal from './ChangeRequestModal';
 import SmartAppointmentModal from './SmartAppointmentModal';
 import EmailManager from './EmailManager';
-import { fetchWithAuth } from '@/lib/api';
+import { api } from '@/lib/https'; // ⬅️ use the shared API helper
 
 interface ChangeRequest {
   id: number;
@@ -41,8 +41,8 @@ interface Appointment {
   customer_email: string;
   title: string;
   description: string;
-  appointment_date: string; // Backend returns date in 'YYYY-MM-DD' format
-  appointment_time: string; // Backend returns time in 'HH:MM:SS' format
+  appointment_date: string; // 'YYYY-MM-DD'
+  appointment_time: string; // 'HH:MM:SS'
   duration_minutes: number;
   meeting_type: string;
   status: string;
@@ -53,31 +53,13 @@ interface Appointment {
 interface ChatLog {
   id: number;
   session_id: string;
-  customer?: {
-    id: number | null;
-    name: string;
-    email: string;
-  };
+  customer?: { id: number | null; name: string; email: string };
   status: string;
   is_seen: boolean;
   created_at: string;
   updated_at: string | null;
   message_count: number;
-  latest_message?: {
-    text: string;
-    timestamp: string;
-    is_bot: boolean;
-  } | null;
-}
-
-interface UnreadEmail {
-  id: string;
-  account: string;
-  from: string;
-  subject: string;
-  received_date: string;
-  preview: string;
-  is_important: boolean;
+  latest_message?: { text: string; timestamp: string; is_bot: boolean } | null;
 }
 
 interface DashboardStats {
@@ -87,202 +69,127 @@ interface DashboardStats {
   unread_emails: number;
 }
 
-export default function UnifiedDashboard() {
+export default function Dashboard() {
   const [changeRequests, setChangeRequests] = useState<ChangeRequest[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [chatLogs, setChatLogs] = useState<ChatLog[]>([]);
-    const [unreadEmails, setUnreadEmails] = useState<any[]>([]);
+  const [unreadEmails, setUnreadEmails] = useState<any[]>([]);
   const [showEmailManager, setShowEmailManager] = useState(false);
   const [selectedEmailId, setSelectedEmailId] = useState<string | undefined>();
-  
-  const markChatLogAsSeen = async (sessionId: number) => {
-    try {
-      const token = localStorage.getItem('admin_token');
-      if (!token) {
-        console.error('🔑 Dashboard: No JWT token for mark as seen');
-        return;
-      }
-      
-      const response = await fetch(`https://server.stream-lineai.com/api/admin/chat-logs/${sessionId}/mark-seen`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      });
 
-      if (response.ok) {
-        // Remove the chat log from the list and update stats
-        setChatLogs(prev => prev.filter(log => log.id !== sessionId));
-        setStats(prev => ({
-          ...prev,
-          new_chat_logs: Math.max(0, prev.new_chat_logs - 1)
-        }));
-      }
-    } catch (error) {
-      console.error('Failed to mark chat log as seen:', error);
-    }
-  };
   const [stats, setStats] = useState<DashboardStats>({
     pending_change_requests: 0,
     new_chat_logs: 0,
     upcoming_appointments: 0,
-    unread_emails: 0
+    unread_emails: 0,
   });
+
   const [loading, setLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState<ChangeRequest | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [activeTab, setActiveTab] = useState('overview');
-  
-  // Appointment modal state
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
 
   useEffect(() => {
     fetchDashboardData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchDashboardData = async () => {
+    setLoading(true);
     try {
-      const serverBaseUrl = 'https://server.stream-lineai.com';
-      
-      // Get JWT token from localStorage for direct server calls
-      const token = localStorage.getItem('admin_token');
-      if (!token) {
-        console.error('🔑 Dashboard: No JWT token found');
-        setLoading(false);
-        return;
-      }
-      
-      console.log('🔑 Dashboard: Making API calls with JWT token...');
-      
-      // All endpoints now use direct server calls with JWT
-      const authHeaders = {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      };
-      
-      // Fetch all dashboard data using direct server calls with JWT
-      const [overviewRes, requestsRes, appointmentsRes, chatLogsRes, emailsRes] = await Promise.all([
-        fetch(`${serverBaseUrl}/api/admin/overview`, { headers: authHeaders }),
-        fetch(`${serverBaseUrl}/api/admin/change-requests`, { headers: authHeaders }),
-        fetch(`${serverBaseUrl}/api/appointments?upcoming=true`, { headers: authHeaders }),
-        fetch(`${serverBaseUrl}/api/sessions`, { headers: authHeaders }),
-        fetch(`${serverBaseUrl}/api/admin/emails/unread`, { headers: authHeaders })
-      ]);
+      const [overviewR, requestsR, appointmentsR, sessionsR, emailsR] =
+        await Promise.allSettled([
+          api.get<any>('/admin/overview'),
+          api.get<{ change_requests: ChangeRequest[] }>('/admin/change-requests'),
+          api.get<Appointment[]>('/appointments?upcoming=true'),
+          api.get<ChatLog[]>('/sessions'),
+          api.get<{ emails: any[]; count?: number }>('/admin/emails/unread'),
+        ]);
 
-      if (overviewRes.ok) {
-        const overviewData = await overviewRes.json();
-        const overviewStats = overviewData.stats || {
-          pending_change_requests: 0,
-          new_chat_logs: 0,
-          upcoming_appointments: 0,
-          unread_emails: 0
-        };
-        
-        setStats(overviewStats);
-      } else {
-        console.error('❌ Overview API error:', overviewRes.status, await overviewRes.text());
+      // Overview / stats
+      if (overviewR.status === 'fulfilled' && overviewR.value) {
+        const s =
+          overviewR.value.stats ?? {
+            pending_change_requests: 0,
+            new_chat_logs: 0,
+            upcoming_appointments: 0,
+            unread_emails: 0,
+          };
+        setStats((prev) => ({ ...prev, ...s }));
       }
 
-      if (requestsRes.ok) {
-        const requestsData = await requestsRes.json();
-        setChangeRequests(requestsData.change_requests || []);
+      // Change requests
+      if (requestsR.status === 'fulfilled') {
+        setChangeRequests(requestsR.value.change_requests || []);
       }
 
-      if (appointmentsRes.ok) {
-        const appointmentsData = await appointmentsRes.json();
-        const appointmentsList = Array.isArray(appointmentsData) ? appointmentsData : [];
-        setAppointments(appointmentsList);
-        
-        // Calculate upcoming appointments count for stats
-        const upcomingCount = appointmentsList.filter(apt => {
+      // Appointments + compute upcoming count
+      if (appointmentsR.status === 'fulfilled') {
+        const list = Array.isArray(appointmentsR.value) ? appointmentsR.value : [];
+        setAppointments(list);
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const upcomingCount = list.filter((apt) => {
           try {
-            // Combine appointment_date and appointment_time to create a proper datetime
-            const dateTimeString = apt.appointment_time 
-              ? `${apt.appointment_date}T${apt.appointment_time}` 
+            const dateTimeString = apt.appointment_time
+              ? `${apt.appointment_date}T${apt.appointment_time}`
               : `${apt.appointment_date}T00:00:00`;
-            const aptDate = new Date(dateTimeString);
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const isValid = !isNaN(aptDate.getTime());
-            const isUpcoming = aptDate >= today;
-            
-            return isValid && isUpcoming;
-          } catch (error) {
-            console.error('Error parsing appointment date:', apt.appointment_date, apt.appointment_time, error);
+            const d = new Date(dateTimeString);
+            return !isNaN(d.getTime()) && d >= today;
+          } catch {
             return false;
           }
         }).length;
-        
-        // Update stats with correct upcoming appointments count
-        setStats(prev => ({
-          ...prev,
-          upcoming_appointments: upcomingCount
-        }));
+
+        setStats((prev) => ({ ...prev, upcoming_appointments: upcomingCount }));
       }
 
-      if (chatLogsRes.ok) {
-        const chatLogsData = await chatLogsRes.json();
-        // Filter for only unseen chat logs
-        const unseenLogs = Array.isArray(chatLogsData) ? chatLogsData.filter(log => !log.is_seen) : [];
-        setChatLogs(unseenLogs);
-        // Update stats with unseen count
-        setStats(prev => ({
-          ...prev,
-          new_chat_logs: unseenLogs.length
-        }));
-      } else {
-        console.error('❌ Chat logs API error:', chatLogsRes.status, await chatLogsRes.text());
+      // Chat logs (only unseen here)
+      if (sessionsR.status === 'fulfilled') {
+        const unseen = Array.isArray(sessionsR.value)
+          ? sessionsR.value.filter((l) => !l.is_seen)
+          : [];
+        setChatLogs(unseen);
+        setStats((prev) => ({ ...prev, new_chat_logs: unseen.length }));
       }
 
-      if (emailsRes.ok) {
-        const emailsData = await emailsRes.json();
-        setUnreadEmails(emailsData.emails || []);
-        // Update email count in stats
-        setStats(prev => ({
+      // Emails
+      if (emailsR.status === 'fulfilled') {
+        setUnreadEmails(emailsR.value.emails || []);
+        setStats((prev) => ({
           ...prev,
-          unread_emails: emailsData.count || emailsData.emails?.length || 0
+          unread_emails: emailsR.value.count ?? emailsR.value.emails?.length ?? 0,
         }));
-      } else {
-        // If email fetching fails, set empty array
-        console.warn('Email fetching failed');
-        setUnreadEmails([]);
       }
-
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
+    } catch (e) {
+      console.error('Dashboard fetch error:', e);
     } finally {
       setLoading(false);
     }
   };
 
+  const markChatLogAsSeen = async (sessionId: number) => {
+    try {
+      await api.put(`/admin/chat-logs/${sessionId}/mark-seen`);
+      setChatLogs((prev) => prev.filter((l) => l.id !== sessionId));
+      setStats((prev) => ({ ...prev, new_chat_logs: Math.max(0, prev.new_chat_logs - 1) }));
+    } catch (e) {
+      console.error('Failed to mark chat log as seen:', e);
+    }
+  };
+
   const updateChangeRequestStatus = async (requestId: number, newStatus: string) => {
     try {
-      const token = localStorage.getItem('admin_token');
-      if (!token) {
-        console.error('🔑 Dashboard: No JWT token for update status');
-        return;
-      }
-      
-      const response = await fetch(`https://server.stream-lineai.com/api/admin/change-requests/${requestId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ status: newStatus })
-      });
-
-      if (response.ok) {
-        // Refresh the change requests
-        setChangeRequests(prev => prev.map(req => 
-          req.id === requestId ? { ...req, status: newStatus as any } : req
-        ));
-      }
-    } catch (error) {
-      console.error('Error updating change request:', error);
+      await api.put(`/admin/change-requests/${requestId}`, { status: newStatus });
+      setChangeRequests((prev) =>
+        prev.map((r) => (r.id === requestId ? { ...r, status: newStatus as any } : r))
+      );
+    } catch (e) {
+      console.error('Error updating change request:', e);
     }
   };
 
@@ -291,109 +198,59 @@ export default function UnifiedDashboard() {
     setShowEditModal(true);
   };
 
-  const handleSaveRequest = async (updatedRequest: Partial<ChangeRequest>) => {
+  const handleSaveRequest = async (updated: Partial<ChangeRequest>) => {
     try {
-      const token = localStorage.getItem('admin_token');
-      if (!token) {
-        console.error('🔑 Dashboard: No JWT token for save request');
-        return;
-      }
-      
-      const response = await fetch(`https://server.stream-lineai.com/api/admin/change-requests/${updatedRequest.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(updatedRequest)
-      });
-
-      if (response.ok) {
-        // Refresh the change requests
-        setChangeRequests(prev => prev.map(req => 
-          req.id === updatedRequest.id ? { ...req, ...updatedRequest } : req
-        ));
-      }
-    } catch (error) {
-      console.error('Error saving change request:', error);
-      throw error;
+      await api.put(`/admin/change-requests/${updated.id}`, updated);
+      setChangeRequests((prev) => prev.map((r) => (r.id === updated.id ? { ...r, ...updated } : r)));
+    } catch (e) {
+      console.error('Error saving change request:', e);
+      throw e;
     }
   };
 
-  // Appointment handlers
   const handleEditAppointment = (appointment: Appointment) => {
     setEditingAppointment(appointment);
     setShowAppointmentModal(true);
   };
 
-  const handleAppointmentSave = async (appointmentData: any) => {
+  const handleAppointmentSave = async () => {
     try {
-      await fetchDashboardData(); // Refresh the dashboard data
+      await fetchDashboardData();
       setShowAppointmentModal(false);
       setEditingAppointment(null);
-    } catch (error) {
-      console.error('Error handling appointment save:', error);
+    } catch (e) {
+      console.error('Error handling appointment save:', e);
     }
   };
 
   const handleCancelAppointment = async (appointmentId: number) => {
-    if (!confirm('Are you sure you want to cancel this appointment?')) {
-      return;
-    }
-
+    if (!confirm('Are you sure you want to cancel this appointment?')) return;
     try {
-      const token = localStorage.getItem('admin_token');
-      if (!token) {
-        console.error('🔑 Dashboard: No JWT token for cancel appointment');
-        return;
-      }
-      
-      const response = await fetch(`https://server.stream-lineai.com/api/appointments/${appointmentId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ status: 'cancelled' })
-      });
-
-      if (response.ok) {
-        // Refresh the appointments
-        await fetchDashboardData();
-      } else {
-        alert('Failed to cancel appointment');
-      }
-    } catch (error) {
-      console.error('Error canceling appointment:', error);
+      await api.put(`/appointments/${appointmentId}`, { status: 'cancelled' });
+      await fetchDashboardData();
+    } catch (e) {
+      console.error('Error canceling appointment:', e);
       alert('Failed to cancel appointment');
     }
   };
 
-  const pendingRequests = changeRequests.filter(req => req.status === 'pending');
-  const inProgressRequests = changeRequests.filter(req => req.status === 'in_progress');
-  // Since we're already fetching only unseen chat logs from the API, we don't need to filter them again
+  const pendingRequests = changeRequests.filter((r) => r.status === 'pending');
+  const inProgressRequests = changeRequests.filter((r) => r.status === 'in_progress');
   const newChatLogs = chatLogs;
-  
-  // Filter upcoming appointments (today and future) with better date parsing
-  const upcomingAppointments = appointments.filter(apt => {
+
+  const upcomingAppointments = appointments.filter((apt) => {
     try {
-      // Combine appointment_date and appointment_time to create a proper datetime
-      const dateTimeString = apt.appointment_time 
-        ? `${apt.appointment_date}T${apt.appointment_time}` 
+      const dateTimeString = apt.appointment_time
+        ? `${apt.appointment_date}T${apt.appointment_time}`
         : `${apt.appointment_date}T00:00:00`;
-      const aptDate = new Date(dateTimeString);
+      const d = new Date(dateTimeString);
       const today = new Date();
-      today.setHours(0, 0, 0, 0); // Reset time to start of day for comparison
-      
-      // Check if date is valid and is today or in the future
-      return !isNaN(aptDate.getTime()) && aptDate >= today;
-    } catch (error) {
-      console.error('Error parsing appointment date:', apt.appointment_date, apt.appointment_time, error);
+      today.setHours(0, 0, 0, 0);
+      return !isNaN(d.getTime()) && d >= today;
+    } catch {
       return false;
     }
   });
-  
-  const importantEmails = unreadEmails.filter(email => email.is_important);
 
   if (loading) {
     return (
@@ -405,7 +262,7 @@ export default function UnifiedDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Stats Overview */}
+      {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-6">
           <div className="flex items-center">
@@ -437,7 +294,7 @@ export default function UnifiedDashboard() {
           </div>
         </div>
 
-        <div 
+        <div
           onClick={() => setShowEmailManager(true)}
           className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-6 cursor-pointer hover:bg-white/10 transition-colors"
         >
@@ -451,9 +308,8 @@ export default function UnifiedDashboard() {
         </div>
       </div>
 
-      {/* Priority Items */}
+      {/* Pending Change Requests */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Pending Change Requests */}
         <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-white flex items-center">
@@ -464,16 +320,16 @@ export default function UnifiedDashboard() {
               {pendingRequests.length}
             </span>
           </div>
-          
+
           <div className="space-y-3 max-h-96 overflow-y-auto">
             {pendingRequests.length === 0 ? (
               <p className="text-gray-400 text-sm">No pending change requests</p>
             ) : (
-              pendingRequests.map(request => (
+              pendingRequests.map((req) => (
                 <ChangeRequestCard
-                  key={request.id}
-                  request={request}
-                  showJobInfo={true}
+                  key={req.id}
+                  request={req}
+                  showJobInfo
                   onStatusUpdate={updateChangeRequestStatus}
                   onEdit={handleEditRequest}
                 />
@@ -482,7 +338,7 @@ export default function UnifiedDashboard() {
           </div>
         </div>
 
-        {/* New Chat Logs */}
+        {/* Unseen Chat Logs */}
         <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-white flex items-center">
@@ -493,43 +349,39 @@ export default function UnifiedDashboard() {
               {newChatLogs.length}
             </span>
           </div>
-          
+
           <div className="space-y-3 max-h-96 overflow-y-auto">
             {newChatLogs.length === 0 ? (
               <p className="text-gray-400 text-sm">No unseen chat logs</p>
             ) : (
-              newChatLogs.map(log => (
+              newChatLogs.map((log) => (
                 <div key={log.id} className="border border-white/10 rounded-lg p-4 bg-white/5">
                   <div className="flex items-center justify-between mb-2">
                     <div>
-                      <h3 className="font-medium text-white">
-                        {log.customer?.name || 'Anonymous'}
-                      </h3>
+                      <h3 className="font-medium text-white">{log.customer?.name || 'Anonymous'}</h3>
                       <p className="text-sm text-gray-300">{log.customer?.email || 'Unknown'}</p>
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-medium text-white">
                         {new Date(log.created_at).toLocaleTimeString('en-US', {
                           hour: '2-digit',
-                          minute: '2-digit'
+                          minute: '2-digit',
                         })}
                       </p>
                       <p className="text-xs text-gray-400">{log.message_count} messages</p>
                     </div>
                   </div>
                   {log.latest_message && (
-                    <p className="text-sm text-gray-300 truncate mb-2">
-                      {log.latest_message.text}
-                    </p>
+                    <p className="text-sm text-gray-300 truncate mb-2">{log.latest_message.text}</p>
                   )}
                   <div className="mt-2 flex justify-between items-center">
-                    <button 
+                    <button
                       onClick={() => markChatLogAsSeen(log.id)}
                       className="text-xs bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded font-medium transition-colors"
                     >
                       Mark as Seen
                     </button>
-                    <button 
+                    <button
                       onClick={() => window.open(`/admin/chat-logs/${log.session_id}`, '_blank')}
                       className="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors"
                     >
@@ -543,9 +395,9 @@ export default function UnifiedDashboard() {
         </div>
       </div>
 
-      {/* Secondary Items */}
+      {/* Upcoming Appointments & Unread Emails */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Upcoming Appointments */}
+        {/* Appointments */}
         <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-white flex items-center">
@@ -556,34 +408,33 @@ export default function UnifiedDashboard() {
               {upcomingAppointments.length}
             </span>
           </div>
-          
+
           <div className="space-y-3 max-h-96 overflow-y-auto">
             {upcomingAppointments.length === 0 ? (
               <p className="text-gray-400 text-sm">No upcoming appointments</p>
             ) : (
-              upcomingAppointments.map(appointment => (
-                <div 
-                  key={appointment.id} 
+              upcomingAppointments.map((apt) => (
+                <div
+                  key={apt.id}
                   className="border border-white/10 rounded-lg p-4 bg-white/5 hover:bg-white/10 transition-colors"
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div>
-                      <h3 className="font-medium text-white">{appointment.customer_name}</h3>
-                      <p className="text-sm text-gray-300">{appointment.meeting_type}</p>
+                      <h3 className="font-medium text-white">{apt.customer_name}</h3>
+                      <p className="text-sm text-gray-300">{apt.meeting_type}</p>
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-medium text-white">
                         {(() => {
                           try {
-                            const dateTimeString = appointment.appointment_time 
-                              ? `${appointment.appointment_date}T${appointment.appointment_time}` 
-                              : `${appointment.appointment_date}T00:00:00`;
-                            const date = new Date(dateTimeString);
-                            return isNaN(date.getTime()) ? 'Invalid Date' : date.toLocaleDateString('en-US', {
-                              month: 'short',
-                              day: 'numeric'
-                            });
-                          } catch (error) {
+                            const s = apt.appointment_time
+                              ? `${apt.appointment_date}T${apt.appointment_time}`
+                              : `${apt.appointment_date}T00:00:00`;
+                            const d = new Date(s);
+                            return isNaN(d.getTime())
+                              ? 'Invalid Date'
+                              : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                          } catch {
                             return 'Invalid Date';
                           }
                         })()}
@@ -591,15 +442,14 @@ export default function UnifiedDashboard() {
                       <p className="text-xs text-gray-400">
                         {(() => {
                           try {
-                            const dateTimeString = appointment.appointment_time 
-                              ? `${appointment.appointment_date}T${appointment.appointment_time}` 
-                              : `${appointment.appointment_date}T00:00:00`;
-                            const date = new Date(dateTimeString);
-                            return isNaN(date.getTime()) ? 'Invalid Time' : date.toLocaleTimeString('en-US', {
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            });
-                          } catch (error) {
+                            const s = apt.appointment_time
+                              ? `${apt.appointment_date}T${apt.appointment_time}`
+                              : `${apt.appointment_date}T00:00:00`;
+                            const d = new Date(s);
+                            return isNaN(d.getTime())
+                              ? 'Invalid Time'
+                              : d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                          } catch {
                             return 'Invalid Time';
                           }
                         })()}
@@ -607,24 +457,26 @@ export default function UnifiedDashboard() {
                     </div>
                   </div>
                   <div className="flex items-center justify-between mb-3">
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      appointment.status === 'confirmed' 
-                        ? 'bg-green-400/20 text-green-300' 
-                        : 'bg-yellow-400/20 text-yellow-300'
-                    }`}>
-                      {appointment.status}
+                    <span
+                      className={`px-2 py-1 text-xs font-medium rounded-full ${
+                        apt.status === 'confirmed'
+                          ? 'bg-green-400/20 text-green-300'
+                          : 'bg-yellow-400/20 text-yellow-300'
+                      }`}
+                    >
+                      {apt.status}
                     </span>
-                    <span className="text-xs text-gray-400">{appointment.duration_minutes} min</span>
+                    <span className="text-xs text-gray-400">{apt.duration_minutes} min</span>
                   </div>
                   <div className="flex gap-2 mt-2">
-                    <button 
-                      onClick={() => handleEditAppointment(appointment)}
+                    <button
+                      onClick={() => handleEditAppointment(apt)}
                       className="text-xs bg-blue-600/80 hover:bg-blue-600 text-white px-6 py-1 rounded text-center font-medium transition-colors"
                     >
                       Edit
                     </button>
-                    <button 
-                      onClick={() => handleCancelAppointment(appointment.id)}
+                    <button
+                      onClick={() => handleCancelAppointment(apt.id)}
                       className="text-xs bg-red-600/80 hover:bg-red-600 text-white px-4 py-1 rounded font-medium transition-colors"
                     >
                       Cancel
@@ -656,14 +508,14 @@ export default function UnifiedDashboard() {
               </button>
             </div>
           </div>
-          
+
           <div className="space-y-3 max-h-96 overflow-y-auto">
             {unreadEmails.length === 0 ? (
               <p className="text-gray-400 text-sm">No unread emails</p>
             ) : (
-              unreadEmails.map(email => (
-                <div 
-                  key={email.id} 
+              unreadEmails.map((email) => (
+                <div
+                  key={email.id}
                   onClick={() => {
                     setSelectedEmailId(email.id);
                     setShowEmailManager(true);
@@ -686,7 +538,7 @@ export default function UnifiedDashboard() {
                       <p className="text-xs text-gray-400">
                         {new Date(email.received_date).toLocaleDateString('en-US', {
                           month: 'short',
-                          day: 'numeric'
+                          day: 'numeric',
                         })}
                       </p>
                       <span className="text-xs bg-white/10 text-gray-300 px-2 py-1 rounded">
@@ -702,7 +554,7 @@ export default function UnifiedDashboard() {
         </div>
       </div>
 
-      {/* In Progress Items */}
+      {/* In Progress */}
       {inProgressRequests.length > 0 && (
         <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-6">
           <div className="flex items-center justify-between mb-4">
@@ -710,17 +562,17 @@ export default function UnifiedDashboard() {
               <Clock className="h-5 w-5 text-blue-400 mr-2" />
               In Progress Change Requests
             </h2>
-          <span className="bg-blue-400/20 text-blue-300 text-xs font-medium px-2.5 py-0.5 rounded-full">
+            <span className="bg-blue-400/20 text-blue-300 text-xs font-medium px-2.5 py-0.5 rounded-full">
               {inProgressRequests.length}
             </span>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {inProgressRequests.map(request => (
+            {inProgressRequests.map((req) => (
               <ChangeRequestCard
-                key={request.id}
-                request={request}
-                showJobInfo={true}
+                key={req.id}
+                request={req}
+                showJobInfo
                 onStatusUpdate={updateChangeRequestStatus}
                 onEdit={handleEditRequest}
               />
@@ -729,7 +581,7 @@ export default function UnifiedDashboard() {
         </div>
       )}
 
-      {/* Edit Change Request Modal */}
+      {/* Modals */}
       <ChangeRequestModal
         request={selectedRequest}
         isOpen={showEditModal}
@@ -740,7 +592,6 @@ export default function UnifiedDashboard() {
         onSave={handleSaveRequest}
       />
 
-      {/* Edit Appointment Modal */}
       <SmartAppointmentModal
         isOpen={showAppointmentModal}
         onClose={() => {
@@ -751,9 +602,9 @@ export default function UnifiedDashboard() {
         appointment={editingAppointment}
       />
 
-      {/* Email Manager - TEMPORARILY DISABLED to stop cookie spam */}
+      {/* Email Manager (toggle when ready) */}
       {false && showEmailManager && (
-        <EmailManager 
+        <EmailManager
           selectedEmailId={selectedEmailId}
           onClose={() => {
             setShowEmailManager(false);

@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import {
   MessageSquare, Users, Calendar, UserCog, LogOut, BarChart3, DollarSign, Briefcase
 } from 'lucide-react';
-import { useAuthGuard } from '@/hooks/useAuthGuard';
+import { useAuth } from '@/hooks/useAuth';
 
 type User = {
   email: string;
@@ -17,7 +17,7 @@ type User = {
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   // Single source of truth for auth
-  const { user, loading } = useAuthGuard({ requireAdmin: true }) as { user: User | null; loading: boolean };
+  const { user, loading } = useAuth() as { user: User | null; loading: boolean };
 
   const router = useRouter();
   const pathname = usePathname();
@@ -53,7 +53,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     );
   }
 
-  if (!user) return null; // hook/middleware will redirect
+  if (!user || !user.is_admin) return null; // hook/middleware will redirect
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">

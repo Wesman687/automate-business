@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Plus, Edit, Trash2, Shield, User, Crown } from 'lucide-react';
-import { fetchWithAuth } from '@/lib/api';
+import { api } from '@/lib/https';
 
 interface Admin {
   id: number;
@@ -32,7 +32,7 @@ export default function AdminUsers() {
 
   const fetchCurrentUser = async () => {
     try {
-      const response = await fetchWithAuth('/auth/me');
+      const response = await api.get('/auth/me');
       if (response.ok) {
         const data = await response.json();
         // Map the response to match our interface expectations
@@ -49,7 +49,7 @@ export default function AdminUsers() {
 
   const fetchAdmins = async () => {
     try {
-      const response = await fetchWithAuth('/auth/admins');
+      const response = await api.get('/auth/admins');
 
       if (response.ok) {
         const data = await response.json();
@@ -71,12 +71,8 @@ export default function AdminUsers() {
 
   const createAdmin = async (formData: { email: string; password: string; full_name: string; phone: string; address: string }) => {
     try {
-      const response = await fetchWithAuth('/auth/create-admin', {
-        method: 'POST',
-        body: JSON.stringify(formData),
-      });
-
-      const result = await response.json();
+const response = await api.post('/auth/create-admin', formData);
+const result = await response.json();
 
       if (response.ok) {
         showMessageToUser('Admin created successfully!', 'success');
@@ -94,10 +90,8 @@ export default function AdminUsers() {
     if (!editingAdmin) return;
 
     try {
-      const response = await fetchWithAuth(`/auth/admins/${editingAdmin.id}`, {
-        method: 'PUT',
-        body: JSON.stringify(formData),
-      });
+      const response = await api.put(`/auth/admins/${editingAdmin.id}`, formData)
+
 
       const result = await response.json();
 
@@ -120,9 +114,7 @@ export default function AdminUsers() {
     }
 
     try {
-      const response = await fetchWithAuth(`/auth/admins/${adminId}`, {
-        method: 'DELETE',
-      });
+      const response = await api.del(`/auth/admins/${adminId}`);
 
       const result = await response.json();
 
@@ -137,51 +129,51 @@ export default function AdminUsers() {
     }
   };
 
-  const makeSuperAdmin = async (adminId: number) => {
-    if (!window.confirm('Are you sure you want to make this admin a super admin? This will give them full administrative privileges.')) {
-      return;
+const removeSuperAdmin = async (adminId: number) => {
+  if (!window.confirm('Are you sure you want to remove super admin status from this admin?')) {
+    return;
+  }
+
+  try {
+    // HITS: /api/auth/admins/:id/remove-super-admin (Next proxy)
+    // FORWARDS TO: https://server.stream-lineai.com/auth/admins/:id/remove-super-admin
+    await api.post(`/auth/admins/${adminId}/remove-super-admin`);
+
+    showMessageToUser('Super admin status removed successfully!', 'success');
+    fetchAdmins();
+  } catch (err: any) {
+    // http() in lib/https.ts throws with message like "401 Unauthorized" or "404 Not Found"
+    const msg = err?.message || 'Error removing super admin status';
+    showMessageToUser(msg, 'error');
+
+    // Optional: handle auth expiry
+    if (msg.startsWith('401')) {
+      // e.g. refresh auth context or kick to login
+      // router.replace('/portal');
     }
+  }
+};
+const makeSuperAdmin = async (adminId: number) => {
+  if (!window.confirm('Are you sure you want to make this admin a super admin?')) {
+    return;
+  }
+  try {
+    // HITS: /api/auth/admins/:id/make-super-admin (Next proxy)
+    // FORWARDS TO: https://server.stream-lineai.com/auth/admins/:id/make-super-admin
+    await api.post(`/auth/admins/${adminId}/make-super-admin`);
 
-    try {
-      const response = await fetchWithAuth(`/auth/admins/${adminId}/make-super-admin`, {
-        method: 'POST',
-      });
+    showMessageToUser('Admin promoted to super admin successfully!', 'success');
+    fetchAdmins();
+  } catch (err: any) {
+    // http() in lib/https.ts throws with message like "401 Unauthorized" or "404 Not Found"
+    const msg = err?.message || 'Error promoting admin to super admin';
+    showMessageToUser(msg, 'error');
 
-      const result = await response.json();
 
-      if (response.ok) {
-        showMessageToUser('Admin promoted to super admin successfully!', 'success');
-        fetchAdmins();
-      } else {
-        showMessageToUser(result.detail || 'Error promoting admin', 'error');
-      }
-    } catch (error) {
-      showMessageToUser('Network error: ' + (error as Error).message, 'error');
-    }
-  };
+  }
+}
 
-  const removeSuperAdmin = async (adminId: number) => {
-    if (!window.confirm('Are you sure you want to remove super admin status from this admin?')) {
-      return;
-    }
 
-    try {
-      const response = await fetchWithAuth(`/auth/admins/${adminId}/remove-super-admin`, {
-        method: 'POST',
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        showMessageToUser('Super admin status removed successfully!', 'success');
-        fetchAdmins();
-      } else {
-        showMessageToUser(result.detail || 'Error removing super admin status', 'error');
-      }
-    } catch (error) {
-      showMessageToUser('Network error: ' + (error as Error).message, 'error');
-    }
-  };
 
   const handleCreateAdmin = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

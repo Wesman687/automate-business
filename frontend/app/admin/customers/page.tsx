@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Plus, Edit, Trash2, Eye, MessageSquare, Search, Filter, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
-import { fetchWithAuth } from '@/lib/api';
+import { api } from '@/lib/https'
 import EditCustomerModal from '@/components/EditCustomerModal';
 
 interface Customer {
@@ -37,84 +37,58 @@ export default function Customers() {
     fetchCustomers();
   }, []);
 
-  const fetchCustomers = async () => {
-    try {
-      const response = await fetchWithAuth('/api/customers');
+const fetchCustomers = async () => {
+  try {
+    const data = await api.get<Customer[]>('/customers'); // parsed JSON already
+    setCustomers(data);
+  } catch (error) {
+    console.error('Error fetching customers:', error);
+  } finally {
+    setLoading(false);
+  }
+};
 
-      if (response.ok) {
-        const data = await response.json();
-        setCustomers(data);
-      } else {
-        console.error('Failed to fetch customers');
-      }
-    } catch (error) {
-      console.error('Error fetching customers:', error);
-    } finally {
-      setLoading(false);
+const deleteCustomer = async (customerId: number) => {
+  if (!window.confirm('Are you sure you want to delete this customer? This action cannot be undone.')) {
+    return;
+  }
+
+  try {
+    await api.del(`/customers/${customerId}`); // throws on error
+    setCustomers(prev => prev.filter(c => c.id !== customerId));
+  } catch (error) {
+    console.error('Error deleting customer:', error);
+    alert('Error deleting customer');
+  }
+};
+
+const updateCustomer = async (
+  customerData: Partial<Customer>,
+  passwordData?: { password: string }
+) => {
+  if (!editingCustomer) return;
+
+  try {
+    // 1) Optional password change
+    if (passwordData?.password) {
+      await api.post(`/customers/${editingCustomer.id}/set-password`, {
+        password: passwordData.password,
+      }); // throws if not OK
     }
-  };
 
-  const deleteCustomer = async (customerId: number) => {
-    if (!window.confirm('Are you sure you want to delete this customer? This action cannot be undone.')) {
-      return;
-    }
+    // 2) Update customer details
+    const updated = await api.put<Customer>(`/customers/${editingCustomer.id}`, customerData);
 
-    try {
-      const response = await fetchWithAuth(`/api/customers/${customerId}`, {
-        method: 'DELETE',
-      });
+    // Update local list without a full refetch (or keep your fetchCustomers() if you prefer)
+    setCustomers(prev => prev.map(c => (c.id === updated.id ? updated : c)));
 
-      if (response.ok) {
-        setCustomers(customers.filter(c => c.id !== customerId));
-      } else {
-        alert('Error deleting customer');
-      }
-    } catch (error) {
-      console.error('Error deleting customer:', error);
-      alert('Error deleting customer');
-    }
-  };
-
-  const editCustomer = (customer: Customer) => {
-    setEditingCustomer(customer);
-    setShowEditModal(true);
-  };
-
-  const updateCustomer = async (customerData: Partial<Customer>, passwordData?: { password: string }) => {
-    if (!editingCustomer) return;
-
-    try {
-      // If password change is requested, handle it separately first
-      if (passwordData?.password) {
-        const passwordResponse = await fetchWithAuth(`/api/customers/${editingCustomer.id}/set-password`, {
-          method: 'POST',
-          body: JSON.stringify({ password: passwordData.password })
-        });
-
-        if (!passwordResponse.ok) {
-          alert('Error updating password');
-          return;
-        }
-      }
-
-      // Update customer data
-      const response = await fetchWithAuth(`/api/customers/${editingCustomer.id}`, {
-        method: 'PUT',
-        body: JSON.stringify(customerData),
-      });
-
-      if (response.ok) {
-        await fetchCustomers(); // Refresh the list
-        setShowEditModal(false);
-        setEditingCustomer(null);
-      } else {
-        alert('Error updating customer');
-      }
-    } catch (error) {
-      console.error('Error updating customer:', error);
-      alert('Error updating customer');
-    }
-  };
+    setShowEditModal(false);
+    setEditingCustomer(null);
+  } catch (error) {
+    console.error('Error updating customer:', error);
+    alert('Error updating customer');
+  }
+};
 
   const filteredCustomers = customers.filter(customer => {
     const matchesSearch = !searchTerm || 

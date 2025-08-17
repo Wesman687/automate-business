@@ -151,7 +151,7 @@ export default function Portal() {
             </div>
             <p className="text-xs text-gray-500 mt-3 text-center">
               Use your email and password to access your dashboard. 
-              You'll be automatically redirected to the appropriate area.
+              You willll be automatically redirected to the appropriate area.
             </p>
           </div>
         </div>

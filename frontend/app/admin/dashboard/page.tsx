@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import UnifiedDashboard from '../../../components/UnifiedDashboard';
+import Dashboard from '@/components/Dashboard';
 
 export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
@@ -15,5 +15,6 @@ export default function DashboardPage() {
     );
   }
 
-  return <UnifiedDashboard />;
+  return <Dashboard />;
+
 }

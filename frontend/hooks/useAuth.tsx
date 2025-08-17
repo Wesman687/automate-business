@@ -1,7 +1,16 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useCallback,
+} from 'react';
 import { getApiUrl } from '@/lib/api';
+import { setTokenGetter, getAuthToken } from '@/lib/authToken'; // ⬅️ import
 
 type User = {
   id?: number;
@@ -16,6 +25,7 @@ type User = {
 type AuthContextType = {
   user: User | null;
   isAuthenticated: boolean;
+  isAdmin: boolean;
   loading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
@@ -29,8 +39,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const verifying = useRef(false);
 
-  // Verify current session using the Next proxy (forwards browser cookies to API)
-  const refresh = async () => {
+  // --- TOKEN WIRING (this is where tokenGetter is used) ---
+  // Keep the JWT in memory; optionally mirror to localStorage
+  const tokenRef = useRef<string | null>(null);
+
+  const setToken = useCallback((t: string | null) => {
+    tokenRef.current = t;
+    // Optional persistence; remove if you want memory-only
+    try {
+      if (t) localStorage.setItem('auth_token', t);
+      else localStorage.removeItem('auth_token');
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    // Tell the HTTP client how to read the current token
+    setTokenGetter(() => tokenRef.current);
+    // Rehydrate on first load (optional)
+    setToken(getAuthToken());
+  }, [setToken]);
+  // --- END TOKEN WIRING ---
+
+  // Verify current session using the Next proxy (forwards cookies to API)
+  const refresh = useCallback(async () => {
     if (verifying.current) return;
     verifying.current = true;
     try {
@@ -45,7 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       verifying.current = false;
     }
-  };
+  }, []);
 
   // On mount, try to restore session
   useEffect(() => {
@@ -58,45 +89,57 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [refresh]);
 
-  // Login: hit API directly so Set-Cookie lands on the API domain (.stream-lineai.com)
-  const login = async (email: string, password: string) => {
-    const apiBase = getApiUrl();
-    const res = await fetch(`${apiBase}/auth/login`, {
-      method: 'POST',
-      credentials: 'include', // <-- receive cookie
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    });
+  // Login: call API directly so Set-Cookie lands on API domain,
+  // and also capture the JWT from the response body for Authorization header usage.
+  const login = useCallback(
+    async (email: string, password: string) => {
+      const apiBase = getApiUrl();
+      const res = await fetch(`${apiBase}/auth/login`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
 
-    if (!res.ok) return false;
+      if (!res.ok) return false;
 
-    // Now verify (via proxy) to fetch the user object and populate context
-    await refresh();
-    return true;
-  };
+      // Capture token from body (your backend returns { token, user, ... })
+      try {
+        const data = await res.json();
+        if (data?.token) setToken(data.token);
+      } catch {
+        // if body is empty or not JSON, ignore
+      }
 
-  // Logout via Next proxy (so Set-Cookie delete header is passed through)
-  const logout = async () => {
+      await refresh();
+      return true;
+    },
+    [refresh, setToken]
+  );
+
+  // Logout via proxy and clear the token
+  const logout = useCallback(async () => {
     try {
       await fetch('/api/logout', { method: 'POST' });
     } finally {
+      setToken(null);
       setUser(null);
     }
-  };
+  }, [setToken]);
 
   const value = useMemo(
     () => ({
       user,
       isAuthenticated: !!user,
+      isAdmin: !!(user && (user.is_admin || user.user_type === 'admin')),
       loading,
       login,
       logout,
       refresh,
     }),
-    [user, loading]
+    [user, loading, login, refresh, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

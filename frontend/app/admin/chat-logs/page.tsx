@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Eye, Trash2, Search, Filter } from 'lucide-react';
 import Link from 'next/link';
-import { fetchWithAuth } from '@/lib/api';
+import { api } from '@/lib/https';
 import ErrorModal from '@/components/ErrorModal';
 
 interface Customer {
@@ -46,7 +46,7 @@ export default function ChatLogs() {
 
   const fetchChatLogs = async () => {
     try {
-      const response = await fetchWithAuth('/api/sessions');
+      const response = await api.get('/sessions');
 
       if (response.ok) {
         const data = await response.json();
@@ -67,9 +67,7 @@ export default function ChatLogs() {
     }
 
     try {
-      const response = await fetchWithAuth(`/api/sessions/${sessionId}`, {
-        method: 'DELETE',
-      });
+      const response = await api.del(`/sessions/${sessionId}`);
 
       if (response.ok) {
         setSessions(sessions.filter(s => s.session_id !== sessionId));
@@ -101,10 +99,8 @@ export default function ChatLogs() {
 
   const toggleSeenStatus = async (sessionId: string, currentSeen: boolean) => {
     try {
-      const response = await fetchWithAuth(`/api/sessions/${sessionId}/seen`, {
-        method: 'PATCH',
-        body: JSON.stringify({ is_seen: !currentSeen }),
-      });
+      const response = await api.put(`/sessions/${sessionId}/seen`, { is_seen: !currentSeen })
+      
 
       if (response.ok) {
         setSessions(sessions.map(s => 

@@ -125,7 +125,7 @@ export default function ContactPage() {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="text-xl text-gray-300 max-w-3xl mx-auto mb-12"
           >
-            Ready to transform your business with AI? Let's discuss your project and 
+            Ready to transform your business with AI? Lets discuss your project and 
             discover how we can help streamline your operations.
           </motion.p>
         </div>
@@ -141,7 +141,7 @@ export default function ContactPage() {
             className="text-center mb-12"
           >
             <h2 className="text-3xl font-bold mb-4">Choose Your Preferred Way to Connect</h2>
-            <p className="text-gray-300">We're here to help you get started quickly</p>
+            <p className="text-gray-300">We are here to help you get started quickly</p>
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
@@ -182,7 +182,7 @@ export default function ContactPage() {
               
               {submitStatus === 'success' && (
                 <div className="bg-green-500/10 border border-green-500/50 rounded-lg p-4 mb-6">
-                  <p className="text-green-400">Thank you! We'll get back to you within 24 hours.</p>
+                  <p className="text-green-400">Thank you! We will get back to you within 24 hours.</p>
                 </div>
               )}
               
@@ -368,7 +368,7 @@ export default function ContactPage() {
                 <p className="text-gray-300">Yes! We provide comprehensive support packages and maintenance plans for all our solutions.</p>
               </div>
               <div className="bg-dark-card border border-gray-800 rounded-lg p-6">
-                <h3 className="font-bold mb-3">What's included in the consultation?</h3>
+                <h3 className="font-bold mb-3">What is included in the consultation?</h3>
                 <p className="text-gray-300">A free 30-minute discussion about your needs, challenges, and how our solutions can help your business.</p>
               </div>
               <div className="bg-dark-card border border-gray-800 rounded-lg p-6">

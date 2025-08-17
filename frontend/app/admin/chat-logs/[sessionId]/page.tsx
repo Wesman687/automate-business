@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, User, Bot, Clock, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
-import { fetchWithAuth } from '@/lib/api';
+import { api } from '@/lib/https';
 import ErrorModal from '@/components/ErrorModal';
 
 interface Customer {
@@ -68,7 +68,7 @@ export default function ChatLogView() {
   const fetchChatLog = async () => {
     try {
       // Fetch session data
-      const sessionResponse = await fetchWithAuth(`/api/sessions/${sessionId}`);
+      const sessionResponse = await api.get(`/sessions/${sessionId}`);
 
       if (!sessionResponse.ok) {
         throw new Error('Session not found');
@@ -79,14 +79,14 @@ export default function ChatLogView() {
       // Fetch customer data if available
       let customer = null;
       if (session.customer_id) {
-        const customerResponse = await fetchWithAuth(`/api/customers/${session.customer_id}`);
+        const customerResponse = await api.get(`/customers/${session.customer_id}`);
         if (customerResponse.ok) {
           customer = await customerResponse.json();
         }
       }
 
       // Fetch messages
-      const messagesResponse = await fetchWithAuth(`/api/sessions/${sessionId}/messages`);
+      const messagesResponse = await api.get(`/sessions/${sessionId}/messages`);
       
       const messages = messagesResponse.ok ? await messagesResponse.json() : [];
 
@@ -103,7 +103,7 @@ export default function ChatLogView() {
     if (!data) return;
     
     try {
-      const response = await fetchWithAuth(`/api/sessions/${sessionId}/seen`, {
+      const response = await api.get(`/sessions/${sessionId}/seen`, {
         method: 'PATCH',
         body: JSON.stringify({ is_seen: !data.session.is_seen }),
       });
@@ -276,7 +276,7 @@ export default function ChatLogView() {
       ) : (
         <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-6">
           <h3 className="text-lg font-semibold text-yellow-400 mb-2">⚠️ No Customer Information</h3>
-          <p className="text-gray-400">This session doesn't have associated customer information yet.</p>
+          <p className="text-gray-400">This session does not have associated customer information yet.</p>
         </div>
       )}
 
@@ -321,7 +321,7 @@ export default function ChatLogView() {
           ) : (
             <div className="text-center py-8">
               <div className="text-gray-400 text-lg">No messages found</div>
-              <div className="text-gray-500 text-sm mt-1">This session doesn't have any recorded messages yet.</div>
+              <div className="text-gray-500 text-sm mt-1">This session does not have any recorded messages yet.</div>
             </div>
           )}
         </div>

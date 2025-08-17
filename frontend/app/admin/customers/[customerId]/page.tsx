@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Edit, Mail, Phone, Building, Globe, Calendar, MessageSquare, DollarSign, Briefcase } from 'lucide-react';
 import Link from 'next/link';
 import EditCustomerModal from '@/components/EditCustomerModal';
-import { fetchWithAuth } from '@/lib/api';
+import { api } from '@/lib/https';
 
 interface Customer {
   id: number;
@@ -154,7 +154,7 @@ export default function CustomerDetail() {
 
   const fetchCustomer = async () => {
     try {
-      const response = await fetchWithAuth(`/api/customers/${customerId}`);
+      const response = await api.get(`/customers/${customerId}`);
 
       if (response.ok) {
         const data = await response.json();
@@ -176,10 +176,8 @@ export default function CustomerDetail() {
     try {
       // If password change is requested, handle it separately first
       if (passwordData?.password) {
-        const passwordResponse = await fetchWithAuth(`/api/customers/${customerId}/set-password`, {
-          method: 'POST',
-          body: JSON.stringify({ password: passwordData.password })
-        });
+        const passwordResponse = await api.post(`/customers/${customerId}/set-password`,{password: passwordData.password })
+        
 
         if (!passwordResponse.ok) {
           throw new Error('Failed to update password');
@@ -187,10 +185,8 @@ export default function CustomerDetail() {
       }
 
       // Update customer data
-      const response = await fetchWithAuth(`/api/customers/${customerId}`, {
-        method: 'PUT',
-        body: JSON.stringify(updatedData)
-      });
+      const response = await api.put(`/customers/${customerId}`,updatedData)
+    
 
       if (response.ok) {
         const updatedCustomer = await response.json();

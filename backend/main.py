@@ -16,8 +16,6 @@ from api.schedule import router as schedule_router
 from api.google_auth import router as google_auth_router
 from api.voice_agent import router as voice_agent_router
 from api.admin_jobs import router as admin_jobs_router
-from api.admin_emails import router as admin_emails_router
-from api.admin_chat_logs import router as admin_chat_logs_router
 from api.auth import get_current_user
 import logging
 import os
@@ -200,8 +198,6 @@ app.include_router(schedule_router)
 app.include_router(google_auth_router)
 app.include_router(voice_agent_router)
 app.include_router(admin_jobs_router)
-app.include_router(admin_emails_router)
-app.include_router(admin_chat_logs_router)
 
 @app.get("/health")
 async def health_check():

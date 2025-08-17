@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { LogOut } from 'lucide-react'
 import { getApiUrl } from '@/lib/api'
-import UnifiedDashboard from '@/components/UnifiedDashboard'
+import Dashboard from '@/components/Dashboard'
 
 export default function AdminPage() {
   const [authLoading, setAuthLoading] = useState(true)
@@ -76,7 +76,7 @@ export default function AdminPage() {
 
       {/* Main Dashboard Content */}
       <div className="container mx-auto px-6 pb-6">
-        <UnifiedDashboard />
+        <Dashboard />
       </div>
     </div>
   )

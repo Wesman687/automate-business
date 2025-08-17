@@ -22,26 +22,17 @@ export const getApiUrl = (): string => {
   }
 };
 
-// Helper function for authenticated API calls using JWT tokens
+// Helper function for authenticated API calls - TEMPORARILY DISABLED
 export const fetchWithAuth = async (endpoint: string, options: RequestInit = {}) => {
-  const apiUrl = getApiUrl();
+  // DISABLED to stop cookie spam - all calls should use JWT directly
+  console.error('🚫 fetchWithAuth DISABLED - Use direct fetch with JWT tokens instead');
+  console.error('� Attempted endpoint:', endpoint);
   
-  // Get JWT token from localStorage
-  const token = localStorage.getItem('admin_token');
-  
-  const headers = {
-    'Content-Type': 'application/json',
-    ...(token && { 'Authorization': `Bearer ${token}` }), // Add JWT token if available
-    ...options.headers,
-  };
-
-  console.log('🔑 fetchWithAuth: Making request to:', `${apiUrl}${endpoint}`);
-  console.log('🔑 fetchWithAuth: Using JWT token:', token ? `${token.substring(0, 20)}...` : 'none');
-
-  return fetch(`${apiUrl}${endpoint}`, {
-    ...options,
-    headers,
-    // Remove credentials: 'include' to avoid cookie-based auth
+  return new Response(JSON.stringify({ 
+    error: 'fetchWithAuth is disabled. Use JWT tokens instead.' 
+  }), { 
+    status: 503,
+    headers: { 'Content-Type': 'application/json' }
   });
 };
 

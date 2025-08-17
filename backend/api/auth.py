@@ -26,7 +26,9 @@ def get_current_user(authorization: str = Header(None), request: Request = None,
                 request.cookies.get('admin_token') or 
                 request.cookies.get('customer_token') or
                 request.cookies.get('backup_auth_token') or 
-                request.cookies.get('backup_admin_token'))
+                request.cookies.get('backup_admin_token') or
+                request.cookies.get('debug_auth_token') or
+                request.cookies.get('debug_admin_token'))
         
         if token:
             print(f"🍪 Found token in cookie: {token[:20]}...")

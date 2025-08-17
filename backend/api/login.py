@@ -49,18 +49,13 @@ async def unified_login(request: LoginRequest, response: Response, db: Session =
     
     cookie_settings = {
         "max_age": 60 * 60 * 24,  # 24 hours
-        "httponly": True,
-        "secure": is_https,  # True in production with HTTPS
-        "samesite": "none" if is_production else "lax",  # "none" for cross-domain in production
+        "httponly": False,  # Temporarily disable for debugging
+        "secure": False,  # Temporarily disable for debugging
+        "samesite": "lax",  # Use lax for debugging
         "path": "/",
     }
     
-    # Add domain only if in production and if it works with your setup
-    if is_production:
-        # Try without domain first - some setups work better this way
-        cookie_settings["domain"] = None
-    
-    logger.info(f"🍪 Cookie settings: {cookie_settings}")
+    logger.info(f"🍪 DEBUGGING Cookie settings: {cookie_settings}")
     
     # Set main auth cookie
     response.set_cookie(key="auth_token", value=token, **cookie_settings)
@@ -71,13 +66,15 @@ async def unified_login(request: LoginRequest, response: Response, db: Session =
     else:
         response.set_cookie(key="customer_token", value=token, **cookie_settings)
     
-    # ALSO set cookies without domain restriction as backup
-    if is_production:
-        backup_settings = cookie_settings.copy()
-        backup_settings["domain"] = None
-        response.set_cookie(key="backup_auth_token", value=token, **backup_settings)
-        if user_data["user_type"] == "admin":
-            response.set_cookie(key="backup_admin_token", value=token, **backup_settings)
+    # ALSO set cookies with minimal restrictions for debugging
+    simple_settings = {
+        "max_age": 60 * 60 * 24,
+        "httponly": False,
+        "secure": False,
+        "path": "/",
+    }
+    response.set_cookie(key="debug_auth_token", value=token, **simple_settings)
+    response.set_cookie(key="debug_admin_token", value=token, **simple_settings)
     
     return {
         "token": token,

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, LogIn, User, Shield } from 'lucide-react';
 import { getApiUrl } from '@/lib/api';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function Portal() {
   const [email, setEmail] = useState('');
@@ -13,9 +14,22 @@ export default function Portal() {
   const [error, setError] = useState('');
   const [checkingAuth, setCheckingAuth] = useState(true);
   const router = useRouter();
+  
+  // Use JWT AuthProvider for authentication
+  const { user, isAuthenticated, loading: authLoading, login } = useAuth();
 
   useEffect(() => {
-    // Check if user is already authenticated
+    // Check if user is already authenticated via JWT
+    if (!authLoading && isAuthenticated && user) {
+      console.log('🔑 Portal: User already authenticated via JWT, redirecting...');
+      redirectBasedOnRole(user);
+    } else if (!authLoading) {
+      setCheckingAuth(false);
+    }
+  }, [authLoading, isAuthenticated, user]);
+
+  useEffect(() => {
+    // Original auth check - now disabled in favor of AuthProvider
     checkExistingAuth();
   }, []);
 
@@ -40,37 +54,29 @@ export default function Portal() {
     setError('');
 
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        // Redirect based on user type
-        redirectBasedOnRole(data.user);
+      console.log('🔑 Portal: Attempting JWT login via AuthProvider...');
+      const success = await login(email, password);
+      
+      if (success) {
+        console.log('🔑 Portal: JWT login successful!');
+        // The useEffect will handle redirection when user state updates
       } else {
-        setError(data.detail || 'Invalid email or password');
+        setError('Invalid email or password');
       }
     } catch (error) {
       setError('Network error. Please try again.');
-      console.error('Login error:', error);
+      console.error('🔑 Portal: JWT login error:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  if (checkingAuth) {
+  if (authLoading || checkingAuth) {
     return (
       <div className="min-h-screen bg-dark-bg flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-electric-blue mx-auto mb-4"></div>
-          <p className="text-gray-300">Checking authentication...</p>
+          <p className="text-gray-300">Checking JWT authentication...</p>
         </div>
       </div>
     );

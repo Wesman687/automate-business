@@ -6,7 +6,6 @@ from database.database_logger import database_logger  # Import to activate loggi
 from api.chat import router as chat_router
 from api.customers import router as customers_router
 from api.contact import router as contact_router
-from api.admin import router as admin_router
 from api.login import router as auth_router
 from api.email import router as email_router
 from api.share import router as share_router
@@ -188,7 +187,6 @@ app.add_middleware(
 app.include_router(chat_router)
 app.include_router(customers_router)
 app.include_router(contact_router)
-app.include_router(admin_router)
 app.include_router(auth_router)
 app.include_router(email_router)
 app.include_router(share_router)

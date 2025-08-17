@@ -1,55 +1,59 @@
-// app/api/[...upstream]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { API_BASE } from '@/lib/config';
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
+import { API_BASE } from '@/lib/config'; // uses NEXT_PUBLIC_API_URL_* that you already have
 
+// Add the backend prefix ONLY for proxied requests.
+// Keep your lib/config BACKEND_PREFIX = "" so direct calls (e.g. /auth) still work.
+const PROXY_PREFIX = '/api'; // <- this is the missing bit
 
-
-async function forward(req: NextRequest) {
-  const url = new URL(req.url);
-
-  // IMPORTANT: keep the full pathname (/api/...) so /api/customers -> {API_BASE}/api/customers
-  const upstreamUrl = `${API_BASE}${url.pathname}${url.search}`;
-
-  const headers = new Headers(req.headers);
-  // Forward cookies, auth header, etc. (Host will be rewritten by fetch)
-  // If you set cookies on the API domain, credentials must be included:
-  const res = await fetch(upstreamUrl, {
-    method: req.method,
-    headers,
-    body: req.method === 'GET' || req.method === 'HEAD' ? undefined : (req as any).body,
-    // no streaming in dev: keep it simple
-    credentials: 'include',
-    cache: 'no-store',
-    redirect: 'manual' as RequestRedirect,
-  });
-
-  // Pass through on success
-  if (res.ok) {
-    const body = await res.arrayBuffer();
-    const out = new NextResponse(body, {
-      status: res.status,
-      headers: res.headers,
-    });
-    return out;
-  }
-
-  // Helpful error (so you can see *which* upstream URL failed)
-  const text = await res.text();
-  return NextResponse.json(
-    {
-      error: 'upstream_status_not_ok',
-      upstream_url: upstreamUrl,
-      upstream_status: res.status,
-      upstream_body: text,
-    },
-    { status: res.status }
-  );
+function buildTargetUrl(req: NextRequest, upstreamParts: string[]) {
+  const upstream = (upstreamParts || []).join('/');
+  const search = req.nextUrl.search; // includes leading '?', '' if none
+  const base = API_BASE.replace(/\/+$/, '');
+  const prefix = PROXY_PREFIX.replace(/^\/?/, ''); // 'api'
+  const url = `${base}/${prefix}/${upstream}`.replace(/\/+/g, '/');
+  return `${url}${search}`;
 }
 
-export async function GET(req: NextRequest)  { return forward(req); }
-export async function POST(req: NextRequest) { return forward(req); }
-export async function PUT(req: NextRequest)  { return forward(req); }
-export async function PATCH(req: NextRequest){ return forward(req); }
-export async function DELETE(req: NextRequest){ return forward(req); }
+function forwardHeaders(req: NextRequest) {
+  const h = new Headers(req.headers);
+  h.delete('host');
+  h.delete('content-length');
+  // keep cookies + auth
+  return h;
+}
+
+async function handler(req: NextRequest, ctx: { params: { upstream: string[] } }) {
+  const target = buildTargetUrl(req, ctx.params.upstream || []);
+  const headers = forwardHeaders(req);
+
+  let body: BodyInit | undefined = undefined;
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    // Preserve body for POST/PUT/PATCH/DELETE
+    const contentType = req.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) body = await req.text();
+    else if (contentType.includes('form')) body = await req.formData();
+    else body = await req.arrayBuffer();
+  }
+
+  const res = await fetch(target, {
+    method: req.method,
+    headers,
+    body,
+    credentials: 'include',
+    redirect: 'manual',
+    cache: 'no-store',
+  });
+
+  const buf = await res.arrayBuffer();
+  const out = new NextResponse(buf, { status: res.status, statusText: res.statusText });
+  res.headers.forEach((v, k) => out.headers.set(k, v));
+  return out;
+}
+
+export const GET = handler;
+export const POST = handler;
+export const PUT = handler;
+export const PATCH = handler;
+export const DELETE = handler;
+export const HEAD = handler;
+export const OPTIONS = handler;

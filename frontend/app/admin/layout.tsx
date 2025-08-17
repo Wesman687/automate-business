@@ -1,39 +1,32 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import {
   MessageSquare, Users, Calendar, UserCog, LogOut, BarChart3, DollarSign, Briefcase
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
-type User = {
-  email: string;
-  is_super_admin: boolean;
-  admin_id?: number;
-  user_type: string;
-  is_admin: boolean;
-};
-
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  // Single source of truth for auth
-  const { user, loading } = useAuth() as { user: User | null; loading: boolean };
-
+  const { user, loading, logout, isAdmin } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
+  // Redirect non-admins out of /admin
+  useEffect(() => {
+    if (!loading && (!user || !isAdmin)) {
+      router.replace('/portal');
+    }
+  }, [loading, user, isAdmin, router]);
+
   const handleLogout = async () => {
-    
     try {
-      const res = await fetch('/api/logout', { method: 'POST' });
-      if (!res.ok) console.warn('Logout proxy returned', res.status);
-    } catch (e) {
-      console.error('Logout error:', e);
+      await logout();          // <- use the AuthProvider logout
     } finally {
       router.replace('/');
     }
   };
-
 
   const navigation = [
     { name: 'Dashboard', href: '/admin', icon: BarChart3 },
@@ -45,15 +38,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     ...(user?.is_super_admin ? [{ name: 'Admin Users', href: '/admin/users', icon: UserCog }] : []),
   ];
 
-  if (loading) {
+  if (loading || (!user || !isAdmin)) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400" />
       </div>
     );
   }
-
-  if (!user || !user.is_admin) return null; // hook/middleware will redirect
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">

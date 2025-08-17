@@ -4,7 +4,7 @@ import './globals.css'
 import ChatBot from '@/components/ChatBot'
 import ParticleBackground from '@/components/ParticleBackground'
 import Navigation from '@/components/Navigation'
-import { AuthProvider } from '@/hooks/useAuth'
+import Providers from './providers';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 const jetbrains = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono' })
@@ -100,12 +100,12 @@ export default function RootLayout({
         <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-TX2RM6CL"
           height="0" width="0" style={{ display: 'none', visibility: 'hidden' }}></iframe></noscript>
         {/* End Google Tag Manager (noscript) */}
+         <Providers>
         <ParticleBackground />
         <Navigation />
-        <AuthProvider>
           {children}
           <ChatBot />
-        </AuthProvider>
+        </Providers>
       </body>
     </html>
   )

@@ -5,12 +5,16 @@ from jose import JWTError, jwt
 from datetime import datetime, timedelta
 from typing import Optional, Union
 import secrets
+import os
+import base64
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# JWT settings
-SECRET_KEY = "your-unified-secret-key-here"  # In production, use environment variable
+# JWT settings - Use environment ENCRYPTION_KEY
+ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY", "a24waVZKMmhKNWcybU1fUEV3NU02VjZEUXNNaHZjQnZpOUFNUFhxN2ZhRT0=")
+# Decode the base64 key for JWT
+SECRET_KEY = base64.b64decode(ENCRYPTION_KEY).decode('utf-8')
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
 

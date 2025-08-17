@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
 
     if (response.ok) {
       console.log('🔍 LOGIN API: Login successful, setting up response');
+      console.log('🔍 LOGIN API: Response data:', data);
       
       // Forward the response and set cookies
       const nextResponse = NextResponse.json(data);
@@ -35,6 +36,13 @@ export async function POST(request: NextRequest) {
       // Copy cookies from backend response to frontend response
       const setCookieHeaders = response.headers.getSetCookie(); // Get all set-cookie headers
       console.log('🔍 LOGIN API: Backend set-cookie headers:', setCookieHeaders);
+      console.log('🔍 LOGIN API: Number of set-cookie headers:', setCookieHeaders?.length || 0);
+      
+      // ALSO log ALL response headers for debugging
+      console.log('🔍 LOGIN API: ALL backend response headers:');
+      for (const [key, value] of response.headers.entries()) {
+        console.log(`  ${key}: ${value}`);
+      }
       
       if (setCookieHeaders && setCookieHeaders.length > 0) {
         // Parse and set each cookie

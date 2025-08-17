@@ -47,34 +47,29 @@ async def unified_login(request: LoginRequest, response: Response, db: Session =
     logger.info(f"   is_production: {is_production}")
     logger.info(f"   is_https: {is_https}")
     
+    # Create JWT token using the encryption key
+    auth_service = AuthService(db)
+    token = auth_service.create_access_token(user_data)
+    
+    # For JWT-based auth, return the token for client-side storage
+    # Still set cookies as fallback for backward compatibility
     cookie_settings = {
         "max_age": 60 * 60 * 24,  # 24 hours
-        "httponly": False,  # Temporarily disable for debugging
+        "httponly": False,  # Allow JavaScript access for JWT hybrid approach
         "secure": False,  # Temporarily disable for debugging
         "samesite": "lax",  # Use lax for debugging
         "path": "/",
     }
     
-    logger.info(f"🍪 DEBUGGING Cookie settings: {cookie_settings}")
+    logger.info(f"🔑 Generated JWT token for {user_data['email']}: {token[:20]}...")
+    logger.info(f"🍪 Cookie settings: {cookie_settings}")
     
-    # Set main auth cookie
+    # Set cookies as fallback
     response.set_cookie(key="auth_token", value=token, **cookie_settings)
-    
-    # Also set legacy cookie names for backward compatibility during migration
     if user_data["user_type"] == "admin":
         response.set_cookie(key="admin_token", value=token, **cookie_settings)
     else:
         response.set_cookie(key="customer_token", value=token, **cookie_settings)
-    
-    # ALSO set cookies with minimal restrictions for debugging
-    simple_settings = {
-        "max_age": 60 * 60 * 24,
-        "httponly": False,
-        "secure": False,
-        "path": "/",
-    }
-    response.set_cookie(key="debug_auth_token", value=token, **simple_settings)
-    response.set_cookie(key="debug_admin_token", value=token, **simple_settings)
     
     return {
         "token": token,

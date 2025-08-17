@@ -22,19 +22,26 @@ export const getApiUrl = (): string => {
   }
 };
 
-// Helper function for authenticated API calls
+// Helper function for authenticated API calls using JWT tokens
 export const fetchWithAuth = async (endpoint: string, options: RequestInit = {}) => {
   const apiUrl = getApiUrl();
   
+  // Get JWT token from localStorage
+  const token = localStorage.getItem('admin_token');
+  
   const headers = {
     'Content-Type': 'application/json',
+    ...(token && { 'Authorization': `Bearer ${token}` }), // Add JWT token if available
     ...options.headers,
   };
+
+  console.log('🔑 fetchWithAuth: Making request to:', `${apiUrl}${endpoint}`);
+  console.log('🔑 fetchWithAuth: Using JWT token:', token ? `${token.substring(0, 20)}...` : 'none');
 
   return fetch(`${apiUrl}${endpoint}`, {
     ...options,
     headers,
-    credentials: 'include', // Include cookies for authentication
+    // Remove credentials: 'include' to avoid cookie-based auth
   });
 };
 

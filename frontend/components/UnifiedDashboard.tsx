@@ -98,8 +98,18 @@ export default function UnifiedDashboard() {
   
   const markChatLogAsSeen = async (sessionId: number) => {
     try {
-      const response = await fetchWithAuth(`/api/admin/chat-logs/${sessionId}/mark-seen`, {
-        method: 'PUT'
+      const token = localStorage.getItem('admin_token');
+      if (!token) {
+        console.error('🔑 Dashboard: No JWT token for mark as seen');
+        return;
+      }
+      
+      const response = await fetch(`https://server.stream-lineai.com/api/admin/chat-logs/${sessionId}/mark-seen`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
       });
 
       if (response.ok) {
@@ -137,16 +147,29 @@ export default function UnifiedDashboard() {
     try {
       const serverBaseUrl = 'https://server.stream-lineai.com';
       
-      // Email endpoint - always use server for email operations
-      const emailEndpoint = `${serverBaseUrl}/api/admin/emails/unread`;
+      // Get JWT token from localStorage for direct server calls
+      const token = localStorage.getItem('admin_token');
+      if (!token) {
+        console.error('🔑 Dashboard: No JWT token found');
+        setLoading(false);
+        return;
+      }
       
-      // Fetch all dashboard data using the new fetchWithAuth function
+      console.log('🔑 Dashboard: Making API calls with JWT token...');
+      
+      // All endpoints now use direct server calls with JWT
+      const authHeaders = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      };
+      
+      // Fetch all dashboard data using direct server calls with JWT
       const [overviewRes, requestsRes, appointmentsRes, chatLogsRes, emailsRes] = await Promise.all([
-        fetchWithAuth('/api/admin/overview'),
-        fetchWithAuth('/api/admin/change-requests'),
-        fetchWithAuth('/api/appointments?upcoming=true'),
-        fetchWithAuth('/api/sessions'), // Updated to use the new chat sessions endpoint
-        fetch(emailEndpoint, { credentials: 'include' }) // Email uses direct server API
+        fetch(`${serverBaseUrl}/api/admin/overview`, { headers: authHeaders }),
+        fetch(`${serverBaseUrl}/api/admin/change-requests`, { headers: authHeaders }),
+        fetch(`${serverBaseUrl}/api/appointments?upcoming=true`, { headers: authHeaders }),
+        fetch(`${serverBaseUrl}/api/sessions`, { headers: authHeaders }),
+        fetch(`${serverBaseUrl}/api/admin/emails/unread`, { headers: authHeaders })
       ]);
 
       if (overviewRes.ok) {

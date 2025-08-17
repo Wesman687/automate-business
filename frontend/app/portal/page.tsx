@@ -20,25 +20,9 @@ export default function Portal() {
   }, []);
 
   const checkExistingAuth = async () => {
-    try {
-      const response = await fetch('/api/auth/verify', {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const userData = await response.json();
-        // User is already authenticated, redirect based on role
-        redirectBasedOnRole(userData.user);
-        return;
-      }
-    } catch (error) {
-      console.log('No existing authentication found');
-    }
-    
+    // DISABLED: Use AuthProvider instead of direct API calls
+    // This was causing the infinite auth loop with cookie-based requests
+    console.log('🔑 Portal: Skipping direct auth check, using AuthProvider');
     setCheckingAuth(false);
   };
 

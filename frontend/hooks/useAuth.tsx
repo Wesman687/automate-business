@@ -1,156 +1,109 @@
-'use client'
+'use client';
 
-import { useState, useEffect, createContext, useContext, ReactNode } from 'react'
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { getApiUrl } from '@/lib/api';
 
-interface User {
-  id: number
-  email: string
-  username: string
-  full_name?: string
-  is_super_admin: boolean
-  is_active: boolean
-}
+type User = {
+  id?: number;
+  email: string;
+  name?: string;
+  user_type?: string;
+  is_admin?: boolean;
+  is_super_admin?: boolean;
+  [k: string]: any;
+};
 
-interface AuthContextType {
-  user: User | null
-  token: string | null
-  login: (email: string, password: string) => Promise<boolean>
-  logout: () => void
-  isAuthenticated: boolean
-  isAdmin: boolean
-  loading: boolean
-}
+type AuthContextType = {
+  user: User | null;
+  isAuthenticated: boolean;
+  loading: boolean;
+  login: (email: string, password: string) => Promise<boolean>;
+  logout: () => Promise<void>;
+  refresh: () => Promise<void>;
+};
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Use direct server calls with JWT tokens (no cookie/domain issues)
-const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://server.stream-lineai.com' 
-  : 'http://localhost:8005'
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const verifying = useRef(false);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [token, setToken] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    console.log('🔑 JWT AuthProvider: Initializing with encryption key...')
-    
-    // Check for existing JWT token in localStorage
-    const savedToken = localStorage.getItem('admin_token')
-    console.log('🔑 JWT AuthProvider: Saved token:', savedToken ? `${savedToken.substring(0, 20)}...` : 'none')
-    
-    if (savedToken) {
-      console.log('🔑 JWT AuthProvider: Validating existing JWT token...')
-      validateToken(savedToken)
-    } else {
-      console.log('🔑 JWT AuthProvider: No token found, user not authenticated')
-      setLoading(false)
-    }
-  }, [])
-
-  const validateToken = async (tokenToValidate: string) => {
-    console.log('🔑 JWT Validation: Starting validation...')
-    console.log('🔑 JWT Validation: Token to validate:', tokenToValidate.substring(0, 30) + '...')
-    console.log('🔑 JWT Validation: API_BASE_URL:', API_BASE_URL)
-    console.log('🔑 JWT Validation: Full URL:', `${API_BASE_URL}/auth/verify`)
-    
+  // Verify current session using the Next proxy (forwards browser cookies to API)
+  const refresh = async () => {
+    if (verifying.current) return;
+    verifying.current = true;
     try {
-      console.log('🔑 JWT Validation: About to make fetch request with Authorization header...')
-      const response = await fetch(`${API_BASE_URL}/auth/verify`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${tokenToValidate}` // JWT standard
-        },
-        credentials: 'include' // IMPORTANT: Prevent browser from sending cookies
-      })
-      
-      console.log('🔑 JWT Validation: Response status:', response.status)
-      console.log('🔑 JWT Validation: Response headers:', Object.fromEntries(response.headers.entries()))
-      
-      if (response.ok) {
-        const userData = await response.json()
-        console.log('🔑 JWT Validation: Token valid, user:', userData.user?.email)
-        setUser(userData.user)
-        setToken(tokenToValidate)
-      } else {
-        console.log('🔑 JWT Validation: Token invalid or expired')
-        localStorage.removeItem('admin_token')
-        setToken(null)
-        setUser(null)
+      const res = await fetch('/api/check-auth', { cache: 'no-store' });
+      if (!res.ok) {
+        setUser(null);
+        return;
       }
-    } catch (error) {
-      console.error('🔑 JWT Validation: Network error:', error)
-      localStorage.removeItem('admin_token')
-      setToken(null)
-      setUser(null)
+      const data = await res.json();
+      const u = data?.user ?? data;
+      setUser(u ?? null);
     } finally {
-      setLoading(false)
+      verifying.current = false;
     }
-  }
+  };
 
-  const login = async (email: string, password: string): Promise<boolean> => {
-    console.log('🔑 JWT Login: Attempting login for:', email)
-    
-    try {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ email, password }),
-        credentials: 'include' // IMPORTANT: Allow cookies to be set by backend
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        console.log('🔑 JWT Login: Success! Token received:', data.token?.substring(0, 20) + '...')
-        
-        // Store JWT token in localStorage
-        setToken(data.token)
-        setUser(data.user)
-        localStorage.setItem('admin_token', data.token)
-        
-        return true
-      } else {
-        console.log('🔑 JWT Login: Failed with status:', response.status)
-        return false
+  // On mount, try to restore session
+  useEffect(() => {
+    (async () => {
+      try {
+        await refresh();
+      } catch {
+        setUser(null);
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error('🔑 JWT Login: Network error:', error)
-      return false
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Login: hit API directly so Set-Cookie lands on the API domain (.stream-lineai.com)
+  const login = async (email: string, password: string) => {
+    const apiBase = getApiUrl();
+    const res = await fetch(`${apiBase}/auth/login`, {
+      method: 'POST',
+      credentials: 'include', // <-- receive cookie
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+
+    if (!res.ok) return false;
+
+    // Now verify (via proxy) to fetch the user object and populate context
+    await refresh();
+    return true;
+  };
+
+  // Logout via Next proxy (so Set-Cookie delete header is passed through)
+  const logout = async () => {
+    try {
+      await fetch('/api/logout', { method: 'POST' });
+    } finally {
+      setUser(null);
     }
-  }
+  };
 
-  const logout = () => {
-    console.log('🔑 JWT Logout: Clearing authentication')
-    setUser(null)
-    setToken(null)
-    localStorage.removeItem('admin_token')
-  }
+  const value = useMemo(
+    () => ({
+      user,
+      isAuthenticated: !!user,
+      loading,
+      login,
+      logout,
+      refresh,
+    }),
+    [user, loading]
+  );
 
-  const value = {
-    user,
-    token,
-    login,
-    logout,
-    isAuthenticated: !!user,
-    isAdmin: user?.is_super_admin || false,
-    loading
-  }
-
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  )
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-export function useAuth() {
-  const context = useContext(AuthContext)
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider')
-  }
-  return context
+export function useAuth(): AuthContextType {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used within an AuthProvider');
+  return ctx;
 }

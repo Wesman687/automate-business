@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getApiUrl } from '@/lib/api';
 
-const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://server.stream-lineai.com'
-  : 'https://server.stream-lineai.com';
+const API_BASE_URL = getApiUrl
 
 export async function GET(request: NextRequest) {
   try {

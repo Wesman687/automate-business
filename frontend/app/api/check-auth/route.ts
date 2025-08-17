@@ -1,44 +1,55 @@
-// app/api/sessions/route.ts
-import { NextRequest, NextResponse } from "next/server";
+// app/api/check-auth/route.ts
+import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
+// Force Node runtime so process.env is available (esp. on Vercel)
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 function getServerApiBase() {
+  // Prefer explicit envs; fall back to the port you actually run locally
   return (
     process.env.NEXT_PUBLIC_API_URL_PROD ||
     process.env.NEXT_PUBLIC_API_URL_DEV ||
-    "http://localhost:8001" // <-- change if your dev API port differs
+    "http://localhost:8001" // <-- change if your dev API is on a different port
   );
 }
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   const apiBase = getServerApiBase();
-  const cookieHeader = cookies().toString() || "";
-  const upstream = `${apiBase}/sessions${req.nextUrl.search || ""}`; // <-- if your API path is different, change here
 
   try {
-    const res = await fetch(upstream, {
+    const cookieHeader = cookies().toString() || "";
+
+    // No auth cookie? Return 401 (not 500)
+    if (!/auth_token=/.test(cookieHeader)) {
+      return NextResponse.json(
+        { valid: false, reason: "no auth cookie" },
+        { status: 401 }
+      );
+    }
+
+    const res = await fetch(`${apiBase}/auth/verify`, {
       method: "GET",
       headers: { cookie: cookieHeader },
       cache: "no-store",
     });
 
     const body = await res.text();
-    const out = new NextResponse(body, {
+    return new NextResponse(body, {
       status: res.status,
       headers: {
         "Content-Type": res.headers.get("Content-Type") || "application/json",
       },
     });
-    return out;
   } catch (err: any) {
+    // Make failures obvious instead of opaque 500s
     return NextResponse.json(
       {
         error: "upstream_error",
-        upstream,
+        apiBase,
         message: err?.message || "unknown",
+        // include stack only in dev
         stack: process.env.NODE_ENV === "development" ? err?.stack : undefined,
       },
       { status: 502 }

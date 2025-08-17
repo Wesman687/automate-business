@@ -9,6 +9,8 @@ from api.auth import get_current_user, get_current_super_admin
 from typing import Optional
 import logging
 
+from utils.cookies import AUTH_COOKIE_NAME, build_auth_cookie_kwargs
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["unified-authentication"])
@@ -22,58 +24,23 @@ class LoginResponse(BaseModel):
     user: dict
 
 @router.post("/login")
-async def unified_login(request: LoginRequest, response: Response, db: Session = Depends(get_db)):
-    """Unified login endpoint for both admin and customer users"""
+async def unified_login(request: LoginRequest, response: Response, req: Request, db: Session = Depends(get_db)):
     auth_service = AuthService(db)
-    
-    # Authenticate user (admin or customer)
+    logger.info(f"🔑 Login attempt for email: {request.email}")
     user_data = auth_service.authenticate_user(request.email, request.password)
-    
     if not user_data:
+        logger.warning(f"❌ Login failed for email: {request.email}")
+        logger.info(f"❌ Authentication failed: Invalid email or password for '{request.email}'")
         raise HTTPException(status_code=401, detail="Invalid email or password")
-    
-    # Create access token
+
     token = auth_service.create_access_token(user_data)
-    
-    # Environment-aware cookie settings
-    import os
-    is_production = os.getenv('ENVIRONMENT', 'development') == 'production'
-    is_https = os.getenv('HTTPS_ENABLED', 'false').lower() == 'true' or is_production
-    
-    # Debug logging for production
-    logger.info(f"🔧 Cookie Config Debug:")
-    logger.info(f"   ENVIRONMENT: {os.getenv('ENVIRONMENT', 'not_set')}")
-    logger.info(f"   HTTPS_ENABLED: {os.getenv('HTTPS_ENABLED', 'not_set')}")
-    logger.info(f"   is_production: {is_production}")
-    logger.info(f"   is_https: {is_https}")
-    
-    # Create JWT token using the encryption key
-    auth_service = AuthService(db)
-    token = auth_service.create_access_token(user_data)
-    
-    # For JWT-based auth, return the token for client-side storage
-    # Still set cookies as fallback for backward compatibility
-    cookie_settings = {
-        "max_age": 60 * 60 * 24,  # 24 hours
-        "httponly": is_https,  # Allow JavaScript access for JWT hybrid approach
-        "secure": is_production,  # Temporarily disable for debugging
-        "samesite": "lax",  # Use lax for debugging
-        "path": "/",
-    }
-    
-    logger.info(f"🔑 Generated JWT token for {user_data['email']}: {token[:20]}...")
-    logger.info(f"🍪 Cookie settings: {cookie_settings}")
-    
-    # Set cookies as fallback
-    response.set_cookie(key="auth_token", value=token, **cookie_settings)
-    if user_data["user_type"] == "admin":
-        response.set_cookie(key="admin_token", value=token, **cookie_settings)
-    else:
-        response.set_cookie(key="customer_token", value=token, **cookie_settings)
-    
+
+    cookie_kwargs = build_auth_cookie_kwargs(req)
+    response.set_cookie(AUTH_COOKIE_NAME, token, **cookie_kwargs)
+    logger.info(f"✅ Login successful for email: {request.email}, setting cookie '{AUTH_COOKIE_NAME}' with params: {cookie_kwargs}")
+
     return {
-        "token": token,
-        "access_token": token,  # For backward compatibility
+        "token": token,  # optional now; cookie carries auth
         "user": {
             "id": user_data["user_id"],
             "email": user_data["email"],
@@ -82,17 +49,15 @@ async def unified_login(request: LoginRequest, response: Response, db: Session =
             "is_admin": user_data["is_admin"],
             "is_customer": user_data["is_customer"],
             "is_super_admin": user_data["is_super_admin"],
-            "permissions": user_data["permissions"]
-        }
+            "permissions": user_data["permissions"],
+        },
     }
 
 @router.post("/logout")
-async def logout(response: Response):
-    """Logout endpoint - clears authentication cookies"""
-    response.delete_cookie("auth_token")
-    response.delete_cookie("admin_token")  # Legacy
-    response.delete_cookie("customer_token")  # Legacy
-    
+async def logout(response: Response, req: Request):
+    kwargs = build_auth_cookie_kwargs(req)
+    response.delete_cookie(AUTH_COOKIE_NAME, path="/", domain=kwargs.get("domain"))
+    logger.info(f"🔑 Logout: Deleting cookie '{AUTH_COOKIE_NAME}' with domain: {kwargs.get('domain')}")
     return {"message": "Logged out successfully"}
 
 @router.get("/me")
@@ -131,39 +96,6 @@ async def verify_token(current_user: dict = Depends(get_current_user)):
     except Exception as e:
         print(f"❌ Error in verify_token: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Auth verification failed: {str(e)}")
-
-# Legacy endpoints for backward compatibility
-@router.post("/admin-login")
-async def admin_login_legacy(request: LoginRequest, response: Response, db: Session = Depends(get_db)):
-    """Legacy admin login endpoint - redirects to unified login"""
-    result = await unified_login(request, response, db)
-    
-    # Ensure this is actually an admin user
-    if not result["user"]["is_admin"]:
-        raise HTTPException(status_code=401, detail="Admin credentials required")
-    
-    return result
-
-@router.post("/customer-login")
-async def customer_login_legacy(request: LoginRequest, response: Response, db: Session = Depends(get_db)):
-    """Legacy customer login endpoint - redirects to unified login"""
-    result = await unified_login(request, response, db)
-    
-    # Ensure this is actually a customer user
-    if result["user"]["user_type"] != "customer":
-        raise HTTPException(status_code=401, detail="Customer credentials required")
-    
-    # Reformat response to match legacy format
-    return {
-        "token": result["token"],
-        "access_token": result["access_token"],
-        "customer_id": result["user"]["id"],
-        "customer": {
-            "id": result["user"]["id"],
-            "name": result["user"]["name"],
-            "email": result["user"]["email"]
-        }
-    }
 
 # Admin Management API Endpoints
 
@@ -415,6 +347,7 @@ async def debug_auth_status(request: Request, db: Session = Depends(get_db)):
                     break
             except:
                 continue
+    print(f"🔍 Debug Auth Status: {auth_status} for token {token_value[:20] if token_value else 'None'}")
     
     return {
         "status": "debug_info",

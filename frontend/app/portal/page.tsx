@@ -19,56 +19,27 @@ export default function Portal() {
   const { user, isAuthenticated, loading: authLoading, login } = useAuth();
 
   useEffect(() => {
-    // Check if user is already authenticated via JWT
-    console.log('🔑 Portal: Auth state check - authLoading:', authLoading, 'isAuthenticated:', isAuthenticated, 'user:', user?.email || 'null');
-    
-    if (!authLoading && isAuthenticated && user) {
-      console.log('🔑 Portal: User already authenticated via JWT, redirecting...');
+    if (authLoading) return;
+    if (isAuthenticated && user) {
       redirectBasedOnRole(user);
-    } else if (!authLoading) {
-      console.log('🔑 Portal: User not authenticated, showing login form');
+    } else {
       setCheckingAuth(false);
     }
   }, [authLoading, isAuthenticated, user]);
-
-  useEffect(() => {
-    // Original auth check - now disabled in favor of AuthProvider
-    checkExistingAuth();
-  }, []);
-
-  const checkExistingAuth = async () => {
-    // DISABLED: Use AuthProvider instead of direct API calls
-    // This was causing the infinite auth loop with cookie-based requests
-    console.log('🔑 Portal: Skipping direct auth check, using AuthProvider');
-    setCheckingAuth(false);
+  const redirectBasedOnRole = (u: any) => {
+    if (u?.is_admin) router.replace('/admin');
+    else router.replace('/customer');
   };
-
-  const redirectBasedOnRole = (user: any) => {
-    if (user.is_admin) {
-      router.push('/admin');
-    } else {
-      router.push('/customer');
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
-
+    setLoading(true);
     try {
-      console.log('🔑 Portal: Attempting JWT login via AuthProvider...');
       const success = await login(email, password);
-      
-      if (success) {
-        console.log('🔑 Portal: JWT login successful!');
-        // The useEffect will handle redirection when user state updates
-      } else {
-        setError('Invalid email or password');
-      }
-    } catch (error) {
-      setError('Network error. Please try again.');
-      console.error('🔑 Portal: JWT login error:', error);
+      if (!success) setError('Invalid email or password');
+      // On success the effect above will redirect once user state populates.
+    } catch (err: any) {
+      setError(err?.message || 'Network error. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -79,7 +50,7 @@ export default function Portal() {
       <div className="min-h-screen bg-dark-bg flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-electric-blue mx-auto mb-4"></div>
-          <p className="text-gray-300">Checking JWT authentication...</p>
+          <p className="text-gray-300">Checking authentication…</p>
         </div>
       </div>
     );

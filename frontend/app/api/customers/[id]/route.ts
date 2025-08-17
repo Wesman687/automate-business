@@ -1,105 +1,65 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 
-const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://server.stream-lineai.com' 
-  : 'http://localhost:8005';
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+function getServerApiBase() {
+  return (
+    process.env.NEXT_PUBLIC_API_URL_PROD ||
+    process.env.NEXT_PUBLIC_API_URL_DEV ||
+    "http://localhost:8001"
+  );
+}
+
+export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+  const apiBase = getServerApiBase();
+  const upstream = `${apiBase}/customers/${params.id}`;
+  const cookieHeader = cookies().toString() || "";
   try {
-    const token = request.headers.get('authorization');
-    
-    const response = await fetch(`${API_BASE_URL}/api/customers/${params.id}`, {
-      headers: {
-        'Authorization': token || '',
-        'Content-Type': 'application/json',
-      },
+    const res = await fetch(upstream, { headers: { cookie: cookieHeader }, cache: "no-store" });
+    const body = await res.text();
+    return new NextResponse(body, {
+      status: res.status,
+      headers: { "Content-Type": res.headers.get("Content-Type") || "application/json" },
     });
-
-    if (!response.ok) {
-      return NextResponse.json(
-        { error: 'Failed to fetch customer' },
-        { status: response.status }
-      );
-    }
-
-    const data = await response.json();
-    return NextResponse.json(data);
-  } catch (error) {
-    console.error('API Error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+  } catch (e: any) {
+    return NextResponse.json({ error: "upstream_error", upstream, message: e?.message || "unknown" }, { status: 502 });
   }
 }
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+  const apiBase = getServerApiBase();
+  const upstream = `${apiBase}/customers/${params.id}`;
+  const cookieHeader = cookies().toString() || "";
   try {
-    const token = request.headers.get('authorization');
-    const body = await request.json();
-    
-    const response = await fetch(`${API_BASE_URL}/api/customers/${params.id}`, {
-      method: 'PUT',
-      headers: {
-        'Authorization': token || '',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
+    const res = await fetch(upstream, {
+      method: "PUT",
+      headers: { cookie: cookieHeader, "Content-Type": "application/json" },
+      body: await req.text(),
     });
-
-    if (!response.ok) {
-      return NextResponse.json(
-        { error: 'Failed to update customer' },
-        { status: response.status }
-      );
-    }
-
-    const data = await response.json();
-    return NextResponse.json(data);
-  } catch (error) {
-    console.error('API Error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    const body = await res.text();
+    return new NextResponse(body, {
+      status: res.status,
+      headers: { "Content-Type": res.headers.get("Content-Type") || "application/json" },
+    });
+  } catch (e: any) {
+    return NextResponse.json({ error: "upstream_error", upstream, message: e?.message || "unknown" }, { status: 502 });
   }
 }
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+  const apiBase = getServerApiBase();
+  const upstream = `${apiBase}/customers/${params.id}`;
+  const cookieHeader = cookies().toString() || "";
   try {
-    const token = request.headers.get('authorization');
-    
-    const response = await fetch(`${API_BASE_URL}/api/customers/${params.id}`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': token || '',
-        'Content-Type': 'application/json',
-      },
+    const res = await fetch(upstream, { method: "DELETE", headers: { cookie: cookieHeader } });
+    const body = await res.text();
+    return new NextResponse(body, {
+      status: res.status,
+      headers: { "Content-Type": res.headers.get("Content-Type") || "application/json" },
     });
-
-    if (!response.ok) {
-      return NextResponse.json(
-        { error: 'Failed to delete customer' },
-        { status: response.status }
-      );
-    }
-
-    const data = await response.json();
-    return NextResponse.json(data);
-  } catch (error) {
-    console.error('API Error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+  } catch (e: any) {
+    return NextResponse.json({ error: "upstream_error", upstream, message: e?.message || "unknown" }, { status: 502 });
   }
 }

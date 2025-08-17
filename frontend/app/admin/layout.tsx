@@ -1,94 +1,39 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { getApiUrl } from '@/lib/api';
-import { 
-  MessageSquare, 
-  Users, 
-  Calendar, 
-  UserCog, 
-  LogOut,
-  Activity,
-  BarChart3,
-  DollarSign,
-  Briefcase
+import { useRouter, usePathname } from 'next/navigation';
+import {
+  MessageSquare, Users, Calendar, UserCog, LogOut, BarChart3, DollarSign, Briefcase
 } from 'lucide-react';
+import { useAuthGuard } from '@/hooks/useAuthGuard';
 
-interface User {
+type User = {
   email: string;
   is_super_admin: boolean;
-  admin_id: number;
+  admin_id?: number;
   user_type: string;
   is_admin: boolean;
-}
+};
 
-export default function AdminLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  // Single source of truth for auth
+  const { user, loading } = useAuthGuard({ requireAdmin: true }) as { user: User | null; loading: boolean };
+
   const router = useRouter();
   const pathname = usePathname();
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const apiUrl = getApiUrl();
-        const response = await fetch(`${apiUrl}/auth/verify`, {
-          method: 'GET',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (response.ok) {
-          const userData = await response.json();
-          console.log('Auth verification response:', userData);
-          
-          // Handle both old and new response formats
-          const user = userData.user || userData;
-          
-          if (user && user.is_admin) {
-            setUser(user);
-          } else {
-            console.log('User is not admin:', user);
-            // Not an admin, redirect to customer portal
-            router.push('/customer');
-          }
-        } else {
-          // Not authenticated, redirect to portal
-          router.push('/portal');
-        }
-      } catch (error) {
-        console.error('Auth check failed:', error);
-        router.push('/portal');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkAuth();
-  }, [router]);
-
-  const logout = async () => {
+  const handleLogout = async () => {
+    
     try {
-      const apiUrl = getApiUrl();
-      await fetch(`${apiUrl}/auth/logout`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-      router.push('/');
-    } catch (error) {
-      console.error('Logout error:', error);
-      router.push('/');
+      const res = await fetch('/api/logout', { method: 'POST' });
+      if (!res.ok) console.warn('Logout proxy returned', res.status);
+    } catch (e) {
+      console.error('Logout error:', e);
+    } finally {
+      router.replace('/');
     }
   };
+
 
   const navigation = [
     { name: 'Dashboard', href: '/admin', icon: BarChart3 },
@@ -103,14 +48,12 @@ export default function AdminLayout({
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400" />
       </div>
     );
   }
 
-  if (!user) {
-    return null; // Will redirect in useEffect
-  }
+  if (!user) return null; // hook/middleware will redirect
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
@@ -118,19 +61,12 @@ export default function AdminLayout({
       <header className="bg-black/20 backdrop-blur-lg border-b border-white/10">
         <div className="max-w-[95vw] mx-auto px-2 sm:px-4 lg:px-6">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <h1 className="text-xl font-bold text-cyan-400">
-                ⚡ StreamlineAI Admin
-              </h1>
-            </div>
-            
+            <h1 className="text-xl font-bold text-cyan-400">⚡ StreamlineAI Admin</h1>
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-300">
-                👤 {user.email}
-              </span>
+              <span className="text-sm text-gray-300">👤 {user.email}</span>
               <button
-                onClick={logout}
-                className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+                onClick={handleLogout}
+                className="inline-flex items-center px-3 py-2 rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
               >
                 <LogOut className="h-4 w-4 mr-1" />
                 Logout
@@ -147,7 +83,6 @@ export default function AdminLayout({
             {navigation.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href));
-              
               return (
                 <Link
                   key={item.name}
@@ -167,7 +102,7 @@ export default function AdminLayout({
         </div>
       </nav>
 
-      {/* Main Content */}
+      {/* Main */}
       <main className="max-w-[95vw] mx-auto py-6 px-2 sm:px-4 lg:px-6">
         {children}
       </main>

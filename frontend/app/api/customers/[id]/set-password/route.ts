@@ -12,25 +12,9 @@ function getServerApiBase() {
   );
 }
 
-export async function GET(req: NextRequest) {
+export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const apiBase = getServerApiBase();
-  const upstream = `${apiBase}/customers${req.nextUrl.search || ""}`;
-  const cookieHeader = cookies().toString() || "";
-  try {
-    const res = await fetch(upstream, { headers: { cookie: cookieHeader }, cache: "no-store" });
-    const body = await res.text();
-    return new NextResponse(body, {
-      status: res.status,
-      headers: { "Content-Type": res.headers.get("Content-Type") || "application/json" },
-    });
-  } catch (e: any) {
-    return NextResponse.json({ error: "upstream_error", upstream, message: e?.message || "unknown" }, { status: 502 });
-  }
-}
-
-export async function POST(req: NextRequest) {
-  const apiBase = getServerApiBase();
-  const upstream = `${apiBase}/customers`;
+  const upstream = `${apiBase}/customers/${params.id}/set-password`;
   const cookieHeader = cookies().toString() || "";
   try {
     const res = await fetch(upstream, {

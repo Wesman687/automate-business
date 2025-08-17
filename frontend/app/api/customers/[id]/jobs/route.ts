@@ -1,6 +1,6 @@
 // Minimal route file to satisfy Next.js build
-import { NextRequest, NextResponse } from 'next/server';
+import {  NextResponse } from 'next/server';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   return NextResponse.json({ message: 'Not implemented' }, { status: 501 });
 }

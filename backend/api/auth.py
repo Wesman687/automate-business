@@ -1,54 +1,55 @@
 from fastapi import Depends, HTTPException, Header, Request
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 from database import get_db
 from services.auth_service import AuthService
 from typing import Optional
 
-def get_current_user(authorization: str = Header(None), request: Request = None, db: Session = Depends(get_db)) -> dict:
-    """Universal authentication dependency for all endpoints"""
-    token = None
-    
-    # Try to get token from Authorization header first
-    if authorization and authorization.startswith("Bearer "):
-        token = authorization.replace("Bearer ", "")
-        print(f"🔑 Found token in header: {token[:20]}...")
-    
-    # If no header token, try to get from cookie (for browser requests)
-    if not token and request:
-        all_cookies = dict(request.cookies)
-        print(f"🍪 All cookies received: {all_cookies}")
-        print(f"🔍 Request URL: {request.url}")
-        print(f"🔍 Request Host: {request.headers.get('host')}")
-        print(f"🔍 Request Origin: {request.headers.get('origin')}")
-        
-        # Try both token names for backward compatibility during migration
-        token = (request.cookies.get('auth_token') or 
-                request.cookies.get('admin_token') or 
-                request.cookies.get('customer_token') or
-                request.cookies.get('backup_auth_token') or 
-                request.cookies.get('backup_admin_token') or
-                request.cookies.get('debug_auth_token') or
-                request.cookies.get('debug_admin_token'))
-        
-        if token:
-            print(f"🍪 Found token in cookie: {token[:20]}...")
-        else:
-            print("🚫 No token found in any cookie")
-    
+from utils.cookies import AUTH_COOKIE_NAME
+
+
+security = HTTPBearer(auto_error=False)
+
+def _extract_token(request: Request, creds: HTTPAuthorizationCredentials | None) -> str | None:
+    """
+    Priority:
+      1) Authorization: Bearer <token>
+      2) Cookie: auth_token (fallback admin_token/customer_token)
+      3) Optional: ?token= in query (only if you want it; handy for debugging)
+    """
+    # 1) Authorization header
+    if creds and creds.scheme.lower() == "bearer" and creds.credentials:
+        return creds.credentials
+
+    # 2) Cookies
+    for name in ("auth_token", "admin_token", "customer_token"):
+        val = request.cookies.get(name)
+        if val:
+            return val
+
+    # 3) Optional query param (comment out if you don’t want it)
+    token_q = request.query_params.get("token")
+    if token_q:
+        return token_q
+
+    return None
+
+async def get_current_user(
+    request: Request,
+    db: Session = Depends(get_db),
+    creds: HTTPAuthorizationCredentials | None = Depends(security),
+):
+    token = _extract_token(request, creds)
     if not token:
-        print("❌ No authentication token found")
-        raise HTTPException(status_code=401, detail="Authorization required")
-    
-    # Validate token with unified auth service
-    auth_service = AuthService(db)
-    user_data = auth_service.verify_token(token)
-    
+        raise HTTPException(status_code=401, detail="Not authenticated (no token)")
+
+    auth = AuthService(db)
+    user_data = auth.verify_token(token)  # or auth.decode_access_token(token) now that you added the wrapper
     if not user_data:
-        print("❌ Invalid or expired token")
         raise HTTPException(status_code=401, detail="Invalid or expired token")
-    
-    print(f"✅ Authenticated {user_data['user_type']}: {user_data['email']}")
+
     return user_data
+
 
 def get_current_admin(current_user: dict = Depends(get_current_user)) -> dict:
     """Dependency that requires admin privileges"""

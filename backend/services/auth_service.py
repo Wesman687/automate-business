@@ -94,6 +94,9 @@ class AuthService:
                 "edit_own_appointments",
                 "cancel_own_appointments"
             ]
+    def decode_access_token(self, token: str):
+        """Deprecated wrapper: use verify_token(token)"""
+        return self.verify_token(token)
     
     def create_access_token(self, user_data: dict, expires_delta: Optional[timedelta] = None) -> str:
         """Create JWT access token with user data"""

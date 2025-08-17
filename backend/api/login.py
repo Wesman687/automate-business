@@ -55,8 +55,8 @@ async def unified_login(request: LoginRequest, response: Response, db: Session =
     # Still set cookies as fallback for backward compatibility
     cookie_settings = {
         "max_age": 60 * 60 * 24,  # 24 hours
-        "httponly": False,  # Allow JavaScript access for JWT hybrid approach
-        "secure": False,  # Temporarily disable for debugging
+        "httponly": is_https,  # Allow JavaScript access for JWT hybrid approach
+        "secure": is_production,  # Temporarily disable for debugging
         "samesite": "lax",  # Use lax for debugging
         "path": "/",
     }

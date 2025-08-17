@@ -40,30 +40,10 @@ export default function Navigation() {
   }, [showUserDropdown]);
 
   const checkAuthStatus = async () => {
-    try {
-      const apiUrl = getApiUrl();
-      const response = await fetch(`${apiUrl}/auth/verify`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (response.ok) {
-        const userData = await response.json();
-        setIsLoggedIn(true);
-        setUserInfo(userData.user);
-      } else {
-        setIsLoggedIn(false);
-        setUserInfo(null);
-      }
-    } catch (error) {
-      setIsLoggedIn(false);
-      setUserInfo(null);
-    } finally {
-      setCheckingAuth(false);
-    }
+    // DISABLED: Use AuthProvider instead of direct auth calls
+    // This was causing infinite cookie-based auth requests
+    console.log('🔑 Navigation: Auth check disabled, using AuthProvider');
+    setCheckingAuth(false);
   };
 
   const handleLogout = async () => {

@@ -17,6 +17,9 @@ def get_current_user(authorization: str = Header(None), request: Request = None,
     if not token and request:
         all_cookies = dict(request.cookies)
         print(f"🍪 All cookies received: {all_cookies}")
+        print(f"🔍 Request URL: {request.url}")
+        print(f"🔍 Request Host: {request.headers.get('host')}")
+        print(f"🔍 Request Origin: {request.headers.get('origin')}")
         
         # Try both token names for backward compatibility during migration
         token = (request.cookies.get('auth_token') or 

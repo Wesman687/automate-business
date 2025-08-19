@@ -101,11 +101,11 @@ export default function Dashboard() {
     try {
       const [overviewR, requestsR, appointmentsR, sessionsR, emailsR] =
         await Promise.allSettled([
-          api.get<any>('/admin/overview'),
-          api.get<{ change_requests: ChangeRequest[] }>('/admin/change-requests'),
+          api.get<any>('/overview'),
+          api.get<{ change_requests: ChangeRequest[] }>('/change-requests'),
           api.get<Appointment[]>('/appointments?upcoming=true'),
           api.get<ChatLog[]>('/sessions'),
-          api.get<{ emails: any[]; count?: number }>('/admin/emails/unread'),
+          api.get<{ emails: any[]; count?: number }>('/email/unread'),
         ]);
 
       // Overview / stats
@@ -184,7 +184,7 @@ export default function Dashboard() {
 
   const updateChangeRequestStatus = async (requestId: number, newStatus: string) => {
     try {
-      await api.put(`/admin/change-requests/${requestId}`, { status: newStatus });
+      await api.put(`/change-requests/${requestId}`, { status: newStatus });
       setChangeRequests((prev) =>
         prev.map((r) => (r.id === requestId ? { ...r, status: newStatus as any } : r))
       );
@@ -200,7 +200,7 @@ export default function Dashboard() {
 
   const handleSaveRequest = async (updated: Partial<ChangeRequest>) => {
     try {
-      await api.put(`/admin/change-requests/${updated.id}`, updated);
+      await api.put(`/change-requests/${updated.id}`, updated);
       setChangeRequests((prev) => prev.map((r) => (r.id === updated.id ? { ...r, ...updated } : r)));
     } catch (e) {
       console.error('Error saving change request:', e);

@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, File, UploadFile, 
 from sqlalchemy.orm import Session
 from api.api_endpoints import SeenStatusRequest
 from database import get_db
-from database.models import ChatSession, Customer as CustomerModel
+from database.models import ChatSession, User as UserModel
 from services.customer_service import CustomerService
 from services.session_service import SessionService
 from services.email_service import email_service
@@ -192,7 +192,7 @@ StreamlineAI Automation System
         print(f"❌ Error sending sales notification: {str(e)}")
         return False
 
-router = APIRouter(prefix="/api", tags=["customers"])
+router = APIRouter(tags=["customers"])
 
 @router.post("/customers", response_model=Customer)
 async def create_customer(customer: CustomerCreate, db: Session = Depends(get_db)):

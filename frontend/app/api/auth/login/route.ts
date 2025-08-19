@@ -1,4 +1,4 @@
-// app/api/auth/verify/route.ts
+// app/api/auth/login/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { API_BASE, BACKEND_PREFIX } from '@/lib/config';
 
@@ -13,17 +13,19 @@ function join(base: string, ...parts: string[]) {
   return `${normalizedBase}/${path}`;
 }
 
-export async function GET(req: NextRequest) {
-  const upstream = join(API_BASE, BACKEND_PREFIX, 'auth/verify');
+export async function POST(req: NextRequest) {
+  const upstream = join(API_BASE, BACKEND_PREFIX, 'auth/login');
 
   const res = await fetch(upstream, {
-    method: 'GET',
+    method: 'POST',
     headers: {
-      // forward cookies & auth header so backend can read the session/JWT
+      'Content-Type': 'application/json',
       cookie: req.headers.get('cookie') ?? '',
       authorization: req.headers.get('authorization') ?? '',
     },
+    body: await req.text(), // Forward the request body
     cache: 'no-store',
+    credentials: 'include',
   });
 
   const body = await res.text();

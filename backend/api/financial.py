@@ -5,7 +5,7 @@ from datetime import datetime, date
 from decimal import Decimal
 
 from database import get_db
-from database.models import Invoice, RecurringPayment, Job, TimeEntry, Admin
+from database.models import Invoice, RecurringPayment, TimeEntry, Admin
 from schemas.financial import (
     Invoice as InvoiceSchema,
     InvoiceCreate,
@@ -13,9 +13,7 @@ from schemas.financial import (
     RecurringPayment as RecurringPaymentSchema,
     RecurringPaymentCreate,
     RecurringPaymentUpdate,
-    Job as JobSchema,
-    JobCreate,
-    JobUpdate,
+
     TimeEntry as TimeEntrySchema,
     TimeEntryCreate,
     TimeEntryUpdate,
@@ -205,84 +203,7 @@ def update_recurring_payment(
     db.refresh(payment)
     return payment
 
-# Job Endpoints
-@router.get("/jobs", response_model=List[JobSchema])
-def get_jobs(
-    customer_id: Optional[int] = Query(None),
-    status: Optional[str] = Query(None),
-    priority: Optional[str] = Query(None),
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_admin)
-):
-    """Get all jobs with optional filtering"""
-    query = db.query(Job)
-    
-    if customer_id:
-        query = query.filter(Job.customer_id == customer_id)
-    if status:
-        query = query.filter(Job.status == status)
-    if priority:
-        query = query.filter(Job.priority == priority)
-    
-    return query.order_by(Job.created_at.desc()).all()
 
-@router.get("/jobs/{job_id}", response_model=JobSchema)
-def get_job(
-    job_id: int,
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_admin)
-):
-    """Get a specific job"""
-    job = db.query(Job).filter(Job.id == job_id).first()
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    return job
-
-@router.post("/jobs", response_model=JobSchema)
-def create_job(
-    job: JobCreate,
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_admin)
-):
-    """Create a new job"""
-    job_data = job.dict()
-    job_data['created_at'] = datetime.now()
-    job_data['progress_percentage'] = 0
-    
-    db_job = Job(**job_data)
-    
-    db.add(db_job)
-    db.commit()
-    db.refresh(db_job)
-    return db_job
-
-@router.put("/jobs/{job_id}", response_model=JobSchema)
-def update_job(
-    job_id: int,
-    job_update: JobUpdate,
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_admin)
-):
-    """Update a job"""
-    job = db.query(Job).filter(Job.id == job_id).first()
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    
-    update_data = job_update.dict(exclude_unset=True)
-    update_data['updated_at'] = datetime.now()
-    
-    # Auto-calculate actual hours from time entries if not provided
-    if 'actual_hours' not in update_data:
-        time_entries = db.query(TimeEntry).filter(TimeEntry.job_id == job_id).all()
-        total_hours = sum(entry.duration_hours or 0 for entry in time_entries)
-        update_data['actual_hours'] = total_hours
-    
-    for field, value in update_data.items():
-        setattr(job, field, value)
-    
-    db.commit()
-    db.refresh(job)
-    return job
 
 # Time Entry Endpoints
 @router.get("/time-entries", response_model=List[TimeEntrySchema])
@@ -403,13 +324,10 @@ def get_financial_summary(
     # Base queries
     invoice_query = db.query(Invoice)
     recurring_query = db.query(RecurringPayment)
-    job_query = db.query(Job)
-    
     # Apply filters
     if customer_id:
         invoice_query = invoice_query.filter(Invoice.customer_id == customer_id)
         recurring_query = recurring_query.filter(RecurringPayment.customer_id == customer_id)
-        job_query = job_query.filter(Job.customer_id == customer_id)
     
     if year:
         from sqlalchemy import extract
@@ -426,17 +344,11 @@ def get_financial_summary(
     recurring_payments = recurring_query.filter(RecurringPayment.status == 'active').all()
     monthly_recurring = sum(rp.amount for rp in recurring_payments if rp.interval == 'monthly')
     
-    jobs = job_query.all()
-    active_jobs = len([job for job in jobs if job.status in ['in_progress', 'not_started']])
-    completed_jobs = len([job for job in jobs if job.status == 'completed'])
-    
     return {
         "total_invoiced": float(total_invoiced),
         "total_paid": float(total_paid),
         "total_outstanding": float(total_outstanding),
         "monthly_recurring_revenue": float(monthly_recurring),
-        "active_jobs": active_jobs,
-        "completed_jobs": completed_jobs,
         "total_invoices": len(invoices),
         "active_recurring_payments": len(recurring_payments)
     }

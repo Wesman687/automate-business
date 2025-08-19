@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Plus, Briefcase, Clock, CheckCircle, AlertCircle, Calendar, ExternalLink, Github, FolderOpen, Trash2, Edit3, FileText } from 'lucide-react';
+import { api } from '@/lib/https';
 import Link from 'next/link';
 import CreateJobModal from './CreateJobModal';
 import EditJobModal from './EditJobModal';
@@ -63,30 +64,22 @@ export default function JobManagementPage() {
   }, []);
 
   const fetchJobData = async () => {
+    console.log('Fetching job data...');
     try {
-      const token = localStorage.getItem('admin_token');
-      if (!token) return;
 
-      const headers = {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      };
 
       // Fetch jobs and time entries
-      const [jobsRes, timeRes] = await Promise.all([
-        fetch('/api/jobs', { headers }),
-        fetch('/api/time-entries', { headers })
+      console.log('Fetching jobs...');
+      const [jobs, timeEntries] = await Promise.all([
+        api.get('/jobs'),
+        api.get('/time-entries')
       ]);
-
-      if (jobsRes.ok) {
-        const jobsData = await jobsRes.json();
-        setJobs(jobsData);
-      }
-
-      if (timeRes.ok) {
-        const timeData = await timeRes.json();
-        setTimeEntries(timeData);
-      }
+      
+      console.log('Jobs received:', jobs);
+      console.log('Time entries received:', timeEntries);
+      
+      setJobs(jobs || []);
+      setTimeEntries(timeEntries || []);
     } catch (error) {
       console.error('Error fetching job data:', error);
     } finally {
@@ -96,21 +89,9 @@ export default function JobManagementPage() {
 
   const createJob = async (jobData: any) => {
     try {
-      const token = localStorage.getItem('admin_token');
-      const response = await fetch('/api/jobs', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(jobData)
-      });
-
-      if (response.ok) {
-        await fetchJobData(); // Refresh the data
-      } else {
-        throw new Error('Failed to create job');
-      }
+      console.log('Creating job with data:', jobData);
+      await api.post('/jobs', jobData);
+      await fetchJobData(); // Refresh the data
     } catch (error) {
       console.error('Error creating job:', error);
       throw error;
@@ -119,23 +100,11 @@ export default function JobManagementPage() {
 
   const updateJob = async (jobData: any) => {
     try {
-      const token = localStorage.getItem('admin_token');
-      const response = await fetch(`/api/jobs/${selectedJob?.id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(jobData)
-      });
-
-      if (response.ok) {
-        await fetchJobData(); // Refresh the data
-        setShowEditJob(false);
-        setSelectedJob(null);
-      } else {
-        throw new Error('Failed to update job');
-      }
+      console.log('Updating job with data:', jobData);
+      await api.put(`/jobs/${selectedJob?.id}`, jobData);
+      await fetchJobData(); // Refresh the data
+      setShowEditJob(false);
+      setSelectedJob(null);
     } catch (error) {
       console.error('Error updating job:', error);
       throw error;
@@ -144,21 +113,9 @@ export default function JobManagementPage() {
 
   const updateJobProgress = async (jobId: number, progress: number) => {
     try {
-      const token = localStorage.getItem('admin_token');
-      const response = await fetch(`/api/jobs/${jobId}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ progress_percentage: progress })
-      });
-
-      if (response.ok) {
-        await fetchJobData(); // Refresh the data
-      } else {
-        throw new Error('Failed to update progress');
-      }
+      console.log('Updating job progress:', { jobId, progress });
+      await api.put(`/jobs/${jobId}`, { progress_percentage: progress });
+      await fetchJobData(); // Refresh the data
     } catch (error) {
       console.error('Error updating progress:', error);
       throw error;
@@ -167,20 +124,9 @@ export default function JobManagementPage() {
 
   const deleteJob = async (jobId: number) => {
     try {
-      const token = localStorage.getItem('admin_token');
-      const response = await fetch(`/api/jobs/${jobId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        await fetchJobData(); // Refresh the data
-      } else {
-        throw new Error('Failed to delete job');
-      }
+      console.log('Deleting job:', jobId);
+      await api.delete(`/jobs/${jobId}`);
+      await fetchJobData(); // Refresh the data
     } catch (error) {
       console.error('Error deleting job:', error);
       throw error;
@@ -189,21 +135,9 @@ export default function JobManagementPage() {
 
   const createTimeEntry = async (timeData: any) => {
     try {
-      const token = localStorage.getItem('admin_token');
-      const response = await fetch('/api/time-entries', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(timeData)
-      });
-
-      if (response.ok) {
-        await fetchJobData(); // Refresh the data
-      } else {
-        throw new Error('Failed to log time');
-      }
+      console.log('Creating time entry:', timeData);
+      await api.post('/time-entries', timeData);
+      await fetchJobData(); // Refresh the data
     } catch (error) {
       console.error('Error logging time:', error);
       throw error;
@@ -484,12 +418,15 @@ export default function JobManagementPage() {
 
                 {/* Action Button */}
                 <div className="mt-4">
-                  <Link 
-                    href={`/admin/jobs/${job.id}`}
+                  <button 
+                    onClick={() => {
+                      setSelectedJob(job);
+                      setShowEditJob(true);
+                    }}
                     className="w-full text-center text-blue-600 hover:text-blue-800 text-sm font-medium block"
                   >
                     View Details
-                  </Link>
+                  </button>
                 </div>
               </div>
             ))}
@@ -602,12 +539,15 @@ export default function JobManagementPage() {
                 {jobs.map((job) => (
                   <tr key={job.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      <Link
-                        href={`/admin/jobs/${job.id}`}
+                                            <button 
+                        onClick={() => {
+                          setSelectedJob(job);
+                          setShowEditJob(true);
+                        }}
                         className="text-cyan-600 hover:text-cyan-800 font-medium"
                       >
                         {job.title}
-                      </Link>
+                      </button>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       Customer #{job.customer_id}
@@ -638,12 +578,15 @@ export default function JobManagementPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center space-x-3">
-                        <Link 
-                          href={`/admin/jobs/${job.id}`}
-                          className="inline-flex items-center px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
-                        >
-                          View
-                        </Link>
+                                              <button 
+                        onClick={() => {
+                          setSelectedJob(job);
+                          setShowEditJob(true);
+                        }}
+                        className="inline-flex items-center px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                      >
+                        View
+                      </button>
                         <button 
                           onClick={() => {
                             setSelectedJob(job);

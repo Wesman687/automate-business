@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from database.models import PortalInvite, Customer
+from database.models import PortalInvite, User
 from schemas.portal_invite import PortalInviteCreate, PortalInviteUpdate
 from datetime import datetime, timedelta
 import secrets
@@ -10,7 +10,7 @@ class PortalInviteService:
     def __init__(self, db: Session):
         self.db = db
     
-    def generate_invite_token(self) -> str:
+    def generate_invite_token(self) -> str:=
         """Generate a secure random invite token"""
         return ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(32))
     

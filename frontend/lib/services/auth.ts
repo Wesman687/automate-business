@@ -6,7 +6,7 @@ export const login = (email: string, password: string) =>
   http<{ token: string; user: any }>('/auth/login', {
     method: 'POST',
     body: JSON.stringify({ email, password }),
-    useProxy: false, // go straight to FastAPI so Set-Cookie lands on API domain
+    useProxy: true, // use Next.js proxy to handle CORS and cookies
   });
 
 // ✅ browser hits Next -> Next hits FastAPI

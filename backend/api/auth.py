@@ -53,13 +53,26 @@ async def get_current_user(
 
 def get_current_admin(current_user: dict = Depends(get_current_user)) -> dict:
     """Dependency that requires admin privileges"""
-    if not current_user.get("is_admin", False):
+    # Check both is_admin property and user_type for compatibility
+    is_admin = current_user.get("is_admin", False) or current_user.get("user_type") == "admin"
+    
+    # Debug logging
+    print(f"🔐 Admin check for user: {current_user.get('email')}")
+    print(f"   user_type: {current_user.get('user_type')}")
+    print(f"   is_admin: {current_user.get('is_admin')}")
+    print(f"   final_admin_check: {is_admin}")
+    
+    if not is_admin:
         raise HTTPException(status_code=403, detail="Admin privileges required")
     return current_user
 
 def get_current_super_admin(current_user: dict = Depends(get_current_user)) -> dict:
     """Dependency that requires super admin privileges"""
-    if not current_user.get("is_super_admin", False):
+    # Check both is_super_admin property and user_type for compatibility
+    is_super_admin = current_user.get("is_super_admin", False) or (
+        current_user.get("is_admin", False) and current_user.get("is_super_admin", False)
+    )
+    if not is_super_admin:
         raise HTTPException(status_code=403, detail="Super admin privileges required")
     return current_user
 

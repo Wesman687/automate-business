@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { API_BASE } from '@/lib/config'; // uses NEXT_PUBLIC_API_URL_* that you already have
+import { API_BASE, BACKEND_PREFIX } from '@/lib/config'; // uses NEXT_PUBLIC_API_URL_* that you already have
 
 // Add the backend prefix ONLY for proxied requests.
 // Keep your lib/config BACKEND_PREFIX = "" so direct calls (e.g. /auth) still work.
-const PROXY_PREFIX = '/api'; // <- this is the missing bit
-
+// No prefix needed - we want the request to go straight to the backend path
 function buildTargetUrl(req: NextRequest, upstreamParts: string[]) {
   const upstream = (upstreamParts || []).join('/');
   const search = req.nextUrl.search; // includes leading '?', '' if none
   const base = API_BASE.replace(/\/+$/, '');
-  const prefix = PROXY_PREFIX.replace(/^\/?/, ''); // 'api'
-  const url = `${base}/${prefix}/${upstream}`.replace(/\/+/g, '/');
+  const prefix = BACKEND_PREFIX ? BACKEND_PREFIX.replace(/^\/?/, '') + '/' : '';
+  const url = `${base}/${prefix}${upstream}`.replace(/\/+/g, '/');
   return `${url}${search}`;
 }
 
@@ -23,7 +22,9 @@ function forwardHeaders(req: NextRequest) {
 }
 
 async function handler(req: NextRequest, ctx: { params: { upstream: string[] } }) {
+  console.log('Upstream parts:', ctx.params.upstream);
   const target = buildTargetUrl(req, ctx.params.upstream || []);
+  console.log('Target URL:', target);
   const headers = forwardHeaders(req);
 
   let body: BodyInit | undefined = undefined;

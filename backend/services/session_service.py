@@ -1,5 +1,5 @@
-from sqlalchemy.orm import Session
-from database.models import ChatSession, ChatMessage, Customer
+from sqlalchemy.orm import Session, joinedload
+from database.models import ChatSession, ChatMessage, User
 from schemas.chat import ChatSessionCreate, ChatMessageCreate
 from typing import Optional, List, Tuple
 from sqlalchemy import func
@@ -127,25 +127,47 @@ class SessionService:
             "session_id": session_id,
             "customer_id": session.customer_id,
             "created_at": session.created_at.isoformat() if session.created_at else None,
+            "updated_at": session.updated_at.isoformat() if session.updated_at else None,
             "status": getattr(session, 'status', 'active'),
+            "is_seen": getattr(session, 'is_seen', False),
             "messages": formatted_messages
         }
 
-    def get_all_sessions_with_customers(self) -> List[Tuple[ChatSession, Optional[Customer], int]]:
+    def get_all_sessions(self) -> List[ChatSession]:
+        """Get all chat sessions ordered by creation date"""
+        return self.db.query(ChatSession)\
+            .options(
+                joinedload(ChatSession.messages),
+                joinedload(ChatSession.user)
+            )\
+            .order_by(ChatSession.created_at.desc())\
+            .all()
+
+    def get_all_sessions_with_customers(self) -> List[Tuple[ChatSession, Optional[User], int]]:
         """Get all sessions with customer info and message count for admin dashboard"""
         # Query sessions with left join to customers and count of messages
         result = self.db.query(
             ChatSession,
-            Customer,
+            User,
             func.count(ChatMessage.id).label('message_count')
         ).outerjoin(
-            Customer, ChatSession.customer_id == Customer.id
+            User, ChatSession.customer_id == User.id
         ).outerjoin(
             ChatMessage, ChatSession.id == ChatMessage.session_id
         ).group_by(
-            ChatSession.id, Customer.id
+            ChatSession.id, User.id
         ).order_by(
             ChatSession.created_at.desc()
         ).all()
         
         return result
+        
+    def delete_session(self, session_id: str) -> None:
+        """Delete a chat session and all its messages"""
+        session = self.get_session(session_id)
+        if session:
+            # Delete all messages first
+            self.db.query(ChatMessage).filter(ChatMessage.session_id == session.id).delete()
+            # Then delete the session
+            self.db.delete(session)
+            self.db.commit()

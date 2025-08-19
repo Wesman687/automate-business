@@ -2,7 +2,6 @@
 from fastapi.middleware.cors import CORSMiddleware
 from database.models import Base
 from database import engine
-from database.database_logger import database_logger  # Import to activate logging
 from api.chat import router as chat_router
 from api.customers import router as customers_router
 from api.contact import router as contact_router
@@ -11,10 +10,11 @@ from api.email import router as email_router
 from api.share import router as share_router
 from api.api_endpoints import router as api_router
 from api.financial import router as financial_router
-from api.schedule import router as schedule_router
+from api.appointments import router as appointments_router
 from api.google_auth import router as google_auth_router
 from api.voice_agent import router as voice_agent_router
-from api.admin_jobs import router as admin_jobs_router
+from api.jobs import router as jobs_router
+from api.change_requests import router as change_requests_router
 from api.auth import get_current_user
 import logging
 import os
@@ -191,11 +191,16 @@ app.include_router(auth_router)
 app.include_router(email_router)
 app.include_router(share_router)
 app.include_router(api_router)
-app.include_router(financial_router, prefix="/api")
-app.include_router(schedule_router)
+app.include_router(financial_router)
+app.include_router(appointments_router)
 app.include_router(google_auth_router)
 app.include_router(voice_agent_router)
-app.include_router(admin_jobs_router)
+app.include_router(jobs_router)
+app.include_router(change_requests_router)
+
+# Add debug logging for routes
+for route in app.routes:
+    print(f"🛣️  Route: {route.path} [{','.join(route.methods)}]")
 
 @app.get("/health")
 async def health_check():

@@ -1,7 +1,7 @@
 # services/portal_invite_service.py
 from sqlalchemy.orm import Session
 from api.email import send_notification
-from database.models import PortalInvite, Customer as CustomerModel
+from database.models import PortalInvite, User as CustomerModel
 from datetime import datetime, timedelta
 import secrets, os
 

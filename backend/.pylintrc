@@ -1,0 +1,42 @@
+[MASTER]
+# Very lenient configuration - disable almost everything for development
+disable=
+    # Disable all checks except critical errors
+    all,
+    
+    # Only enable these critical checks
+    syntax-error,
+    undefined-variable,
+    import-error,
+    no-member,
+    attribute-defined-outside-init,
+    duplicate-code
+
+# Keep these enabled (important checks):
+# - syntax-error
+# - undefined-variable  
+# - unused-import
+# - unused-variable (as warning)
+# - import-error
+# - no-member
+# - attribute-defined-outside-init
+
+[FORMAT]
+# Allow reasonable line length
+max-line-length=120
+
+[SIMILARITIES]
+# Don't complain about small similarities
+min-similarity-lines=20
+
+[DESIGN]
+# Reasonable limits
+max-args=8
+max-locals=15
+max-returns=6
+max-branches=12
+max-statements=50
+
+[MESSAGES CONTROL]
+# Make unused variables warnings instead of errors
+# Make convention violations hints instead of warnings

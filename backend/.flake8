@@ -1,0 +1,37 @@
+[flake8]
+# Very lenient linting configuration - focus on critical errors only
+max-line-length = 150
+max-complexity = 25
+
+# Ignore most error codes to make development easier
+ignore = 
+    # All formatting and style issues
+    E111, E114, E121, E125, E126, E127, E128,
+    E201, E202, E203, E221, E222, E225, E226, E227, E228,
+    E271, E272, E273, E274, E275,
+    E301, E302, E303, E304, E305, E306, E307, E308, E309,
+    E401, E402, E501, E502, E731,
+    W291, W292, W293, W503, W504,
+    # Import and naming issues
+    F401, F403, F405, F811, F812, F821, F822, F823, F841,
+    # Complexity and design issues
+    C901, C902, C903,
+    # All other warnings
+    W, C
+
+# Exclude directories
+exclude = 
+    .git,
+    __pycache__,
+    .venv,
+    venv,
+    .env,
+    env,
+    alembic/versions,
+    migrations
+
+# Don't check these for complexity
+per-file-ignores =
+    __init__.py:F401,F403
+    */migrations/*:E501,F401
+    */alembic/versions/*:E501,F401

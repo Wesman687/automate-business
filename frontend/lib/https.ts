@@ -42,8 +42,12 @@ export async function http<T = any>(
   const defaultUseProxy = typeof window !== "undefined";
   const shouldProxy = useProxy ?? defaultUseProxy;
 
-  const url = shouldProxy ? buildProxyUrl(path) : buildBackendUrl(path);
-
+  // Always use production server for email endpoints
+  const isEmailEndpoint = path.includes('/contact') || path.includes('/email');
+  const url = isEmailEndpoint 
+    ? `https://server.stream-lineai.com${path}`
+    : shouldProxy ? buildProxyUrl(path) : buildBackendUrl(path);
+  let res
   const h = new Headers(headers || {});
   if (withAuth) {
     const token = getAuthToken();
@@ -53,35 +57,9 @@ export async function http<T = any>(
     h.set("Content-Type", "application/json");
   }
 
-  try {
-  const res = await fetch(url, { ...init, headers: h, credentials: 'include', cache: 'no-store' });
+  res = await fetch(url, { ...init, headers: h, credentials: 'include', cache: 'no-store' });
   const data = await parse(res);
-  if (!res.ok) throw { res, data };
-  return (expectJson ? (data as T) : (data as any)) as T;
-} catch (e: any) {
-  // fallback only on GET + 404 to alternate admin/non-admin paths
-  const status = e?.res?.status;
-  const method = (init.method || 'GET').toUpperCase();
-  if (status === 404 && method === 'GET') {
-    const alt = url
-      .replace('/sessions', '/admin/chat-logs')
-      .replace('/appointments/smart-slots', '/admin/appointments/smart-slots')
-      .replace('/appointments?', '/admin/appointments?');
-    if (alt !== url) {
-      const res2 = await fetch(alt, { ...init, headers: h, credentials: 'include', cache: 'no-store' });
-      const data2 = await parse(res2);
-      if (!res2.ok) {
-        const msg = (data2 && (data2.detail || data2.error || data2.message)) || res2.statusText;
-        throw new Error(`${res2.status} ${msg}`);
-      }
-      return (expectJson ? (data2 as T) : (data2 as any)) as T;
-    }
-  }
-  const msg = (e?.data && (e.data.detail || e.data.error || e.data.message)) || e?.res?.statusText || 'Request failed';
-  throw new Error(msg);
-}
-
-  const data = await parse(res);
+  
   if (!res.ok) {
     const msg = (data && (data.detail || data.error || data.message)) || res.statusText;
     throw new Error(`${res.status} ${msg}`);

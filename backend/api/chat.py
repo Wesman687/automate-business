@@ -1,117 +1,86 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
-from services.customer_service import CustomerService
+from api.auth import get_current_admin
 from services.session_service import SessionService
-from services.openai_service import OpenAIService, SYSTEM_PROMPT
-from schemas.chat import ChatRequest, ChatResponse
-import uuid
+from datetime import datetime
 
-router = APIRouter(prefix="/api", tags=["chat"])
+router = APIRouter()
 
-# Initialize OpenAI service
-openai_service = OpenAIService()
-
-@router.post("/chat", response_model=ChatResponse)
-async def chat_with_ai(chat_request: ChatRequest, db: Session = Depends(get_db)):
-    """Handle chat messages and generate AI responses"""
+@router.get("/sessions")
+async def get_chat_sessions(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_admin)
+):
+    """Get all chat sessions"""
     try:
         session_service = SessionService(db)
-        customer_service = CustomerService(db)
+        sessions = session_service.get_all_sessions()
         
-        # Add user message to database
-        session_service.add_message(
-            session_id=chat_request.session_id,
-            text=chat_request.message,
-            is_bot=False
-        )
-        
-        # Get conversation history for context
-        messages = session_service.get_session_messages(chat_request.session_id, limit=10)
-        
-        # Prepare messages for OpenAI
-        openai_messages = []
-        for msg in messages:
-            role = "assistant" if msg.is_bot else "user"
-            openai_messages.append({"role": role, "content": msg.text})
-        
-        # Generate AI response
-        ai_response = await openai_service.generate_chat_response(openai_messages, SYSTEM_PROMPT)
-        
-        # Save AI response to database
-        session_service.add_message(
-            session_id=chat_request.session_id,
-            text=ai_response,
-            is_bot=True
-        )
-        
-        # If user provided email, try to extract customer info and update/create customer
-        if chat_request.user_email:
-            conversation_history = session_service.get_conversation_history(chat_request.session_id)
-            extracted_info = await openai_service.extract_customer_info(conversation_history)
-            
-            if extracted_info:
-                customer = customer_service.update_customer_from_chat(chat_request.user_email, extracted_info)
-                # Link session to customer
-                session_service.link_session_to_customer(chat_request.session_id, customer.id)
-        
-        return ChatResponse(response=ai_response, session_id=chat_request.session_id)
-        
+        return [
+            {
+                "id": session.id,
+                "session_id": session.session_id,
+                "customer": {
+                    "id": session.user.id if session.user else None,
+                    "name": session.user.name if session.user else "Anonymous",
+                    "email": session.user.email if session.user else None
+                } if session.customer_id else None,
+                "status": session.status,
+                "is_seen": session.is_seen,
+                "created_at": session.created_at.isoformat() if session.created_at else None,
+                "updated_at": session.updated_at.isoformat() if session.updated_at else None,
+                "message_count": len(session.messages) if session.messages else 0,
+                "latest_message": {
+                    "text": session.messages[-1].text if session.messages else None,
+                    "timestamp": session.messages[-1].timestamp.isoformat() if session.messages else None,
+                    "is_bot": session.messages[-1].is_bot if session.messages else None
+                } if session.messages else None
+            }
+            for session in sessions
+        ]
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error processing chat: {str(e)}")
-
-@router.post("/generate-proposal")
-async def generate_proposal(session_id: str, db: Session = Depends(get_db)):
-    """Generate a custom proposal based on chat history"""
-    try:
-        session_service = SessionService(db)
-        
-        # Get conversation history
-        conversation_summary = session_service.get_conversation_history(session_id, last_n=20)
-        if not conversation_summary:
-            raise HTTPException(status_code=404, detail="Session not found or empty")
-        
-        # Generate proposal
-        proposal_text = await openai_service.generate_proposal(conversation_summary)
-        
-        # Save proposal as bot message
-        session_service.add_message(
-            session_id=session_id,
-            text=f"CUSTOM PROPOSAL:\n\n{proposal_text}",
-            is_bot=True
-        )
-        
-        # Update session status
-        session_service.update_session_status(session_id, "proposal_sent")
-        
-        return {"proposal": proposal_text}
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error generating proposal: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/sessions/{session_id}")
-async def get_session(session_id: str, db: Session = Depends(get_db)):
-    """Get specific session data with messages"""
-    session_service = SessionService(db)
-    
-    session = session_service.get_session(session_id)
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
-    
-    messages = session_service.get_session_messages(session_id)
-    
-    return {
-        "session_id": session.session_id,
-        "status": session.status,
-        "created_at": session.created_at,
-        "customer_id": session.customer_id,
-        "messages": [
-            {
-                "id": msg.message_id,
-                "text": msg.text,
-                "isBot": msg.is_bot,
-                "timestamp": msg.timestamp.isoformat()
-            }
-            for msg in messages
-        ]
-    }
+async def get_chat_session(
+    session_id: str,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_admin)
+):
+    """Get a specific chat session with all messages"""
+    try:
+        session_service = SessionService(db)
+        session_data = session_service.get_session_with_messages(session_id)
+        
+        if not session_data:
+            raise HTTPException(status_code=404, detail="Chat session not found")
+            
+        return session_data
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/sessions/{session_id}")
+async def delete_chat_session(
+    session_id: str,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_admin)
+):
+    """Delete a chat session and all its messages"""
+    try:
+        session_service = SessionService(db)
+        session = session_service.get_session(session_id)
+        
+        if not session:
+            raise HTTPException(status_code=404, detail="Chat session not found")
+            
+        # Delete the session and its messages
+        session_service.delete_session(session_id)
+        
+        return {"message": "Chat session deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

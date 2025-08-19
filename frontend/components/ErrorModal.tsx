@@ -3,12 +3,19 @@
 import { useEffect } from 'react';
 import { X, AlertTriangle, XCircle, CheckCircle, Info } from 'lucide-react';
 
+interface ModalButton {
+  label: string;
+  onClick: () => void;
+  variant?: 'primary' | 'secondary' | 'danger';
+}
+
 interface ErrorModalProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
   message: string;
   type?: 'error' | 'warning' | 'success' | 'info';
+  buttons?: ModalButton[];
 }
 
 export default function ErrorModal({ 
@@ -16,7 +23,8 @@ export default function ErrorModal({
   onClose, 
   title, 
   message, 
-  type = 'error' 
+  type = 'error',
+  buttons
 }: ErrorModalProps) {
   useEffect(() => {
     if (isOpen) {
@@ -62,18 +70,26 @@ export default function ErrorModal({
     }
   };
 
-  const getButtonColor = () => {
-    switch (type) {
-      case 'error':
+  const getButtonStyles = (variant?: string) => {
+    switch (variant) {
+      case 'secondary':
+        return 'bg-gray-600 hover:bg-gray-700 focus:ring-gray-500';
+      case 'danger':
         return 'bg-red-600 hover:bg-red-700 focus:ring-red-500';
-      case 'warning':
-        return 'bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500';
-      case 'success':
-        return 'bg-green-600 hover:bg-green-700 focus:ring-green-500';
-      case 'info':
-        return 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500';
+      case 'primary':
       default:
-        return 'bg-red-600 hover:bg-red-700 focus:ring-red-500';
+        switch (type) {
+          case 'error':
+            return 'bg-red-600 hover:bg-red-700 focus:ring-red-500';
+          case 'warning':
+            return 'bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500';
+          case 'success':
+            return 'bg-green-600 hover:bg-green-700 focus:ring-green-500';
+          case 'info':
+            return 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500';
+          default:
+            return 'bg-cyan-600 hover:bg-cyan-700 focus:ring-cyan-500';
+        }
     }
   };
 
@@ -114,14 +130,27 @@ export default function ErrorModal({
           </div>
 
           {/* Actions */}
-          <div className="mt-6 flex justify-end">
-            <button
-              type="button"
-              className={`inline-flex justify-center rounded-md px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 ${getButtonColor()}`}
-              onClick={onClose}
-            >
-              Understand
-            </button>
+          <div className="mt-6 flex justify-end gap-3">
+            {buttons ? (
+              buttons.map((button, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  className={`inline-flex justify-center rounded-md px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 ${getButtonStyles(button.variant)}`}
+                  onClick={button.onClick}
+                >
+                  {button.label}
+                </button>
+              ))
+            ) : (
+              <button
+                type="button"
+                className={`inline-flex justify-center rounded-md px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 ${getButtonStyles('primary')}`}
+                onClick={onClose}
+              >
+                OK
+              </button>
+            )}
           </div>
         </div>
       </div>

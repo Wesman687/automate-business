@@ -68,29 +68,23 @@ export default function ChatLogView() {
   const fetchChatLog = async () => {
     try {
       // Fetch session data
-      const sessionResponse = await api.get(`/sessions/${sessionId}`);
-
-      if (!sessionResponse.ok) {
-        throw new Error('Session not found');
-      }
-
-      const session = await sessionResponse.json();
+      const sessionData = await api.get(`/sessions/${sessionId}`);
       
       // Fetch customer data if available
       let customer = null;
-      if (session.customer_id) {
-        const customerResponse = await api.get(`/customers/${session.customer_id}`);
-        if (customerResponse.ok) {
-          customer = await customerResponse.json();
+      if (sessionData.customer_id) {
+        try {
+          customer = await api.get(`/customers/${sessionData.customer_id}`);
+        } catch (error) {
+          console.warn('Failed to fetch customer data:', error);
         }
       }
 
-      // Fetch messages
-      const messagesResponse = await api.get(`/sessions/${sessionId}/messages`);
-      
-      const messages = messagesResponse.ok ? await messagesResponse.json() : [];
-
-      setData({ session, customer, messages });
+      setData({ 
+        session: sessionData,
+        customer,
+        messages: sessionData.messages || []
+      });
     } catch (error) {
       console.error('Error fetching chat log:', error);
       setError(error instanceof Error ? error.message : 'Failed to load chat log');

@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from database.models import Job, CustomerChangeRequest, Customer
+from database.models import Job, CustomerChangeRequest, User
 from typing import List, Optional
 from datetime import datetime
 

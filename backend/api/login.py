@@ -1,12 +1,10 @@
 from fastapi import APIRouter, HTTPException, Depends, Response, Request
-from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from database import get_db
 from services.auth_service import AuthService
 from services.admin_service import AdminService
 from api.auth import get_current_user, get_current_super_admin
-from typing import Optional
 import logging
 
 from utils.cookies import AUTH_COOKIE_NAME, build_auth_cookie_kwargs
@@ -15,16 +13,20 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["unified-authentication"])
 
+
 class LoginRequest(BaseModel):
     email: str
     password: str
+
 
 class LoginResponse(BaseModel):
     token: str
     user: dict
 
+
 @router.post("/login")
-async def unified_login(request: LoginRequest, response: Response, req: Request, db: Session = Depends(get_db)):
+async def unified_login(request: LoginRequest, response: Response, 
+                        req: Request, db: Session = Depends(get_db)):
     auth_service = AuthService(db)
     logger.info(f"🔑 Login attempt for email: {request.email}")
     user_data = auth_service.authenticate_user(request.email, request.password)

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Calendar, Globe, Github, FolderOpen, Target, CheckCircle, ExternalLink, DollarSign } from 'lucide-react';
+import { api } from '@/lib/https';
 
 interface Customer {
   id: number;
@@ -113,18 +114,10 @@ export default function EditJobModal({ isOpen, onClose, onSave, job }: EditJobMo
 
   const fetchCustomers = async () => {
     try {
-      const token = localStorage.getItem('admin_token');
-      const response = await fetch('/api/customers', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setCustomers(data);
-      }
+      console.log('Fetching customers...');
+      const data = await api.get('/customers');
+      console.log('Customers received:', data);
+      setCustomers(data);
     } catch (error) {
       console.error('Error fetching customers:', error);
     }

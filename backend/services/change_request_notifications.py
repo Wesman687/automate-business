@@ -1,11 +1,11 @@
 from services.email_service import email_service
-from database.models import CustomerChangeRequest, Job, Customer
+from database.models import CustomerChangeRequest, Job, User
 import os
 import logging
 
 logger = logging.getLogger(__name__)
 
-async def send_change_request_notification(change_request: CustomerChangeRequest, job: Job, customer: Customer):
+async def send_change_request_notification(change_request: CustomerChangeRequest, job: Job, customer: User):
     """Send email notification to tech team about new change request"""
     try:
         # Check if we're in production environment
@@ -72,7 +72,7 @@ Customer Information:
 Please review this change request and provide estimates for implementation.
 
 Access the admin panel to manage this request:
-🔗 Admin Panel: https://server.stream-lineai.com/admin/jobs/{job.id}
+🔗 Admin Panel: https://stream-lineai.com/portal
 
 Best regards,
 StreamlineAI Automation System

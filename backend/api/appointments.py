@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional, Optional
 from datetime import datetime, date, time, timedelta
 from database import get_db
-from database.models import Appointment, Customer
+from database.models import Appointment, User
 from services.appointment_service import AppointmentService
 from services.google_calendar_service import google_calendar_service
 from services.email_service import email_service
@@ -12,7 +12,7 @@ from api.auth import get_current_user as get_current_user, get_customer_or_admin
 from pydantic import BaseModel
 import logging
 
-router = APIRouter()
+router = APIRouter(prefix="/appointments", tags=["appointments"])
 logger = logging.getLogger(__name__)
 
 async def send_appointment_confirmation_email(
@@ -590,12 +590,13 @@ class AppointmentResponse(BaseModel):
     created_at: str
 
 # JSON API endpoints for voice AI and frontend integration
-@router.get("/api/appointments", response_model=List[AppointmentResponse])
+@router.get("/", response_model=List[AppointmentResponse])
 async def get_appointments(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     customer_id: Optional[int] = None,
     status: Optional[str] = None,
+    upcoming: Optional[bool] = None,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
@@ -608,44 +609,64 @@ async def get_appointments(
         user_type = current_user.get('user_type')
         user_id = current_user.get('user_id')
         
-        print(f"🔍 Appointments endpoint - User: {current_user}")
-        print(f"🔍 Is admin: {is_admin}, User type: {user_type}, User ID: {user_id}")
+        logger.info(f"🔍 Appointments endpoint - User: {current_user}")
+        logger.info(f"🔍 Is admin: {is_admin}, User type: {user_type}, User ID: {user_id}")
         
-        if is_admin:
-            # Admin can see appointments with any filters
-            if customer_id:
-                appointments = appointment_service.get_customer_appointments(customer_id)
-            elif start_date and end_date:
-                start = datetime.strptime(start_date, '%Y-%m-%d').date()
-                end = datetime.strptime(end_date, '%Y-%m-%d').date()
-                appointments = appointment_service.get_appointments_by_date_range(start, end)
+        try:
+            if is_admin:
+                # Admin can see appointments with any filters
+                if upcoming:
+                    logger.info("Getting upcoming appointments for admin")
+                    appointments = appointment_service.get_upcoming_appointments()
+                elif customer_id:
+                    logger.info(f"Getting appointments for customer {customer_id}")
+                    appointments = appointment_service.get_customer_appointments(customer_id)
+                elif start_date and end_date:
+                    logger.info(f"Getting appointments between {start_date} and {end_date}")
+                    start = datetime.strptime(start_date, '%Y-%m-%d').date()
+                    end = datetime.strptime(end_date, '%Y-%m-%d').date()
+                    appointments = appointment_service.get_appointments_by_date_range(start, end)
+                else:
+                    logger.info("Getting all appointments for admin")
+                    appointments = appointment_service.get_all_appointments()  # Get ALL appointments for admin
+            elif user_type == "customer" and user_id:
+                logger.info(f"Getting appointments for customer {user_id}")
+                appointments = appointment_service.get_customer_appointments(user_id)
             else:
-                # Admin sees ALL appointments (past, present, future) - no date filtering
-                appointments = appointment_service.get_all_appointments()  # Get ALL appointments for admin
-        elif user_type == "customer" and user_id:
-            # Customer can only see their own appointments
-            appointments = appointment_service.get_customer_appointments(user_id)
-        else:
-            raise HTTPException(status_code=403, detail="Access denied")
+                raise HTTPException(status_code=403, detail="Access denied")
+                
+            logger.info(f"Found {len(appointments)} appointments")
+        except Exception as e:
+            logger.error(f"Error fetching appointments: {str(e)}")
+            raise
         
         # Convert to response format
         result = []
-        for appointment in appointments:
-            result.append({
-                "id": appointment.id,
-                "customer_id": appointment.customer_id,
-                "customer_name": appointment.customer.name,
-                "customer_email": appointment.customer.email,
-                "title": f"Consultation - {appointment.customer.name}",
-                "description": appointment.customer_notes or "Business automation consultation",
-                "appointment_date": appointment.scheduled_date.date().isoformat(),
-                "appointment_time": appointment.scheduled_date.time().strftime('%H:%M:%S'),
-                "duration_minutes": appointment.duration_minutes,
-                "meeting_type": appointment.appointment_type,
-                "status": appointment.status,
-                "notes": appointment.customer_notes,
-                "created_at": appointment.created_at.isoformat() if appointment.created_at else None
-            })
+        try:
+            for appointment in appointments:
+                try:
+                    customer = appointment.customer
+                    result.append({
+                        "id": appointment.id,
+                        "customer_id": appointment.customer_id,
+                        "customer_name": customer.name if customer else "Unknown",
+                        "customer_email": customer.email if customer else "unknown@email.com",
+                        "title": f"Consultation - {customer.name if customer else 'Unknown'}",
+                        "description": appointment.customer_notes or "Business automation consultation",
+                        "appointment_date": appointment.scheduled_date.date().isoformat(),
+                        "appointment_time": appointment.scheduled_date.time().strftime('%H:%M:%S'),
+                        "duration_minutes": appointment.duration_minutes,
+                        "meeting_type": appointment.appointment_type,
+                        "status": appointment.status,
+                        "notes": appointment.customer_notes,
+                        "created_at": appointment.created_at.isoformat() if appointment.created_at else None
+                    })
+                except Exception as e:
+                    logger.error(f"Error processing appointment {appointment.id}: {str(e)}")
+                    continue
+        except Exception as e:
+            logger.error(f"Error converting appointments to response format: {str(e)}")
+            raise HTTPException(status_code=500, detail="Failed to process appointments")
             
         return result
         
@@ -653,13 +674,12 @@ async def get_appointments(
         logger.error(f"Error fetching appointments: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to fetch appointments")
 
-@router.get("/api/appointments/smart-slots")
+@router.get("/smart-slots")
 async def get_smart_appointment_slots(
     preferred_date: str = None,
     duration_minutes: int = 30,
     days_ahead: int = 14,
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     """Get smart appointment recommendations with available dates and times"""
     try:
@@ -802,7 +822,7 @@ async def get_smart_appointment_slots(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting smart slots: {str(e)}")
 
-@router.get("/api/appointments/available-slots")
+@router.get("/available-slots")
 async def get_available_slots(
     date: str,
     duration_minutes: int = 30,
@@ -884,7 +904,7 @@ async def get_available_slots(
         logger.error(f"Error getting available slots: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to get available slots")
 
-@router.get("/api/appointments/recommended-times")
+@router.get("/recommended-times")
 async def get_recommended_times(
     days_ahead: int = 7,
     limit: int = 10,
@@ -934,7 +954,7 @@ async def get_recommended_times(
         logger.error(f"Error getting recommended times: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to get recommended times")
 
-@router.post("/api/appointments", response_model=AppointmentResponse)
+@router.post("/", response_model=AppointmentResponse)
 async def create_appointment(
     appointment_data: AppointmentCreate,
     force: bool = False,  # Add force parameter for admin override
@@ -944,7 +964,10 @@ async def create_appointment(
     """Create a new appointment with optional conflict checking"""
     try:
         # Verify customer exists
-        customer = db.query(Customer).filter(Customer.id == appointment_data.customer_id).first()
+        customer = db.query(User).filter(
+            User.id == appointment_data.customer_id,
+            User.user_type == 'customer'
+        ).first()
         if not customer:
             raise HTTPException(status_code=404, detail="Customer not found")
         
@@ -1076,7 +1099,7 @@ async def create_appointment(
         logger.error(f"Error creating appointment: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to create appointment")
 
-@router.get("/api/appointments/customer")
+@router.get("/customer")
 async def get_customer_appointments(
     customer_id: Optional[int] = None,  # Allow specifying customer ID for admin access
     db: Session = Depends(get_db),
@@ -1127,7 +1150,7 @@ async def get_customer_appointments(
         print(f"❌ Error in get_customer_appointments: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-@router.get("/api/appointments/{appointment_id}", response_model=AppointmentResponse)
+@router.get("/{appointment_id}", response_model=AppointmentResponse)
 async def get_appointment(
     appointment_id: int,
     db: Session = Depends(get_db),
@@ -1154,7 +1177,10 @@ async def get_appointment(
         if not is_admin and (user_type != "customer" or user_id != appointment.customer_id):
             raise HTTPException(status_code=403, detail="Access denied - can only view your own appointments")
             
-        customer = db.query(Customer).filter(Customer.id == appointment.customer_id).first()
+        customer = db.query(User).filter(
+            User.id == appointment.customer_id,
+            User.user_type == 'customer'
+        ).first()
         
         return {
             "id": appointment.id,
@@ -1178,7 +1204,7 @@ async def get_appointment(
         logger.error(f"Error fetching appointment: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to fetch appointment")
 
-@router.put("/api/appointments/{appointment_id}", response_model=AppointmentResponse)
+@router.put("/{appointment_id}", response_model=AppointmentResponse)
 async def update_appointment(
     appointment_id: int,
     appointment_data: AppointmentUpdate,
@@ -1236,19 +1262,27 @@ async def update_appointment(
         appointment_service.update_appointment(appointment)
         
         # Get customer info for response
-        customer = db.query(Customer).filter(Customer.id == appointment.customer_id).first()
+        customer = db.query(User).filter(
+            User.id == appointment.customer_id,
+            User.user_type == 'customer'
+        ).first()
         
         # Update Google Calendar event if not being cancelled
         calendar_link = None
         if not is_cancellation:
             try:
-                calendar_link = google_calendar_service.update_calendar_event(
-                    appointment_id=appointment.id,
-                    title=f"Consultation - {customer.name if customer else 'Unknown'}",
-                    description=appointment.customer_notes or "Business automation consultation",
-                    start_datetime=appointment.scheduled_date,
-                    duration_minutes=appointment.duration_minutes,
-                    attendee_email=customer.email if customer and customer.email else None
+                calendar_link = await google_calendar_service.update_calendar_event(
+                    event_id=str(appointment.id),
+                    appointment_data={
+                        'title': f"Consultation - {customer.name if customer else 'Unknown'}",
+                        'description': appointment.customer_notes or "Business automation consultation",
+                        'appointment_date': appointment.scheduled_date.date(),
+                        'appointment_time': appointment.scheduled_date.time(),
+                        'duration_minutes': appointment.duration_minutes,
+                        'customer_name': customer.name if customer else 'Unknown',
+                        'customer_email': customer.email if customer else None,
+                        'meeting_type': appointment.appointment_type
+                    }
                 )
                 logger.info(f"Google Calendar event updated for appointment {appointment.id}: {calendar_link}")
             except Exception as e:
@@ -1319,7 +1353,7 @@ async def update_appointment(
         logger.error(f"Error updating appointment: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to update appointment")
 
-@router.delete("/api/appointments/{appointment_id}")
+@router.delete("/{appointment_id}")
 async def delete_appointment(
     appointment_id: int,
     db: Session = Depends(get_db),
@@ -1351,39 +1385,7 @@ async def delete_appointment(
         logger.error(f"Error deleting appointment: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to delete appointment")
 
-@router.get("/api/appointments/available-slots")
-async def get_available_slots(
-    date: str,  # Format: YYYY-MM-DD
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
-):
-    """Get available time slots for a specific date"""
-    try:
-        appointment_service = AppointmentService(db)
-        target_date = datetime.strptime(date, '%Y-%m-%d').date()
-        
-        # Get existing appointments for the date
-        existing_appointments = appointment_service.get_appointments_by_date(target_date)
-        
-        # Define business hours (9 AM to 6 PM)
-        business_hours = []
-        for hour in range(9, 18):  # 9 AM to 5 PM (last slot)
-            business_hours.append(f"{hour:02d}:00")
-            business_hours.append(f"{hour:02d}:30")
-        
-        # Remove booked slots
-        booked_times = [apt.scheduled_date.time().strftime('%H:%M') for apt in existing_appointments]
-        available_slots = [slot for slot in business_hours if slot not in booked_times]
-        
-        return {
-            "date": date,
-            "available_slots": available_slots,
-            "booked_slots": booked_times
-        }
-        
-    except Exception as e:
-        logger.error(f"Error fetching available slots: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to fetch available slots")
+
 
 @router.get("/schedule", response_class=HTMLResponse)
 async def view_schedule(db: Session = Depends(get_db)):

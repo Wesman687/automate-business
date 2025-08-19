@@ -6,11 +6,11 @@ Reusable utilities for appointment management across different interfaces (API, 
 from typing import List, Dict, Optional, Tuple
 from datetime import datetime, timedelta, time, date
 from sqlalchemy.orm import Session
-from database.models import Appointment, Customer
+from database.models import Appointment, User
 from services.appointment_service import AppointmentService
 from services.google_calendar_service import google_calendar_service
 from services.email_service import email_service
-from api.schedule import send_appointment_confirmation_email, send_appointment_update_email
+from api.appointments import send_appointment_confirmation_email, send_appointment_update_email
 import logging
 
 logger = logging.getLogger(__name__)
@@ -42,7 +42,10 @@ class AppointmentHelper:
         """
         try:
             # Verify customer exists
-            customer = self.db.query(Customer).filter(Customer.id == customer_id).first()
+            customer = self.db.query(User).filter(
+                User.id == customer_id,
+                User.user_type == 'customer'
+            ).first()
             if not customer:
                 return {
                     "success": False,
@@ -188,7 +191,7 @@ class AppointmentHelper:
     async def _create_calendar_event(
         self, 
         appointment: Appointment, 
-        customer: Customer,
+        customer: User,
         title: str,
         description: str
     ) -> Optional[str]:
@@ -221,7 +224,7 @@ class AppointmentHelper:
     async def _send_confirmation_email(
         self, 
         appointment: Appointment, 
-        customer: Customer,
+        customer: User,
         calendar_link: Optional[str] = None
     ) -> bool:
         """Send appointment confirmation email"""

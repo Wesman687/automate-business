@@ -1,11 +1,10 @@
-from fastapi import APIRouter, HTTPException, Depends, logger
-from pydantic import BaseModel, EmailStr
 from typing import List, Optional
+from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel, EmailStr
 from api.auth import get_current_admin
 from services.email_reader_service import EmailReaderService
 from services.email_service import email_service
 from services.admin_service import AdminService
-from services.auth_service import AuthService
 from sqlalchemy.orm import Session
 from database import get_db
 import secrets
@@ -15,7 +14,6 @@ import logging
 email_logger = logging.getLogger('email')  # Dedicated email logger
 
 router = APIRouter(prefix="/email", tags=["email"])
-
 class EmailRequest(BaseModel):
     to_emails: List[EmailStr]
     subject: str

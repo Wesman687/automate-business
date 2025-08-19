@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from database.models import Appointment, Customer
+from database.models import Appointment, User
 from datetime import datetime, timedelta
 from typing import List, Optional
 
@@ -17,8 +17,7 @@ class AppointmentService:
         status: str = "scheduled",
         force_create: bool = False
     ) -> Appointment:
-        """Create a new appointment with optional conflict checking"""
-        
+        """Create a new appointment with optional conflict checking"""        
         # Only check for conflicts if not forcing creation
         if not force_create:
             # Check for exact time conflicts (same date and time)
@@ -26,7 +25,7 @@ class AppointmentService:
                 Appointment.scheduled_date == scheduled_date,
                 Appointment.status == "scheduled"
             ).first()
-            
+                        
             if existing_appointment:
                 raise ValueError(f"Another appointment is already scheduled at {scheduled_date.strftime('%A, %B %d at %I:%M %p')}")
         

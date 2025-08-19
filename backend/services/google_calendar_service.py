@@ -24,7 +24,7 @@ class GoogleCalendarService:
         self.enabled = os.getenv('GOOGLE_CALENDAR_ENABLED', 'true').lower() == 'true'
         self.credentials_file = 'streamline-oauthcredentials.json'
         self.scopes = ['https://www.googleapis.com/auth/calendar']
-        self.redirect_uri = 'https://server.stream-lineai.com/api/auth/google/callback'
+        self.redirect_uri = 'https://server.stream-lineai.com/auth/google/callback'
         
     def get_authorization_url(self) -> str:
         """

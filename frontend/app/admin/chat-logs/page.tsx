@@ -46,14 +46,8 @@ export default function ChatLogs() {
 
   const fetchChatLogs = async () => {
     try {
-      const response = await api.get('/sessions');
-
-      if (response.ok) {
-        const data = await response.json();
-        setSessions(data);
-      } else {
-        console.error('Failed to fetch chat logs');
-      }
+      const data = await api.get('/sessions');
+      setSessions(data);
     } catch (error) {
       console.error('Error fetching chat logs:', error);
     } finally {
@@ -61,39 +55,43 @@ export default function ChatLogs() {
     }
   };
 
-  const deleteSession = async (sessionId: string) => {
-    if (!window.confirm('Are you sure you want to delete this chat session? This action cannot be undone.')) {
-      return;
-    }
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    sessionId?: string;
+  }>({
+    isOpen: false,
+    sessionId: undefined
+  });
 
+  const initiateDelete = (sessionId: string) => {
+    setConfirmModal({
+      isOpen: true,
+      sessionId
+    });
+  };
+
+  const deleteSession = async () => {
+    if (!confirmModal.sessionId) return;
+    
     try {
-      const response = await api.del(`/sessions/${sessionId}`);
-
-      if (response.ok) {
-        setSessions(sessions.filter(s => s.session_id !== sessionId));
-        setErrorModal({
-          isOpen: true,
-          title: 'Session Deleted',
-          message: 'The chat session has been successfully deleted.',
-          type: 'success'
-        });
-      } else {
-        const errorData = await response.json();
-        setErrorModal({
-          isOpen: true,
-          title: 'Delete Failed',
-          message: errorData.detail || 'Failed to delete the chat session. Please try again.',
-          type: 'error'
-        });
-      }
+      await api.del(`/sessions/${confirmModal.sessionId}`);
+      setSessions(sessions.filter(s => s.session_id !== confirmModal.sessionId));
+      setErrorModal({
+        isOpen: true,
+        title: 'Success',
+        message: 'The chat session has been successfully deleted.',
+        type: 'success'
+      });
     } catch (error) {
       console.error('Error deleting session:', error);
       setErrorModal({
         isOpen: true,
-        title: 'Network Error',
-        message: 'Unable to connect to the server. Please check your internet connection and try again.',
+        title: 'Error',
+        message: error instanceof Error ? error.message : 'Failed to delete the chat session. Please try again.',
         type: 'error'
       });
+    } finally {
+      setConfirmModal({ isOpen: false, sessionId: undefined });
     }
   };
 
@@ -325,7 +323,7 @@ export default function ChatLogs() {
                         <Eye className="h-4 w-4" />
                       </Link>
                       <button
-                        onClick={() => deleteSession(session.session_id)}
+                        onClick={() => initiateDelete(session.session_id)}
                         className="text-red-400 hover:text-red-300 p-1 rounded"
                         title="Delete Session"
                       >
@@ -358,6 +356,27 @@ export default function ChatLogs() {
         title={errorModal.title}
         message={errorModal.message}
         type={errorModal.type}
+      />
+
+      {/* Confirm Delete Modal */}
+      <ErrorModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ isOpen: false, sessionId: undefined })}
+        title="Confirm Delete"
+        message="Are you sure you want to delete this chat session? This action cannot be undone."
+        type="warning"
+        buttons={[
+          {
+            label: "Cancel",
+            onClick: () => setConfirmModal({ isOpen: false, sessionId: undefined }),
+            variant: "secondary"
+          },
+          {
+            label: "Delete",
+            onClick: deleteSession,
+            variant: "danger"
+          }
+        ]}
       />
     </div>
   );

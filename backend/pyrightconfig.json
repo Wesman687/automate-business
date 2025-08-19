@@ -1,0 +1,50 @@
+{
+  "include": [
+    "."
+  ],
+  "exclude": [
+    "**/node_modules",
+    "**/__pycache__",
+    "**/.venv",
+    "**/venv"
+  ],
+  "ignore": [],
+  "defineConstant": {
+    "DEBUG": true
+  },
+  "venvPath": ".",
+  "venv": "venv",
+  "reportMissingImports": "warning",
+  "reportMissingTypeStubs": "none",
+  "pythonVersion": "3.9",
+  "pythonPlatform": "Windows",
+  "typeCheckingMode": "off",
+  "useLibraryCodeForTypes": false,
+  "reportGeneralTypeIssues": "none",
+  "reportOptionalMemberAccess": "none",
+  "reportOptionalSubscript": "none",
+  "reportPrivateUsage": "none",
+  "reportUnusedImport": "none",
+  "reportUnusedClass": "none",
+  "reportUnusedFunction": "none",
+  "reportUnusedVariable": "none",
+  "reportDuplicateImport": "none",
+  "reportWildcardImportFromLibrary": "none",
+  "reportOptionalCall": "none",
+  "reportOptionalIterable": "none",
+  "reportOptionalContextManager": "none",
+  "reportOptionalOperand": "none",
+  "reportTypedDictNotRequiredAccess": "none",
+  "reportConstantRedefinition": "none",
+  "reportIncompatibleMethodOverride": "none",
+  "reportIncompatibleVariableOverride": "none",
+  "reportOverlappingOverload": "none",
+  "reportUnnecessaryIsInstance": "none",
+  "reportUnnecessaryCast": "none",
+  "reportUnnecessaryComparison": "none",
+  "reportUnnecessaryContains": "none",
+  "reportUnusedCallResult": "none",
+  "reportUnnecessaryExpression": "none",
+  "reportMatchNotExhaustive": "none",
+  "reportShadowedImports": "none"
+}

@@ -59,8 +59,8 @@ class AuthService:
             "email": user.email,
             "name": user.name or user.username,
             "user_type": user.user_type,
-            "is_admin": user.is_admin,
-            "is_customer": user.is_customer,
+            "is_admin": user.is_admin,  # This uses the @property
+            "is_customer": user.is_customer,  # This uses the @property
             "is_super_admin": user.is_super_admin if user.is_admin else False,
             "permissions": self._get_permissions(user)
         }
@@ -136,6 +136,21 @@ class AuthService:
                 "is_super_admin": payload.get("is_super_admin", False),
                 "permissions": payload.get("permissions", [])
             }
+            
+            # Ensure admin flags are properly set based on user_type
+            if user_data["user_type"] == "admin":
+                user_data["is_admin"] = True
+                user_data["is_customer"] = False
+            elif user_data["user_type"] == "customer":
+                user_data["is_admin"] = False
+                user_data["is_customer"] = True
+            
+            # Debug logging
+            print(f"🔍 Token verification for user: {user_data['email']}")
+            print(f"   user_type: {user_data['user_type']}")
+            print(f"   is_admin: {user_data['is_admin']}")
+            print(f"   is_customer: {user_data['is_customer']}")
+            print(f"   is_super_admin: {user_data['is_super_admin']}")
             
             # Verify user still exists and is active - unified approach only
             user = self.db.query(User).filter(User.id == user_data["user_id"]).first()

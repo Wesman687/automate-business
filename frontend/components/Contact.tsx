@@ -23,7 +23,7 @@ export default function Contact() {
     
     try {
       // Always use production server for contact form (emails only work on server)
-      const response = await fetch('https://server.stream-lineai.com/api/contact', {
+      const response = await fetch('https://server.stream-lineai.com/contact', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

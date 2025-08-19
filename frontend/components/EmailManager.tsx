@@ -90,7 +90,7 @@ export default function EmailManager({ onClose, selectedEmailId }: EmailManagerP
   const fetchEmailAccounts = async () => {
     try {
       // Try to fetch from server, but fall back to local config
-      const response = await fetch('https://server.stream-lineai.com/api/admin/emails/accounts', {
+      const response = await fetch('https://server.stream-lineai.com/email/accounts', {
         credentials: 'include',
       });
       
@@ -116,7 +116,7 @@ export default function EmailManager({ onClose, selectedEmailId }: EmailManagerP
     try {
       setLoading(true);
       // Always use server API for emails
-      const response = await fetch('https://server.stream-lineai.com/api/admin/emails/unread', {
+      const response = await fetch('https://server.stream-lineai.com/email/unread', {
         credentials: 'include',
       });
 
@@ -142,7 +142,7 @@ export default function EmailManager({ onClose, selectedEmailId }: EmailManagerP
 
   const selectEmail = async (email: Email) => {
     try {
-      const response = await fetch(`https://server.stream-lineai.com/api/admin/emails/${email.id}`, {
+      const response = await fetch(`https://server.stream-lineai.com/email/${email.id}`, {
         credentials: 'include',
       });
 
@@ -160,7 +160,7 @@ export default function EmailManager({ onClose, selectedEmailId }: EmailManagerP
 
   const markAsRead = async (emailId: string) => {
     try {
-      const response = await fetch(`https://server.stream-lineai.com/api/admin/emails/${emailId}/mark-read`, {
+      const response = await fetch(`https://server.stream-lineai.com/email/${emailId}/mark-read`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -183,7 +183,7 @@ export default function EmailManager({ onClose, selectedEmailId }: EmailManagerP
 
   const markAsUnread = async (emailId: string) => {
     try {
-      const response = await fetch(`https://server.stream-lineai.com/api/admin/emails/${emailId}/mark-unread`, {
+      const response = await fetch(`https://server.stream-lineai.com/email/${emailId}/mark-unread`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -231,7 +231,7 @@ export default function EmailManager({ onClose, selectedEmailId }: EmailManagerP
 
     try {
       setSending(true);
-      const response = await fetch('https://server.stream-lineai.com/api/admin/emails/send', {
+      const response = await fetch('https://server.stream-lineai.com/email/send', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -273,7 +273,7 @@ export default function EmailManager({ onClose, selectedEmailId }: EmailManagerP
 
     try {
       setAddingAccount(true);
-      const response = await fetch('https://server.stream-lineai.com/api/admin/emails/accounts', {
+      const response = await fetch('https://server.stream-lineai.com/email/accounts', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -282,11 +282,11 @@ async def test_forgot_password(request: PasswordResetRequest, db: Session = Depe
 
 # Email Management Endpoints
 @router.get("/unread")
-async def get_unread_emails(db: Session = Depends(get_db), current_user: dict = Depends(get_current_admin)):
-    """Get unread emails from all configured email accounts"""
+async def get_all_emails(db: Session = Depends(get_db), current_user: dict = Depends(get_current_admin)):
+    """Get ALL emails (read + unread) from all configured email accounts"""
     try:
         email_reader = EmailReaderService(db_session=db)
-        unread_emails = email_reader.get_unread_emails()
+        all_emails = email_reader.get_all_emails()
         
         return {
             "emails": [
@@ -300,38 +300,15 @@ async def get_unread_emails(db: Session = Depends(get_db), current_user: dict = 
                     "is_important": email.is_important,
                     "is_read": email.is_read
                 }
-                for email in unread_emails
+                for email in all_emails
             ],
-            "count": len(unread_emails)
+            "count": len(all_emails)
         }
     except Exception as e:
-        email_logger.error(f"Error getting unread emails: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to get unread emails")
+        email_logger.error(f"Error getting all emails: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to get emails")
 
-@router.get("/{email_id}")
-async def get_email_details(email_id: str, db: Session = Depends(get_db), current_user: dict = Depends(get_current_admin)):
-    """Get full email content by ID"""
-    try:
-        email_reader = EmailReaderService(db_session=db)
-        email_details = email_reader.get_email_by_id(email_id)
-        
-        if not email_details:
-            raise HTTPException(status_code=404, detail="Email not found")
-        
-        return {
-            "id": email_details.id,
-            "account": email_details.account,
-            "from": email_details.from_address,
-            "subject": email_details.subject,
-            "received_date": email_details.received_date.isoformat(),
-            "body": email_details.body,
-            "preview": email_details.preview,
-            "is_important": email_details.is_important,
-            "is_read": email_details.is_read
-        }
-    except Exception as e:
-        email_logger.error(f"Error getting email details: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to get email details")
+# Move this route AFTER the specific routes to avoid conflicts
 
 @router.post("/send")
 async def send_admin_email(
@@ -589,3 +566,29 @@ async def add_email_account(
         email_logger.error(f"Error adding email account: {str(e)}")
         db.rollback()
         raise HTTPException(status_code=500, detail="Failed to add email account")
+
+# Now add the email details route AFTER all specific routes to avoid conflicts
+@router.get("/{email_id}")
+async def get_email_details(email_id: str, db: Session = Depends(get_db), current_user: dict = Depends(get_current_admin)):
+    """Get full email content by ID"""
+    try:
+        email_reader = EmailReaderService(db_session=db)
+        email_details = email_reader.get_email_by_id(email_id)
+        
+        if not email_details:
+            raise HTTPException(status_code=404, detail="Email not found")
+        
+        return {
+            "id": email_details.id,
+            "account": email_details.account,
+            "from": email_details.from_address,
+            "subject": email_details.subject,
+            "received_date": email_details.received_date.isoformat(),
+            "body": email_details.body,
+            "preview": email_details.preview,
+            "is_important": email_details.is_important,
+            "is_read": email_details.is_read
+        }
+    except Exception as e:
+        email_logger.error(f"Error getting email details: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to get email details")

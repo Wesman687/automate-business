@@ -67,24 +67,62 @@ export default function ChatLogView() {
 
   const fetchChatLog = async () => {
     try {
-      // Fetch session data
-      const sessionData = await api.get(`/sessions/${sessionId}`);
+      // For chat sessions, call the backend directly since it's not under /api
+      const backendUrl = process.env.NODE_ENV === 'development' 
+        ? 'http://localhost:8005' 
+        : 'https://server.stream-lineai.com';
+      
+      // Fetch session data directly from backend
+      const sessionResponse = await fetch(`${backendUrl}/sessions/${sessionId}`, {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      if (!sessionResponse.ok) {
+        throw new Error(`Failed to fetch session: ${sessionResponse.status}`);
+      }
+      
+      const sessionData = await sessionResponse.json();
+      console.log('Session data received:', sessionData);
       
       // Fetch customer data if available
       let customer = null;
       if (sessionData.customer_id) {
         try {
-          customer = await api.get(`/customers/${sessionData.customer_id}`);
+          const customerResponse = await fetch(`${backendUrl}/customers/${sessionData.customer_id}`, {
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+            }
+          });
+          
+          if (customerResponse.ok) {
+            customer = await customerResponse.json();
+            console.log('Customer data received:', customer);
+          }
         } catch (error) {
           console.warn('Failed to fetch customer data:', error);
         }
       }
 
-      setData({ 
-        session: sessionData,
+      // Transform backend data to frontend format
+      const transformedData = {
+        session: {
+          session_id: sessionData.session_id,
+          status: sessionData.status || 'active',
+          is_seen: sessionData.is_seen || false,
+          created_at: sessionData.created_at,
+          updated_at: sessionData.updated_at,
+          customer_id: sessionData.customer_id
+        },
         customer,
         messages: sessionData.messages || []
-      });
+      };
+
+      console.log('Transformed data:', transformedData);
+      setData(transformedData);
     } catch (error) {
       console.error('Error fetching chat log:', error);
       setError(error instanceof Error ? error.message : 'Failed to load chat log');
@@ -97,37 +135,45 @@ export default function ChatLogView() {
     if (!data) return;
     
     try {
-      const response = await api.get(`/sessions/${sessionId}/seen`, {
+      // Toggle the seen status (opposite of current status)
+      const newSeenStatus = !data.session.is_seen;
+      
+      // Call backend directly since it's not under /api
+      const backendUrl = process.env.NODE_ENV === 'development' 
+        ? 'http://localhost:8005' 
+        : 'https://server.stream-lineai.com';
+      
+      const response = await fetch(`${backendUrl}/sessions/${sessionId}/seen`, {
         method: 'PATCH',
-        body: JSON.stringify({ is_seen: !data.session.is_seen }),
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ is_seen: newSeenStatus })
       });
 
-      if (response.ok) {
-        setData({
-          ...data,
-          session: { ...data.session, is_seen: !data.session.is_seen }
-        });
-        setErrorModal({
-          isOpen: true,
-          title: 'Status Updated',
-          message: `Session marked as ${!data.session.is_seen ? 'seen' : 'unseen'}.`,
-          type: 'success'
-        });
-      } else {
-        const errorData = await response.json();
-        setErrorModal({
-          isOpen: true,
-          title: 'Update Failed',
-          message: errorData.detail || 'Failed to update the seen status. Please try again.',
-          type: 'error'
-        });
+      if (!response.ok) {
+        throw new Error(`Failed to update seen status: ${response.status}`);
       }
+
+      // Update local state
+      setData({
+        ...data,
+        session: { ...data.session, is_seen: newSeenStatus }
+      });
+      
+      setErrorModal({
+        isOpen: true,
+        title: 'Status Updated',
+        message: `Session marked as ${newSeenStatus ? 'seen' : 'unseen'}.`,
+        type: 'success'
+      });
     } catch (error) {
       console.error('Error updating seen status:', error);
       setErrorModal({
         isOpen: true,
-        title: 'Network Error',
-        message: 'Unable to connect to the server. Please check your internet connection and try again.',
+        title: 'Update Failed',
+        message: 'Failed to update the seen status. Please try again.',
         type: 'error'
       });
     }
@@ -180,6 +226,7 @@ export default function ChatLogView() {
         </div>
       </div>
 
+
       {/* Session Info */}
       <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-6">
         <h2 className="text-xl font-semibold text-white mb-4">📊 Session Information</h2>
@@ -210,11 +257,11 @@ export default function ChatLogView() {
           </div>
           <div>
             <div className="text-sm text-gray-400">Created</div>
-            <div className="text-white">{new Date(session.created_at).toLocaleString()}</div>
+            <div className="text-white">{session.created_at ? new Date(session.created_at).toLocaleString() : 'No date'}</div>
           </div>
           <div>
             <div className="text-sm text-gray-400">Last Updated</div>
-            <div className="text-white">{new Date(session.updated_at).toLocaleString()}</div>
+            <div className="text-white">{session.updated_at ? new Date(session.updated_at).toLocaleString() : 'No date'}</div>
           </div>
         </div>
       </div>
@@ -307,7 +354,7 @@ export default function ChatLogView() {
                   <div className="text-sm whitespace-pre-wrap">{message.text}</div>
                   <div className="flex items-center gap-1 mt-2 text-xs opacity-60">
                     <Clock className="h-3 w-3" />
-                    {new Date(message.timestamp).toLocaleTimeString()}
+                    {message.timestamp ? new Date(message.timestamp).toLocaleTimeString() : 'No timestamp'}
                   </div>
                 </div>
               </div>

@@ -91,12 +91,12 @@ class EmailReaderService:
         return accounts
     
     def _load_env_accounts(self) -> List[EmailAccount]:
-        """Load email account configurations from environment variables"""
+        """Load email account configurations from environment variables (fallback only)"""
         accounts = []
         
-        # Tech account
+        # Only load tech account as fallback if no database accounts
         tech_email = os.getenv('TECH_EMAIL')
-        tech_password = os.getenv('TECH_PASSWORD')  # Use same as EmailService
+        tech_password = os.getenv('TECH_PASSWORD')
         tech_server = os.getenv('TECH_IMAP_SERVER', 'imap.gmail.com')
         
         if tech_email and tech_password:
@@ -105,19 +105,6 @@ class EmailReaderService:
                 password=tech_password,
                 imap_server=tech_server,
                 account_name="Tech"
-            ))
-        
-        # Sales account
-        sales_email = os.getenv('SALES_EMAIL')
-        sales_password = os.getenv('SALES_PASSWORD')  # Use same as EmailService
-        sales_server = os.getenv('SALES_IMAP_SERVER', 'imap.gmail.com')
-        
-        if sales_email and sales_password:
-            accounts.append(EmailAccount(
-                email=sales_email,
-                password=sales_password,
-                imap_server=sales_server,
-                account_name="Sales"
             ))
         
         return accounts
@@ -231,8 +218,8 @@ class EmailReaderService:
         
         return False
     
-    def get_unread_emails(self, days_back: int = 7, limit: int = 50) -> List[UnreadEmail]:
-        """Get unread emails from all configured accounts"""
+    def get_all_emails(self, days_back: int = 7, limit: int = 50) -> List[UnreadEmail]:
+        """Get ALL emails (read + unread) from all configured accounts"""
         if not self.is_server:
             logger.warning("Email reading attempted on local environment - returning empty list")
             return []
@@ -245,9 +232,9 @@ class EmailReaderService:
         for account in self.accounts:
             try:
                 email_logger.info(f"📧 EMAIL_READ_ACCOUNT_START | Account: {account.account_name} | Email: {account.email}")
-                emails = self._get_unread_emails_from_account(account, days_back, limit)
+                emails = self._get_all_emails_from_account(account, days_back, limit)
                 all_emails.extend(emails)
-                email_logger.info(f"📧 EMAIL_READ_ACCOUNT_SUCCESS | Account: {account.account_name} | Found: {len(emails)} unread emails")
+                email_logger.info(f"📧 EMAIL_READ_ACCOUNT_SUCCESS | Account: {account.account_name} | Found: {len(emails)} emails")
             except Exception as e:
                 email_logger.error(f"📧 EMAIL_READ_ACCOUNT_FAILED | Account: {account.account_name} | Error: {str(e)}")
                 logger.error(f"Error fetching emails from {account.email}: {str(e)}")
@@ -261,8 +248,12 @@ class EmailReaderService:
         
         return all_emails[:limit]
     
-    def _get_unread_emails_from_account(self, account: EmailAccount, days_back: int, limit: int) -> List[UnreadEmail]:
-        """Get unread emails from a specific account"""
+    def get_unread_emails(self, days_back: int = 7, limit: int = 50) -> List[UnreadEmail]:
+        """Get unread emails from all configured accounts (for backward compatibility)"""
+        return self.get_all_emails(days_back, limit)
+    
+    def _get_all_emails_from_account(self, account: EmailAccount, days_back: int, limit: int) -> List[UnreadEmail]:
+        """Get ALL emails (read + unread) from a specific account"""
         emails = []
         mail = None
         
@@ -272,14 +263,14 @@ class EmailReaderService:
             mail.login(account.email, account.password)
             mail.select('INBOX', readonly=True)
             
-            # Search for unread emails from the last N days
+            # Search for ALL emails from the last N days (not just UNSEEN)
             since_date = (datetime.now() - timedelta(days=days_back)).strftime("%d-%b-%Y")
-            search_criteria = f'(UNSEEN SINCE {since_date})'
+            search_criteria = f'(SINCE {since_date})'
             
             status, messages = mail.search(None, search_criteria)
             
             if status != 'OK':
-                logger.warning(f"No unread messages found in {account.email}")
+                logger.warning(f"No messages found in {account.email}")
                 return emails
             
             # Get message IDs
@@ -290,8 +281,8 @@ class EmailReaderService:
             
             for msg_id in reversed(message_ids):  # Process newest first
                 try:
-                    # Fetch the email
-                    status, msg_data = mail.fetch(msg_id, '(RFC822)')
+                    # Fetch the email with FLAGS to check if it's read
+                    status, msg_data = mail.fetch(msg_id, '(RFC822 FLAGS)')
                     
                     if status != 'OK':
                         continue
@@ -299,6 +290,10 @@ class EmailReaderService:
                     # Parse the email
                     raw_email = msg_data[0][1]
                     msg = email.message_from_bytes(raw_email)
+                    
+                    # Check if email is read (has \Seen flag)
+                    flags = msg_data[0][0].decode() if msg_data[0][0] else ""
+                    is_read = "\\Seen" in flags
                     
                     # Extract email details
                     from_address = self._decode_header_value(msg.get('From', ''))
@@ -318,17 +313,18 @@ class EmailReaderService:
                     is_important = self._is_important_email(msg, from_address, subject)
                     
                     # Create email object
-                    unread_email = UnreadEmail(
+                    email_obj = UnreadEmail(
                         id=f"{account.account_name}_{msg_id.decode()}",
                         account=account.account_name,
                         from_address=from_address,
                         subject=subject,
                         received_date=received_date,
                         preview=preview,
-                        is_important=is_important
+                        is_important=is_important,
+                        is_read=is_read
                     )
                     
-                    emails.append(unread_email)
+                    emails.append(email_obj)
                     
                 except Exception as e:
                     logger.error(f"Error processing email {msg_id} from {account.email}: {str(e)}")
@@ -347,6 +343,10 @@ class EmailReaderService:
                     pass
         
         return emails
+    
+    def _get_unread_emails_from_account(self, account: EmailAccount, days_back: int, limit: int) -> List[UnreadEmail]:
+        """Get unread emails from a specific account (for backward compatibility)"""
+        return self._get_all_emails_from_account(account, days_back, limit)
     
     def mark_email_as_read(self, email_id: str) -> bool:
         """Mark an email as read"""

@@ -97,7 +97,7 @@ export default function ChatLogs() {
 
   const toggleSeenStatus = async (sessionId: string, currentSeen: boolean) => {
     try {
-      await api.put(`/sessions/${sessionId}/seen`, { is_seen: !currentSeen });
+      await api.patch(`/sessions/${sessionId}/seen`, { is_seen: true })
 
       setSessions(sessions.map(s => 
         s.session_id === sessionId 

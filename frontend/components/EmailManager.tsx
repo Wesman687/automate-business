@@ -17,54 +17,46 @@ interface Email {
 }
 
 interface EmailManagerProps {
-  onClose?: () => void;
-  selectedEmailId?: string; // Optional email ID to open directly
+  isOpen: boolean;
+  onClose: () => void;
 }
 
-export default function EmailManager({ onClose, selectedEmailId }: EmailManagerProps) {
+interface ComposeData {
+  to_email: string;
+  subject: string;
+  body: string;
+  from_account: string;
+}
+
+interface NewAccountData {
+  name: string;
+  email: string;
+  password: string;
+  imap_server: string;
+  imap_port: string;
+  smtp_server: string;
+  smtp_port: string;
+}
+
+export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
   const [emails, setEmails] = useState<Email[]>([]);
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedAccount, setSelectedAccount] = useState('all');
   const [showCompose, setShowCompose] = useState(false);
   const [showAddAccount, setShowAddAccount] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedAccount, setSelectedAccount] = useState<string>('all'); // Account filter
-  const [error, setError] = useState('');
-  const [emailAccounts, setEmailAccounts] = useState<Array<{name: string, value: string, email: string}>>([]);
-
-
-  
-  // Company email accounts - easily configurable
-  // To add more company emails, simply add them to this array
-  const companyEmailAccounts = [
-    { name: 'Tech Support', value: 'tech', email: 'tech@stream-lineai.com' },
-    { name: 'Sales', value: 'sales', email: 'sales@stream-lineai.com' },
-    { name: 'No Reply', value: 'no-reply', email: 'no-reply@stream-lineai.com' },
-    
-    // ✅ TO ADD MORE EMAILS: Uncomment and modify the lines below
-    // { name: 'Customer Service', value: 'support', email: 'support@stream-lineai.com' },
-    // { name: 'Billing', value: 'billing', email: 'billing@stream-lineai.com' },
-    // { name: 'Marketing', value: 'marketing', email: 'marketing@stream-lineai.com' },
-    // { name: 'HR', value: 'hr', email: 'hr@stream-lineai.com' },
-    
-    // Then make sure to configure these email accounts on the server:
-    // 1. Add environment variables for each account (EMAIL, PASSWORD, IMAP_SERVER)
-    // 2. Update the backend EmailReaderService to include the new accounts
-    // 3. Update the backend EmailService to support sending from these accounts
-  ];
-
-  // Compose email state
-  const [composeData, setComposeData] = useState({
+  const [sending, setSending] = useState(false);
+  const [addingAccount, setAddingAccount] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [composeData, setComposeData] = useState<ComposeData>({
     to_email: '',
     subject: '',
     body: '',
     from_account: 'tech'
   });
-  const [sending, setSending] = useState(false);
-
-  // Add new email account state
-  const [newAccountData, setNewAccountData] = useState({
+  const [newAccountData, setNewAccountData] = useState<NewAccountData>({
     name: '',
     email: '',
     password: '',
@@ -73,22 +65,42 @@ export default function EmailManager({ onClose, selectedEmailId }: EmailManagerP
     smtp_server: 'smtp.gmail.com',
     smtp_port: '587'
   });
-  const [addingAccount, setAddingAccount] = useState(false);
+  
+  // New state for success notification
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  
+  // New state for email cache
+  const [emailCache, setEmailCache] = useState<Map<string, Email>>(new Map());
+  const [emailBodies, setEmailBodies] = useState<Map<string, string>>(new Map());
+  const [preloadingEmails, setPreloadingEmails] = useState<Set<string>>(new Set());
+  
+  // Email accounts state
+  const [emailAccounts, setEmailAccounts] = useState<Array<{name: string, value: string, email: string}>>([]);
+
+
+  
+  // Company email accounts - easily configurable
+  const companyEmailAccounts = [
+    { name: 'Tech Support', value: 'tech', email: 'tech@stream-lineai.com' },
+    { name: 'Sales', value: 'sales', email: 'sales@stream-lineai.com' },
+    { name: 'No Reply', value: 'no-reply', email: 'no-reply@stream-lineai.com' },
+  ];
 
   useEffect(() => {
     fetchEmails();
     fetchEmailAccounts();
   }, []);
 
-  // Auto-select email if selectedEmailId is provided
+  // Auto-select email if selectedEmail is provided
   useEffect(() => {
-    if (selectedEmailId && emails.length > 0) {
-      const email = emails.find(e => e.id === selectedEmailId);
+    if (selectedEmail && emails.length > 0) {
+      const email = emails.find(e => e.id === selectedEmail.id);
       if (email) {
         selectEmail(email);
       }
     }
-  }, [selectedEmailId, emails]);
+  }, [selectedEmail, emails]);
 
   const fetchEmailAccounts = async () => {
     try {
@@ -119,13 +131,42 @@ export default function EmailManager({ onClose, selectedEmailId }: EmailManagerP
       setLoading(true);
       
       // Use api utility - automatically routes to production server
-      const data = await api.get('/email/unread');
+      const data = await api.get('/email/all');
       setEmails(data.emails || []);
+      
+      // Preload email bodies for the first few emails for faster access
+      const emailsToPreload = data.emails?.slice(0, 5) || [];
+      for (const email of emailsToPreload) {
+        if (!emailBodies.has(email.id)) {
+          preloadEmailBody(email.id);
+        }
+      }
     } catch (error) {
       console.error('Error fetching emails:', error);
       setError('Failed to fetch emails');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const preloadEmailBody = async (emailId: string) => {
+    try {
+      setPreloadingEmails(prev => new Set(prev).add(emailId));
+      
+      // Use api utility - automatically routes to production server
+      const emailDetails = await api.get(`/email/${emailId}`);
+      
+      // Cache the email body
+      setEmailBodies(prev => new Map(prev).set(emailId, emailDetails.body || ''));
+    } catch (error) {
+      console.error('Error preloading email body:', error);
+      // Don't show error for preloading failures
+    } finally {
+      setPreloadingEmails(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(emailId);
+        return newSet;
+      });
     }
   };
 
@@ -137,9 +178,38 @@ export default function EmailManager({ onClose, selectedEmailId }: EmailManagerP
 
   const selectEmail = async (email: Email) => {
     try {
+      // Check if we have the email body cached
+      if (emailBodies.has(email.id)) {
+        const cachedEmail = { ...email, body: emailBodies.get(email.id) };
+        setSelectedEmail(cachedEmail);
+        
+        // Mark as read if not already read
+        if (!email.is_read) {
+          await markAsRead(email.id);
+          // Update local state to reflect read status
+          setEmails(prev => prev.map(e => 
+            e.id === email.id ? { ...e, is_read: true } : e
+          ));
+        }
+        return;
+      }
+
       // Use api utility - automatically routes to production server
       const emailDetails = await api.get(`/email/${email.id}`);
+      
+      // Cache the email body for faster future access
+      setEmailBodies(prev => new Map(prev).set(email.id, emailDetails.body || ''));
+      
       setSelectedEmail(emailDetails);
+      
+              // Mark as read if not already read
+        if (!email.is_read) {
+          await markAsRead(email.id);
+          // Update local state to reflect read status
+          setEmails(prev => prev.map(e => 
+            e.id === email.id ? { ...e, is_read: true } : e
+          ));
+        }
     } catch (error) {
       console.error('Error fetching email details:', error);
       setError('Failed to fetch email details');
@@ -151,8 +221,15 @@ export default function EmailManager({ onClose, selectedEmailId }: EmailManagerP
       // Use api utility - automatically routes to production server
       await api.post(`/email/${emailId}/mark-read`, {});
 
-      // Refresh emails list
-      await fetchEmails();
+      // Update local state immediately for better UX
+      setEmails(prev => prev.map(email => 
+        email.id === emailId ? { ...email, is_read: true } : email
+      ));
+      
+      // Update selected email if it's the same one
+      if (selectedEmail?.id === emailId) {
+        setSelectedEmail(prev => prev ? { ...prev, is_read: true } : null);
+      }
     } catch (error) {
       console.error('Error marking email as read:', error);
       setError('Failed to mark email as read');
@@ -164,11 +241,55 @@ export default function EmailManager({ onClose, selectedEmailId }: EmailManagerP
       // Use api utility - automatically routes to production server
       await api.post(`/email/${emailId}/mark-unread`, {});
 
-      // Refresh emails list
-      await fetchEmails();
+      // Update local state immediately for better UX
+      setEmails(prev => prev.map(email => 
+        email.id === emailId ? { ...email, is_read: false } : email
+      ));
+      
+      // Update selected email if it's the same one
+      if (selectedEmail?.id === emailId) {
+        setSelectedEmail(prev => prev ? { ...prev, is_read: false } : null);
+      }
     } catch (error) {
       console.error('Error marking email as unread:', error);
       setError('Failed to mark email as unread');
+    }
+  };
+
+  const deleteEmail = async (emailId: string) => {
+    if (!confirm('Are you sure you want to delete this email? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      // Use api utility - automatically routes to production server
+      await api.del(`/email/${emailId}`);
+
+      // Remove from local state
+      setEmails(prev => prev.filter(email => email.id !== emailId));
+      
+      // Clear selection if this was the selected email
+      if (selectedEmail?.id === emailId) {
+        setSelectedEmail(null);
+      }
+      
+      // Clear from cache
+      setEmailBodies(prev => {
+        const newCache = new Map(prev);
+        newCache.delete(emailId);
+        return newCache;
+      });
+
+      // Show success message
+      setSuccessMessage('Email deleted successfully! 🗑️');
+      setShowSuccessModal(true);
+      
+      setTimeout(() => {
+        setShowSuccessModal(false);
+      }, 3000);
+    } catch (error) {
+      console.error('Error deleting email:', error);
+      setError('Failed to delete email');
     }
   };
 
@@ -221,8 +342,14 @@ export default function EmailManager({ onClose, selectedEmailId }: EmailManagerP
       setShowCompose(false);
       setError('');
       
-      // Show success message
-      alert('Email sent successfully!');
+      // Show fancy success notification
+      setSuccessMessage('Email sent successfully! 🎉');
+      setShowSuccessModal(true);
+      
+      // Auto-hide after 3 seconds
+      setTimeout(() => {
+        setShowSuccessModal(false);
+      }, 3000);
     } catch (error) {
       console.error('Error sending email:', error);
       setError(error instanceof Error ? error.message : 'Failed to send email');
@@ -439,9 +566,32 @@ export default function EmailManager({ onClose, selectedEmailId }: EmailManagerP
                         </span>
                       </div>
                     </div>
-                    <p className={`text-sm truncate ml-6 ${
-                      email.is_read ? 'text-gray-500' : 'text-gray-300'
-                    }`}>{email.preview}</p>
+                    <div className="flex items-center justify-between ml-6">
+                      <p className={`text-sm truncate flex-1 ${
+                        email.is_read ? 'text-gray-500' : 'text-gray-300'
+                      }`}>{email.preview}</p>
+                      
+                      {/* Preloading indicator */}
+                      {preloadingEmails.has(email.id) && (
+                        <div className="ml-2 p-1">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400"></div>
+                        </div>
+                      )}
+                      
+                      {/* Delete button for each email */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation(); // Prevent email selection
+                          deleteEmail(email.id);
+                        }}
+                        className="ml-2 p-1 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
+                        title="Delete email"
+                      >
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 ))
               )}
@@ -497,6 +647,16 @@ export default function EmailManager({ onClose, selectedEmailId }: EmailManagerP
                           <span>Mark Read</span>
                         </button>
                       )}
+                      
+                      <button
+                        onClick={() => deleteEmail(selectedEmail.id)}
+                        className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg flex items-center space-x-2 transition-colors"
+                      >
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        <span>Delete</span>
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -743,6 +903,38 @@ export default function EmailManager({ onClose, selectedEmailId }: EmailManagerP
                 )}
                 <span>{addingAccount ? 'Adding...' : 'Add Account'}</span>
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Fancy Success Notification Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowSuccessModal(false)}
+          />
+          
+          {/* Modal */}
+          <div className="relative bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-8 shadow-2xl transform transition-all duration-300 scale-100 animate-in slide-in-from-bottom-4">
+            <div className="text-center">
+              {/* Success Icon */}
+              <div className="mx-auto flex items-center justify-center h-16 w-16 bg-white/20 rounded-full mb-6">
+                <svg className="h-8 w-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              
+              {/* Message */}
+              <h3 className="text-2xl font-bold text-white mb-2">Success!</h3>
+              <p className="text-green-100 text-lg">{successMessage}</p>
+              
+              {/* Auto-close indicator */}
+              <div className="mt-6 w-full bg-white/20 rounded-full h-1">
+                <div className="bg-white h-1 rounded-full animate-pulse" style={{ animationDuration: '3s' }}></div>
+              </div>
             </div>
           </div>
         </div>

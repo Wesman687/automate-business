@@ -592,3 +592,27 @@ async def get_email_details(email_id: str, db: Session = Depends(get_db), curren
     except Exception as e:
         email_logger.error(f"Error getting email details: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to get email details")
+
+@router.delete("/{email_id}")
+async def delete_email(email_id: str, db: Session = Depends(get_db), current_user: dict = Depends(get_current_admin)):
+    """Delete an email"""
+    try:
+        email_logger.info(f"📧 EMAIL_API_DELETE_REQUEST | Email: {email_id} | User: {current_user.get('email', 'unknown')}")
+        
+        email_reader = EmailReaderService(db_session=db)
+        success = email_reader.delete_email(email_id)
+        
+        if success:
+            email_logger.info(f"📧 EMAIL_API_DELETE_SUCCESS | Email: {email_id} | User: {current_user.get('email', 'unknown')}")
+            return {"message": "Email deleted successfully", "status": "success"}
+        else:
+            email_logger.warning(f"📧 EMAIL_API_DELETE_NOT_FOUND | Email: {email_id} | User: {current_user.get('email', 'unknown')}")
+            raise HTTPException(status_code=404, detail="Email not found")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        email_logger.error(f"📧 EMAIL_API_DELETE_ERROR | Email: {email_id} | User: {current_user.get('email', 'unknown')} | Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to delete email")
+
+

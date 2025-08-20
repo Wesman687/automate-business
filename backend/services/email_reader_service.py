@@ -347,6 +347,48 @@ class EmailReaderService:
     def _get_unread_emails_from_account(self, account: EmailAccount, days_back: int, limit: int) -> List[UnreadEmail]:
         """Get unread emails from a specific account (for backward compatibility)"""
         return self._get_all_emails_from_account(account, days_back, limit)
+
+    def delete_email(self, email_id: str) -> bool:
+        """Delete an email by ID"""
+        try:
+            logger.info(f"🔧 EmailReader: Attempting to delete email {email_id}")
+            
+            # Parse email ID to get account and message ID
+            # Format: "account_name_messageId"
+            if '_' not in email_id:
+                logger.error(f"🔧 EmailReader: Invalid email ID format: {email_id}")
+                return False
+            
+            account_name, message_id = email_id.split('_', 1)
+            
+            # Find the account
+            account = None
+            for acc in self.accounts:
+                if acc.account_name == account_name:
+                    account = acc
+                    break
+            
+            if not account:
+                logger.error(f"🔧 EmailReader: Account not found for email {email_id}")
+                return False
+            
+            # Connect to IMAP and delete the message
+            mail = imaplib.IMAP4_SSL(account.imap_server, account.imap_port)
+            mail.login(account.email, account.password)
+            mail.select('INBOX', readonly=False)  # Need write access to delete
+            
+            # Delete the message
+            mail.store(message_id, '+FLAGS', '\\Deleted')
+            mail.expunge()
+            mail.close()
+            mail.logout()
+            
+            logger.info(f"🔧 EmailReader: Successfully deleted email {email_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"🔧 EmailReader: Error deleting email {email_id}: {str(e)}")
+            return False
     
     def mark_email_as_read(self, email_id: str) -> bool:
         """Mark an email as read"""

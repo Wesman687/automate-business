@@ -36,6 +36,29 @@ interface Appointment {
   notes?: string;
 }
 
+interface TimeSlot {
+  datetime: string;
+  date: string;
+  time: string;
+  display_time: string;
+  label?: string;
+}
+
+interface DateSlot {
+  formatted_date: string;
+  day_name: string;
+  is_today: boolean;
+  is_tomorrow: boolean;
+  slots_count: number;
+  time_slots: TimeSlot[];
+}
+
+interface SmartSlotsResponse {
+  recommended_times: TimeSlot[];
+  available_dates: DateSlot[];
+  next_available?: TimeSlot;
+}
+
 export default function CustomerDashboard() {
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -48,9 +71,9 @@ export default function CustomerDashboard() {
   const [showEditAppointmentModal, setShowEditAppointmentModal] = useState(false);
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [rescheduleViewMode, setRescheduleViewMode] = useState<'recommended' | 'calendar'>('recommended');
-  const [rescheduleSmartSlots, setRescheduleSmartSlots] = useState<any>(null);
+  const [rescheduleSmartSlots, setRescheduleSmartSlots] = useState<SmartSlotsResponse | null>(null);
   const [rescheduleLoadingSlots, setRescheduleLoadingSlots] = useState(false);
-  const [selectedRescheduleSlot, setSelectedRescheduleSlot] = useState<any>(null);
+  const [selectedRescheduleSlot, setSelectedRescheduleSlot] = useState<TimeSlot | null>(null);
   const [deletingAppointmentId, setDeletingAppointmentId] = useState<number | null>(null);
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
   const router = useRouter();
@@ -236,7 +259,7 @@ export default function CustomerDashboard() {
         days_ahead: '14'
       });
 
-      const data = await api.get(`/appointments/smart-slots?${params}`);
+      const data: SmartSlotsResponse = await api.get(`/appointments/smart-slots?${params}`);
       setRescheduleSmartSlots(data);
       
       // Auto-select the next available slot
@@ -848,7 +871,7 @@ export default function CustomerDashboard() {
                         <h5 className="font-medium text-white text-sm">Recommended Times</h5>
                         <div className="max-h-96 overflow-y-auto pr-2">
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            {rescheduleSmartSlots.recommended_times.map((timeSlot, index) => (
+                            {rescheduleSmartSlots.recommended_times.map((timeSlot: TimeSlot, index: number) => (
                               <button
                                 key={index}
                                 type="button"
@@ -882,7 +905,7 @@ export default function CustomerDashboard() {
                         <h5 className="font-medium text-white text-sm">Available Dates</h5>
                         <div className="max-h-96 overflow-y-auto pr-2 space-y-3">
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            {rescheduleSmartSlots.available_dates.map((date, index) => (
+                            {rescheduleSmartSlots.available_dates.map((date: DateSlot, index: number) => (
                               <div key={index} className="border border-gray-600 bg-gray-800 rounded-lg p-3">
                                 <div className="mb-2">
                                   <h6 className="font-medium text-white text-sm">
@@ -893,7 +916,7 @@ export default function CustomerDashboard() {
                                   <p className="text-xs text-gray-300">{date.day_name} • {date.slots_count} slots available</p>
                                 </div>
                                 <div className="space-y-1">
-                                  {date.time_slots.slice(0, 4).map((timeSlot, timeIndex) => (
+                                  {date.time_slots.slice(0, 4).map((timeSlot: TimeSlot, timeIndex: number) => (
                                     <button
                                       key={timeIndex}
                                       type="button"

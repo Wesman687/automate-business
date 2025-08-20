@@ -125,7 +125,7 @@ export default function JobManagementPage() {
   const deleteJob = async (jobId: number) => {
     try {
       console.log('Deleting job:', jobId);
-      await api.delete(`/jobs/${jobId}`);
+      await api.del(`/jobs/${jobId}`);
       await fetchJobData(); // Refresh the data
     } catch (error) {
       console.error('Error deleting job:', error);

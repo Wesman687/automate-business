@@ -13,10 +13,19 @@ interface TimeSlot {
   is_next_available?: boolean;
 }
 
+interface DateSlot {
+  formatted_date: string;
+  day_name: string;
+  is_today: boolean;
+  is_tomorrow: boolean;
+  slots_count: number;
+  time_slots: TimeSlot[];
+}
+
 interface SmartSlotsResponse {
   success: boolean;
   next_available: TimeSlot | null;
-  available_dates: any[];
+  available_dates: DateSlot[];
   recommended_times: TimeSlot[];
   total_available_dates: number;
 }
@@ -351,7 +360,7 @@ export default function CustomerAppointmentModal({ isOpen, onClose, onSave, cust
                     <div className="space-y-4">
                       <h4 className="font-medium text-white">Recommended Times</h4>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {smartSlots.recommended_times.map((timeSlot, index) => (
+                        {smartSlots.recommended_times.map((timeSlot: TimeSlot, index: number) => (
                           <button
                             key={index}
                             type="button"
@@ -383,7 +392,7 @@ export default function CustomerAppointmentModal({ isOpen, onClose, onSave, cust
                     <div className="space-y-4">
                       <h4 className="font-medium text-white">Available Dates</h4>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {smartSlots.available_dates.map((date, index) => (
+                        {smartSlots.available_dates.map((date: DateSlot, index: number) => (
                           <div key={index} className="border border-gray-600 bg-gray-800 rounded-lg p-4">
                             <div className="mb-3">
                               <h5 className="font-medium text-white">
@@ -394,7 +403,7 @@ export default function CustomerAppointmentModal({ isOpen, onClose, onSave, cust
                               <p className="text-sm text-gray-300">{date.day_name} • {date.slots_count} slots available</p>
                             </div>
                             <div className="space-y-2">
-                              {date.time_slots.slice(0, 6).map((timeSlot, timeIndex) => (
+                              {date.time_slots.slice(0, 6).map((timeSlot: TimeSlot, timeIndex: number) => (
                                 <button
                                   key={timeIndex}
                                   type="button"

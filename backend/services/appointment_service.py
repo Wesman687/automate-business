@@ -187,9 +187,7 @@ class AppointmentService:
         self.db.commit()
         return True
     
-    def cancel_appointment(self, appointment_id: int) -> bool:
-        """Cancel an appointment"""
-        return self.update_appointment_status(appointment_id, "cancelled")
+
     
     def complete_appointment(self, appointment_id: int, notes: str = None) -> bool:
         """Mark appointment as completed"""

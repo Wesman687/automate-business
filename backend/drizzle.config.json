@@ -1,0 +1,12 @@
+{
+  "out": "./drizzle",
+  "schema": "./database/models.py",
+  "dialect": "postgresql",
+  "dbCredentials": {
+    "host": "localhost",
+    "port": 5432,
+    "user": "streamlineai",
+    "password": "StreamAI2025",
+    "database": "streamlineai"
+  }
+}

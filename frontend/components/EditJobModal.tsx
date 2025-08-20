@@ -115,7 +115,7 @@ export default function EditJobModal({ isOpen, onClose, onSave, job }: EditJobMo
   const fetchCustomers = async () => {
     try {
       console.log('Fetching customers...');
-      const data = await api.get('/customers');
+      const data = await api.get('/api/customers');
       console.log('Customers received:', data);
       setCustomers(data);
     } catch (error) {

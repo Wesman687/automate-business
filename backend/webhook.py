@@ -107,14 +107,15 @@ async def root():
         "webhook_endpoint": "/webhook"
     }
 
-@app.get("/health")
-async def health_check():
-    """Health check endpoint"""
-    return {
-        "status": "healthy",
-        "service": "StreamlineAI Webhook",
-        "version": "1.0.0"
-    }
+# Health check endpoint removed - this is handled by main.py
+# @app.get("/health")
+# async def health_check():
+#     """Health check endpoint"""
+#     return {
+#         "status": "healthy",
+#         "service": "StreamlineAI Webhook",
+#         "version": "1.0.0"
+#     }
 
 if __name__ == "__main__":
     import uvicorn

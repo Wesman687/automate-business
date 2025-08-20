@@ -13,7 +13,7 @@ from database.models import ChatSession
 class SeenStatusRequest(BaseModel):
     is_seen: bool
 
-router = APIRouter(prefix="/api", tags=["api"])
+router = APIRouter()
 
 @router.get("/sessions")
 async def get_all_sessions(db: Session = Depends(get_db), current_user: dict = Depends(get_current_admin)):

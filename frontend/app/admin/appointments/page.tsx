@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Calendar, Clock, Video, Phone, MapPin, Plus, Edit, Trash2, Users, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import SmartAppointmentModal from '@/components/SmartAppointmentModal';
+import { api } from '@/lib/https';
 
 interface Appointment {
   id: number;
@@ -35,9 +36,7 @@ export default function AppointmentsPage() {
 
   const fetchAppointments = async () => {
     try {
-      const response = await fetch('/api/appointments', {
-        credentials: 'include'
-      });
+      const response = await api.get('/api/appointments');
 
       if (response.ok) {
         const data = await response.json();
@@ -56,10 +55,7 @@ export default function AppointmentsPage() {
     if (!confirm('Are you sure you want to delete this appointment?')) return;
 
     try {
-      const response = await fetch(`/api/appointments/${id}`, {
-        method: 'DELETE',
-        credentials: 'include'
-      });
+        const response = await api.del(`/api/appointments/${id}`);
 
       if (response.ok) {
         setAppointments(appointments.filter(apt => apt.id !== id));

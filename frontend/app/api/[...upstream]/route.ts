@@ -9,7 +9,8 @@ function buildTargetUrl(req: NextRequest, upstreamParts: string[]) {
   const search = req.nextUrl.search; // includes leading '?', '' if none
   const base = API_BASE.replace(/\/+$/, '');
   const prefix = BACKEND_PREFIX ? BACKEND_PREFIX.replace(/^\/?/, '') + '/' : '';
-  const url = `${base}/${prefix}${upstream}`.replace(/\/+/g, '/');
+  // Add /api prefix to match backend router structure
+  const url = `${base}/${prefix}api/${upstream}`.replace(/\/+/g, '/');
   return `${url}${search}`;
 }
 

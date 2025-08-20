@@ -7,6 +7,7 @@ import Link from 'next/link';
 import EditJobModal from '../../../../components/EditJobModal';
 import ChangeRequestCard from '../../../../components/ChangeRequestCard';
 import ChangeRequestModal from '../../../../components/ChangeRequestModal';
+import { api } from '@/lib/https';
 
 interface Job {
   id: number;
@@ -93,24 +94,14 @@ export default function JobDetail() {
   const fetchJob = async () => {
     try {
       const token = localStorage.getItem('admin_token');
-      const response = await fetch(`/api/jobs/${jobId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-      });
+      const response = await api.get(`/api/jobs/${jobId}`);
 
       if (response.ok) {
         const jobData = await response.json();
         setJob(jobData);
         
         // Fetch customer data
-        const customerResponse = await fetch(`/api/customers/${jobData.customer_id}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-        });
+        const customerResponse = await api.get(`/api/customers`);
         
         if (customerResponse.ok) {
           const customerData = await customerResponse.json();
@@ -118,12 +109,7 @@ export default function JobDetail() {
         }
 
         // Fetch change requests for this job
-        const changeRequestsResponse = await fetch(`/api/admin/change-requests?job_id=${jobId}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-        });
+        const changeRequestsResponse = await api.get(`/api/admin/change-requests?job_id=${jobId}`);
 
         if (changeRequestsResponse.ok) {
           const changeRequestsData = await changeRequestsResponse.json();
@@ -145,14 +131,7 @@ export default function JobDetail() {
   const updateJob = async (updateData: Partial<Job>) => {
     try {
       const token = localStorage.getItem('admin_token');
-      const response = await fetch(`/api/jobs/${jobId}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(updateData)
-      });
+      const response = await api.put(`/api/jobs/${jobId}`, updateData);
 
       if (response.ok) {
         const updatedJob = await response.json();
@@ -169,14 +148,7 @@ export default function JobDetail() {
   const updateJobFromModal = async (jobData: any) => {
     try {
       const token = localStorage.getItem('admin_token');
-      const response = await fetch(`/api/jobs/${jobId}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(jobData)
-      });
+      const response = await api.put(`/api/jobs/${jobId}`, jobData);
 
       if (response.ok) {
         const updatedJob = await response.json();
@@ -194,14 +166,7 @@ export default function JobDetail() {
   const updateChangeRequestStatus = async (requestId: number, newStatus: string) => {
     try {
       const token = localStorage.getItem('admin_token');
-      const response = await fetch(`/api/admin/change-requests/${requestId}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ status: newStatus })
-      });
+      const response = await api.put(`/api/admin/change-requests/${requestId}`, { status: newStatus });
 
       if (response.ok) {
         // Update the local state
@@ -222,14 +187,7 @@ export default function JobDetail() {
   const handleSaveRequest = async (updatedRequest: Partial<ChangeRequest>) => {
     try {
       const token = localStorage.getItem('admin_token');
-      const response = await fetch(`/api/admin/change-requests/${updatedRequest.id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updatedRequest)
-      });
+      const response = await api.put(`/api/admin/change-requests/${updatedRequest.id}`, updatedRequest);
 
       if (response.ok) {
         // Update the local state

@@ -24,6 +24,7 @@ export function buildBackendUrl(path: string) {
 
 export function buildProxyUrl(path: string) {
   const clean = path.replace(/^\/+/, "");
+  console.log('buildProxyUrl called with:', path, 'clean:', clean, 'result:', `/api/${clean}`);
   
   // Email endpoints always go to production server (bypass proxy)
   // Check both with and without leading slash
@@ -87,8 +88,8 @@ export async function http<T = any>(
 
 export const api = {
   get:  <T = any>(path: string, opt?: HttpOptions) => http<T>(path, { method: "GET", ...opt }),
-  post: <T = any>(path: string, body?: Json, opt?: HttpOptions) =>
-    http<T>(path, { method: "POST", body: body === undefined ? undefined : JSON.stringify(body), csrf: true, ...opt }),
+  post: <T = any>(path: string, body?: Json | FormData, opt?: HttpOptions) =>
+    http<T>(path, { method: "POST", body: body === undefined ? undefined : (body instanceof FormData ? body : JSON.stringify(body)), csrf: true, ...opt }),
   put:  <T = any>(path: string, body?: Json, opt?: HttpOptions) =>
     http<T>(path, { method: "PUT",  body: body === undefined ? undefined : JSON.stringify(body), csrf: true, ...opt }),
   patch:<T = any>(path: string, body?: Json, opt?: HttpOptions) =>

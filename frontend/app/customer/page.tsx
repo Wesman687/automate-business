@@ -7,6 +7,7 @@ import { Calendar, Clock, User, Phone, Mail, MapPin, Building2, Globe, LogOut, E
 import EditCustomerModal from '@/components/EditCustomerModal';
 import CustomerAppointmentModal from '@/components/CustomerAppointmentModal';
 import ErrorModal from '@/components/ErrorModal';
+import DeleteModal from '@/components/DeleteModal';
 import { api } from '@/lib/https';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -74,8 +75,9 @@ export default function CustomerDashboard() {
   const [rescheduleSmartSlots, setRescheduleSmartSlots] = useState<SmartSlotsResponse | null>(null);
   const [rescheduleLoadingSlots, setRescheduleLoadingSlots] = useState(false);
   const [selectedRescheduleSlot, setSelectedRescheduleSlot] = useState<TimeSlot | null>(null);
-  const [deletingAppointmentId, setDeletingAppointmentId] = useState<number | null>(null);
-  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+  const [deletingAppointment, setDeletingAppointment] = useState<Appointment | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const router = useRouter();
   const { user } = useAuth();
   useEffect(() => {
@@ -105,7 +107,7 @@ export default function CustomerDashboard() {
       console.log('Fetching customer data for user:', user);
       
       // Use user_id for customer lookup to match JWT token
-      const userData = await api.get(`/customers/${user.user_id}`);
+      const userData = await api.get(`/api/customers/${user.user_id}`);
 
       
       if (userData) {
@@ -126,7 +128,7 @@ export default function CustomerDashboard() {
   const fetchAppointments = async () => {
     try {
       if (!user?.user_id) return; // Use user ID from JWT token
-      const appointmentData = await api.get(`/appointments/customer?customer_id=${user.user_id}`);
+      const appointmentData = await api.get(`/api/appointments/customer?customer_id=${user.user_id}`);
       console.log('Appointments data from backend:', appointmentData);
       console.log('Individual appointments:', appointmentData.appointments);
       if (appointmentData.appointments && appointmentData.appointments.length > 0) {
@@ -189,7 +191,7 @@ export default function CustomerDashboard() {
     if (!editingAppointment) return;
     
     try {
-      await api.put(`/appointments/${editingAppointment.id}`, updatedData);
+      await api.put(`/api/appointments/${editingAppointment.id}`, updatedData);
       await fetchAppointments(); // Refresh the list
       setShowEditAppointmentModal(false);
       setEditingAppointment(null);
@@ -202,50 +204,31 @@ export default function CustomerDashboard() {
 
 
   const deleteAppointment = async (appointmentId: number) => {
-    // Find the appointment to check its status
     const appointment = appointments.find(apt => apt.id === appointmentId);
-    
-    if (appointment?.status === 'scheduled') {
-      // For scheduled appointments, show cancel confirmation
-      setDeletingAppointmentId(appointmentId);
-      setShowDeleteConfirmModal(true);
-    } else {
-      // For other statuses, show delete confirmation
-      setDeletingAppointmentId(appointmentId);
-      setShowDeleteConfirmModal(true);
+    if (appointment) {
+      setDeletingAppointment(appointment);
+      setShowDeleteModal(true);
     }
   };
 
   const confirmDeleteAppointment = async () => {
-    if (!deletingAppointmentId) return;
+    if (!deletingAppointment) return;
     
+    setIsDeleting(true);
     try {
-      const appointment = appointments.find(apt => apt.id === deletingAppointmentId);
-      
-      if (appointment?.status === 'scheduled') {
-        // Cancel the scheduled appointment
-        await api.put(`/appointments/${deletingAppointmentId}`, {
-          status: 'cancelled'
-        });
-        setSuccess('Appointment cancelled successfully');
-      } else {
-        // Delete the appointment permanently
-        await api.del(`/appointments/${deletingAppointmentId}`);
-        setSuccess('Appointment deleted successfully');
-      }
+      await api.del(`/api/appointments/${deletingAppointment.id}`);
+      setSuccess('Appointment deleted successfully');
       
       await fetchAppointments(); // Refresh the list
       setError(''); // Clear any previous errors
       setTimeout(() => setSuccess(''), 3000); // Clear success message after 3 seconds
     } catch (error) {
-      console.error('Error processing appointment:', error);
-      setError(appointments.find(apt => apt.id === deletingAppointmentId)?.status === 'scheduled' 
-        ? 'Failed to cancel appointment' 
-        : 'Failed to delete appointment'
-      );
+      console.error('Error deleting appointment:', error);
+      setError('Failed to delete appointment');
     } finally {
-      setShowDeleteConfirmModal(false);
-      setDeletingAppointmentId(null);
+      setShowDeleteModal(false);
+      setDeletingAppointment(null);
+      setIsDeleting(false);
     }
   };
 
@@ -259,7 +242,7 @@ export default function CustomerDashboard() {
         days_ahead: '14'
       });
 
-      const data: SmartSlotsResponse = await api.get(`/appointments/smart-slots?${params}`);
+      const data: SmartSlotsResponse = await api.get(`/api/appointments/smart-slots?${params}`);
       setRescheduleSmartSlots(data);
       
       // Auto-select the next available slot
@@ -285,7 +268,7 @@ export default function CustomerDashboard() {
         appointment_time: selectedRescheduleSlot.time
       };
       
-      await api.put(`/appointments/${editingAppointment.id}`, updatedData);
+      await api.put(`/api/appointments/${editingAppointment.id}`, updatedData);
       await fetchAppointments(); // Refresh the list
       setShowRescheduleModal(false);
       setShowEditAppointmentModal(false);
@@ -488,7 +471,7 @@ export default function CustomerDashboard() {
                 </button>
                 {hasScheduledAppointment() && (
                   <p className="text-xs text-gray-400 text-center">
-                    You can only have one appointment at a time. Cancel your current appointment to schedule a new one.
+                    You can only have one appointment at a time. Delete your current appointment to schedule a new one.
                   </p>
                 )}
                 <button
@@ -555,8 +538,6 @@ export default function CustomerDashboard() {
                                 ? 'bg-neon-green/20 text-neon-green' 
                                 : appointment.status === 'scheduled'
                                 ? 'bg-electric-blue/20 text-electric-blue'
-                                : appointment.status === 'cancelled'
-                                ? 'bg-red-500/20 text-red-400'
                                 : 'bg-yellow-500/20 text-yellow-400'
                             }`}>
                               {appointment.status}
@@ -574,7 +555,7 @@ export default function CustomerDashboard() {
                           <button
                             onClick={() => deleteAppointment(appointment.id)}
                             className="p-2 text-red-600 hover:bg-red-600/10 rounded-lg transition-colors"
-                            title={appointment.status === 'scheduled' ? 'Cancel appointment' : 'Delete appointment'}
+                            title="Delete appointment"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -1003,29 +984,19 @@ export default function CustomerDashboard() {
         />
       )}
 
-      {/* Delete/Cancel Confirmation Modal */}
-      <ErrorModal
-        isOpen={showDeleteConfirmModal}
-        onClose={() => setShowDeleteConfirmModal(false)}
-        title={deletingAppointmentId && appointments.find(apt => apt.id === deletingAppointmentId)?.status === 'scheduled' ? 'Cancel Appointment' : 'Delete Appointment'}
-        message={
-          deletingAppointmentId && appointments.find(apt => apt.id === deletingAppointmentId)?.status === 'scheduled'
-            ? 'Are you sure you want to cancel this scheduled appointment? You can reschedule it later if needed.'
-            : 'Are you sure you want to permanently delete this appointment? This action cannot be undone.'
-        }
-        type="warning"
-        buttons={[
-          {
-            label: "Cancel",
-            onClick: () => setShowDeleteConfirmModal(false),
-            variant: "secondary"
-          },
-          {
-            label: deletingAppointmentId && appointments.find(apt => apt.id === deletingAppointmentId)?.status === 'scheduled' ? 'Cancel Appointment' : 'Delete',
-            onClick: confirmDeleteAppointment,
-            variant: "danger"
-          }
-        ]}
+      {/* Delete Modal */}
+      <DeleteModal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setDeletingAppointment(null);
+        }}
+        onConfirm={confirmDeleteAppointment}
+        title="Delete Appointment"
+        message="Are you sure you want to delete this appointment? This action cannot be undone."
+        itemName={deletingAppointment?.title || 'Appointment'}
+        isLoading={isDeleting}
+        variant="danger"
       />
     </div>
   );

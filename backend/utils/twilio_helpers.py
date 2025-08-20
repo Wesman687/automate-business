@@ -24,7 +24,7 @@ class TwilioVoiceHelper:
             "reschedule", "change", "move", "different time", "different date",
             "switch", "update"
         ],
-        "cancel_appointment": [
+        "delete_appointment": [
             "cancel", "delete", "remove", "unbook", "not coming"
         ],
         "jobs_lookup": [

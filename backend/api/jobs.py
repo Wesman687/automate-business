@@ -6,9 +6,9 @@ from datetime import datetime
 from database import get_db
 from database.models import Job, TimeEntry
 from schemas.jobs import Job as JobSchema, JobCreate, JobUpdate
-from api.auth import get_current_admin
+from api.auth import get_current_admin, get_current_user
 
-router = APIRouter(prefix="/api", tags=["jobs"])
+router = APIRouter()
 
 # Job Endpoints
 
@@ -21,7 +21,7 @@ def get_jobs(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_admin)
 ):
-    """Get all jobs with optional filtering"""
+    """Get all jobs with optional filtering (Admin only)"""
     query = db.query(Job)
     
     if customer_id:
@@ -32,6 +32,19 @@ def get_jobs(
         query = query.filter(Job.priority == priority)
     
     return query.order_by(Job.created_at.desc()).all()
+
+@router.get("/jobs/customer", response_model=List[JobSchema])
+def get_customer_jobs(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Get jobs for the current customer"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    # Get jobs for the current customer
+    jobs = db.query(Job).filter(Job.customer_id == current_user.get('user_id')).order_by(Job.created_at.desc()).all()
+    return jobs
 
 
 @router.get("/jobs/{job_id}", response_model=JobSchema)

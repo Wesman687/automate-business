@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, Calendar, Clock, Video, Phone, MapPin, Users, CheckCircle, AlertCircle } from 'lucide-react';
+import ErrorModal from './ErrorModal';
+import { api } from '@/lib/https';
 
 interface Customer {
   id: number;
@@ -56,9 +58,12 @@ interface AppointmentModalProps {
   onClose: () => void;
   onSave: (appointmentData: any) => Promise<void>;
   appointment: Appointment | null;
+  customerId?: number | undefined;
+  customerName?: string;
+  customerEmail?: string;
 }
 
-export default function SmartAppointmentModal({ isOpen, onClose, onSave, appointment }: AppointmentModalProps) {
+export default function SmartAppointmentModal({ isOpen, onClose, onSave, appointment, customerId, customerName, customerEmail }: AppointmentModalProps) {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [smartSlots, setSmartSlots] = useState<SmartSlotsResponse | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>('');
@@ -78,10 +83,15 @@ export default function SmartAppointmentModal({ isOpen, onClose, onSave, appoint
   const [loading, setLoading] = useState(false);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showErrorModal, setShowErrorModal] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      fetchCustomers();
+      // Only fetch customers if we don't have customerId (for admin use)
+      if (!customerId) {
+        fetchCustomers();
+      }
+      
       if (appointment) {
         populateFormData(appointment);
       } else {
@@ -89,7 +99,7 @@ export default function SmartAppointmentModal({ isOpen, onClose, onSave, appoint
         fetchSmartSlots();
       }
     }
-  }, [isOpen, appointment]);
+  }, [isOpen, appointment, customerId]);
 
   useEffect(() => {
     if (!appointment && formData.duration_minutes) {
@@ -113,7 +123,7 @@ export default function SmartAppointmentModal({ isOpen, onClose, onSave, appoint
 
   const resetForm = () => {
     setFormData({
-      customer_id: '',
+      customer_id: customerId ? customerId.toString() : '',
       title: '',
       description: '',
       duration_minutes: 60,
@@ -130,20 +140,14 @@ export default function SmartAppointmentModal({ isOpen, onClose, onSave, appoint
 
   const fetchCustomers = async () => {
     try {
-      const response = await fetch('/api/customers', {
-        credentials: 'include'
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setCustomers(data);
-      } else {
-        console.error('Failed to fetch customers:', response.status);
-      }
+      const data = await api.get('/customers');
+      setCustomers(data);
     } catch (error) {
       console.error('Error fetching customers:', error);
     }
   };
+
+
 
   const fetchSmartSlots = async (preferredDate?: string) => {
     setLoadingSlots(true);
@@ -157,22 +161,14 @@ export default function SmartAppointmentModal({ isOpen, onClose, onSave, appoint
         params.append('preferred_date', preferredDate);
       }
 
-      const response = await fetch(`/api/appointments/smart-slots?${params}`, {
-        credentials: 'include'
-      });
-
-      if (response.ok) {
-        const data: SmartSlotsResponse = await response.json();
-        setSmartSlots(data);
-        
-        // Auto-select the next available slot if no selection made
-        if (!selectedTimeSlot && data.next_available && !appointment) {
-          setSelectedTimeSlot(data.next_available);
-          setSelectedDate(data.next_available.date);
-          setSelectedTime(data.next_available.time);
-        }
-      } else {
-        setError('Unable to load available appointment times');
+      const data: SmartSlotsResponse = await api.get(`/appointments/smart-slots?${params}`);
+      setSmartSlots(data);
+      
+      // Auto-select the next available slot if no selection made
+      if (!selectedTimeSlot && data.next_available && !appointment) {
+        setSelectedTimeSlot(data.next_available);
+        setSelectedDate(data.next_available.date);
+        setSelectedTime(data.next_available.time);
       }
     } catch (error) {
       console.error('Error fetching smart slots:', error);
@@ -197,7 +193,7 @@ export default function SmartAppointmentModal({ isOpen, onClose, onSave, appoint
       return;
     }
 
-    if (!formData.customer_id) {
+    if (!formData.customer_id && !customerId) {
       setError('Please select a customer');
       return;
     }
@@ -214,43 +210,32 @@ export default function SmartAppointmentModal({ isOpen, onClose, onSave, appoint
       const appointmentData = {
         ...formData,
         title,
-        customer_id: parseInt(formData.customer_id),
+        customer_id: customerId || parseInt(formData.customer_id),
         duration_minutes: parseInt(formData.duration_minutes.toString()),
         appointment_date: selectedDate,
         appointment_time: selectedTime
       };
 
-      const url = appointment ? `/api/appointments/${appointment.id}` : '/api/appointments';
-      const method = appointment ? 'PUT' : 'POST';
+      const url = appointment ? `/appointments/${appointment.id}` : `/appointments`;
       
       // Add force parameter for conflict override
       const urlWithForce = forceCreate ? `${url}?force=true` : url;
 
-      const response = await fetch(urlWithForce, {
-        method,
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include',
-        body: JSON.stringify(appointmentData)
-      });
-
-      if (response.ok) {
-        await onSave(appointmentData);
-        resetForm();
-        onClose();
-      } else if (response.status === 409) {
-        // Conflict - time slot not available
-        const errorData = await response.json();
-        setConflictError(errorData.detail?.message || errorData.error || 'Time slot is not available');
-        // Refresh available slots
-        fetchSmartSlots();
+      if (appointment) {
+        // Update existing appointment
+        await api.put(urlWithForce, appointmentData);
       } else {
-        const errorData = await response.json();
-        setError(errorData.error || 'Failed to save appointment');
+        // Create new appointment
+        await api.post(urlWithForce, appointmentData);
       }
+
+      // The api utility should handle success/error responses
+      await onSave(appointmentData);
+      resetForm();
+      onClose();
     } catch (error) {
       setError('Failed to save appointment');
+      setShowErrorModal(true);
     } finally {
       setLoading(false);
     }
@@ -274,13 +259,6 @@ export default function SmartAppointmentModal({ isOpen, onClose, onSave, appoint
         </div>
 
         <div className="p-6 bg-gray-900">
-          {error && (
-            <div className="mb-4 p-3 bg-red-900/50 border border-red-500 text-red-300 rounded-md flex items-center">
-              <AlertCircle className="w-5 h-5 mr-2" />
-              {error}
-            </div>
-          )}
-
           {conflictError && (
             <div className="mb-4 p-3 bg-amber-900/50 border border-amber-500 text-amber-300 rounded-md flex items-center">
               <AlertCircle className="w-5 h-5 mr-2" />
@@ -294,19 +272,25 @@ export default function SmartAppointmentModal({ isOpen, onClose, onSave, appoint
               <label className="block text-sm font-medium text-gray-300 mb-2">
                 Customer *
               </label>
-              <select
-                value={formData.customer_id}
-                onChange={(e) => setFormData({ ...formData, customer_id: e.target.value })}
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                required
-              >
-                <option value="">Select a customer</option>
-                {customers.map((customer) => (
-                  <option key={customer.id} value={customer.id}>
-                    {customer.name} ({customer.email})
-                  </option>
-                ))}
-              </select>
+                             {customerId ? (
+                 <div className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-gray-300">
+                   {customerName && customerEmail ? `${customerName} (${customerEmail})` : 'Customer Information'}
+                 </div>
+               ) : (
+                <select
+                  value={formData.customer_id}
+                  onChange={(e) => setFormData({ ...formData, customer_id: e.target.value })}
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  required
+                >
+                  <option value="">Select a customer</option>
+                  {customers.map((customer) => (
+                    <option key={customer.id} value={customer.id}>
+                      {customer.name} ({customer.email})
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             {/* Title */}
@@ -619,6 +603,16 @@ export default function SmartAppointmentModal({ isOpen, onClose, onSave, appoint
           </form>
         </div>
       </div>
+
+      {/* Error Modal */}
+      {showErrorModal && error && (
+        <ErrorModal
+          isOpen={showErrorModal}
+          onClose={() => setShowErrorModal(false)}
+          title="Error"
+          message={error}
+        />
+      )}
     </div>
   );
 }

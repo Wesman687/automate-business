@@ -101,11 +101,11 @@ export default function Dashboard() {
     try {
       const [overviewR, requestsR, appointmentsR, sessionsR, emailsR] =
         await Promise.allSettled([
-          api.get<any>('/overview'),
-          api.get<{ change_requests: ChangeRequest[] }>('/change-requests'),
-          api.get<Appointment[]>('/appointments?upcoming=true'),
-          api.get<ChatLog[]>('/sessions'),
-          api.get<{ emails: any[]; count?: number }>('/email/unread'),
+          api.get<any>('/api/overview'),
+          api.get<{ change_requests: ChangeRequest[] }>('/api/change-requests'),
+          api.get<Appointment[]>('/api/appointments?upcoming=true'),
+          api.get<ChatLog[]>('/api/sessions'),
+          api.get<{ emails: any[]; count?: number }>('/api/email/unread'),
         ]);
 
       // Overview / stats
@@ -174,7 +174,7 @@ export default function Dashboard() {
 
   const markChatLogAsSeen = async (sessionId: string) => {
     try {
-      await api.patch(`/sessions/${sessionId}/seen`, { is_seen: true });
+      await api.patch(`/api/sessions/${sessionId}/seen`, { is_seen: true });
       setChatLogs((prev) => prev.filter((l) => l.session_id !== sessionId));
       setStats((prev) => ({ ...prev, new_chat_logs: Math.max(0, prev.new_chat_logs - 1) }));
     } catch (e) {
@@ -184,7 +184,7 @@ export default function Dashboard() {
 
   const updateChangeRequestStatus = async (requestId: number, newStatus: string) => {
     try {
-      await api.put(`/change-requests/${requestId}`, { status: newStatus });
+      await api.put(`/api/change-requests/${requestId}`, { status: newStatus });
       setChangeRequests((prev) =>
         prev.map((r) => (r.id === requestId ? { ...r, status: newStatus as any } : r))
       );
@@ -200,7 +200,7 @@ export default function Dashboard() {
 
   const handleSaveRequest = async (updated: Partial<ChangeRequest>) => {
     try {
-      await api.put(`/change-requests/${updated.id}`, updated);
+      await api.put(`/api/change-requests/${updated.id}`, updated);
       setChangeRequests((prev) => prev.map((r) => (r.id === updated.id ? { ...r, ...updated } : r)));
     } catch (e) {
       console.error('Error saving change request:', e);
@@ -223,16 +223,7 @@ export default function Dashboard() {
     }
   };
 
-  const handleCancelAppointment = async (appointmentId: number) => {
-    if (!confirm('Are you sure you want to cancel this appointment?')) return;
-    try {
-      await api.put(`/appointments/${appointmentId}`, { status: 'cancelled' });
-      await fetchDashboardData();
-    } catch (e) {
-      console.error('Error canceling appointment:', e);
-      alert('Failed to cancel appointment');
-    }
-  };
+
 
   const pendingRequests = changeRequests.filter((r) => r.status === 'pending');
   const inProgressRequests = changeRequests.filter((r) => r.status === 'in_progress');
@@ -475,12 +466,7 @@ export default function Dashboard() {
                     >
                       Edit
                     </button>
-                    <button
-                      onClick={() => handleCancelAppointment(apt.id)}
-                      className="text-xs bg-red-600/80 hover:bg-red-600 text-white px-4 py-1 rounded font-medium transition-colors"
-                    >
-                      Cancel
-                    </button>
+
                   </div>
                 </div>
               ))
@@ -605,7 +591,7 @@ export default function Dashboard() {
       {/* Email Manager */}
       {showEmailManager && (
         <EmailManager
-          selectedEmailId={selectedEmailId}
+          isOpen={showEmailManager}
           onClose={() => {
             setShowEmailManager(false);
             setSelectedEmailId(undefined);

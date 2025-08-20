@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from database.models import Base
 from database import engine
 from api.chat import router as chat_router
+from api.users import router as users_router
 from api.customers import router as customers_router
 from api.contact import router as contact_router
 from api.login import router as auth_router
@@ -14,8 +15,10 @@ from api.appointments import router as appointments_router
 from api.google_auth import router as google_auth_router
 from api.voice_agent import router as voice_agent_router
 from api.jobs import router as jobs_router
+from api.time_entries import router as time_entries_router
 from api.change_requests import router as change_requests_router
 from api.admin_overview import router as admin_overview_router
+from api.file_upload import router as file_upload_router
 from api.auth import get_current_user
 import logging
 import os
@@ -32,58 +35,59 @@ async def lifespan(app: FastAPI):
     
     # Log startup banner
     logger.info("=" * 80)
-    logger.info("ðŸš€ STREAMLINE AI BACKEND STARTING UP")
+    logger.info("🚀 STREAMLINE AI BACKEND STARTING UP")
     logger.info("=" * 80)
     
     # Log system information
-    logger.info(f"ðŸ“… Startup Time: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
-    logger.info(f"ðŸ Python Version: {sys.version.split()[0]}")
-    logger.info(f"ðŸŒ Environment: {os.getenv('ENVIRONMENT', 'development')}")
-    logger.info(f"ðŸ“¡ SMTP Server: {os.getenv('SMTP_SERVER', 'not configured')}")
-    logger.info(f"ðŸ”‘ OpenAI API: {'âœ… Configured' if os.getenv('OPENAI_API_KEY') else 'âŒ Missing'}")
+    logger.info(f"🕐 Startup Time: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
+    logger.info(f"🐍 Python Version: {sys.version.split()[0]}")
+    logger.info(f"🌍 Environment: {os.getenv('ENVIRONMENT', 'development')}")
+    logger.info(f"📧 SMTP Server: {os.getenv('SMTP_SERVER', 'not configured')}")
+    logger.info(f"🤖 OpenAI API: {'✅ Configured' if os.getenv('OPENAI_API_KEY') else '❌ Missing'}")
     
-    # Database initialization
+    # Create database tables
     try:
         Base.metadata.create_all(bind=engine)
-        logger.info("âœ… Database tables created/verified successfully")
+        logger.info("✅ Database tables created/verified successfully")
+        print("✅ Database tables created/verified")
     except Exception as e:
-        logger.error(f"âŒ Database initialization failed: {e}")
+        logger.error(f"❌ Database initialization failed: {e}")
+        print(f"❌ Database initialization failed: {e}")
         raise
     
     # Log available routes
-    logger.info("ðŸ›£ï¸  Available API Routes:")
-    logger.info("   â€¢ /health - Health check endpoint")
-    logger.info("   â€¢ /api/chat - AI chatbot interactions")
-    logger.info("   â€¢ /api/save-customer - Customer data capture")
-    logger.info("   â€¢ /api/contact - Contact form submissions")
-    logger.info("   â€¢ /admin/* - Administrative endpoints")
-    logger.info("   â€¢ /docs - API documentation")
+    logger.info("🛣️  Available API Routes:")
+    logger.info("   • /health - Health check endpoint")
+    logger.info("   • /api/chat - AI chatbot interactions")
+    logger.info("   • /api/users - User management")
+    logger.info("   • /api/contact - Contact form submissions")
+    logger.info("   • /admin/* - Administrative endpoints")
+    logger.info("   • /docs - API documentation")
     
     # Final startup message
     logger.info("=" * 80)
-    logger.info("ðŸŽ¯ STREAMLINE AI BACKEND v2.0 IS READY!")
+    logger.info("🎉 STREAMLINE AI BACKEND v2.0 IS READY!")
     logger.info("=" * 80)
     
-    print("âœ… Database tables created/verified")
-    print("ðŸš€ Streamline AI Backend v2.0 is running!")
-    print(f"ðŸ“… Started at: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
+    print("🚀 Streamline AI Backend v2.0 is running!")
+    print(f"🕐 Started at: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
     
     yield  # This is where the app runs
     
     # Shutdown
     logger.info("=" * 80)
-    logger.info("ðŸ›‘ STREAMLINE AI BACKEND SHUTTING DOWN")
+    logger.info("🛑 STREAMLINE AI BACKEND SHUTTING DOWN")
     logger.info("=" * 80)
-    logger.info(f"ðŸ“… Shutdown Time: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
-    logger.info("ðŸ‘‹ Service stopped gracefully")
+    logger.info(f"🕐 Shutdown Time: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
+    logger.info("👋 Service stopped gracefully")
     logger.info("=" * 80)
-    print(f"ðŸ›‘ Streamline AI Backend stopped at: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
+    print(f"🛑 Streamline AI Backend stopped at: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
 
 # Create FastAPI app with lifespan
 app = FastAPI(
     title="Streamline AI Backend",
+    description="Professional automation consulting platform with AI chatbot and user management",
     version="2.0.0",
-    description="Professional automation consulting platform with AI chatbot and customer management",
     lifespan=lifespan
 )
 
@@ -99,8 +103,9 @@ cors_origins = [
     "https://www.stream-lineai.com",
     "https://server.stream-lineai.com",
     # Vercel deployment domains
-    "https://automate-business-7w1cnzwpd-wesman687s-projects.vercel.app",
-    "https://automate-dev-seven.vercel.app",
+    "https://automate-business.*.vercel.app",  # Any automate-business deployment
+    "https://automate-dev.*.vercel.app",  # Any automate-dev deployment
+    "https://*.wesman687s-projects.vercel.app",  # Any of your Vercel projects
     # Add your current IP
     "http://67.190.222.150",
     "https://67.190.222.150",
@@ -185,26 +190,26 @@ app.add_middleware(
 
 
 # Include routers
-app.include_router(chat_router)
-app.include_router(customers_router)
-app.include_router(contact_router)
-app.include_router(auth_router)
-app.include_router(email_router)
-app.include_router(share_router)
-app.include_router(api_router)
-app.include_router(financial_router)
-app.include_router(appointments_router)
+app.include_router(chat_router, prefix="/api")
+app.include_router(customers_router, prefix="/api")
+app.include_router(contact_router)  # No prefix for contact form
+app.include_router(auth_router)  # No prefix for auth endpoints
+app.include_router(email_router, prefix="/api")
+app.include_router(share_router, prefix="/api")
+app.include_router(api_router, prefix="/api")
+app.include_router(financial_router, prefix="/api")
+app.include_router(appointments_router, prefix="/api")
 app.include_router(google_auth_router)
-app.include_router(voice_agent_router)
-app.include_router(jobs_router)
-app.include_router(change_requests_router)
-app.include_router(admin_overview_router)
+app.include_router(voice_agent_router, prefix="/api")
+app.include_router(jobs_router, prefix="/api")
+app.include_router(time_entries_router, prefix="/api")
+app.include_router(change_requests_router, prefix="/api")
+app.include_router(admin_overview_router, prefix="/api")
+app.include_router(file_upload_router, prefix="/api")
+app.include_router(users_router, prefix="/api")
 
-# Add debug logging for routes
-for route in app.routes:
-    print(f"🛣️  Route: {route.path} [{','.join(route.methods)}]")
 
-@app.get("/health")
+@app.get("/api/health")
 async def health_check():
     """Health check endpoint"""
     return {
@@ -213,12 +218,14 @@ async def health_check():
         "version": "2.0.0",
         "features": [
             "AI Chat with GPT-4",
-            "Customer Management",
+            "User Management",
             "Session Tracking",
             "Proposal Generation",
             "Database Storage"
         ]
     }
+
+
 
 @app.get("/api/test/users")
 async def get_users_test():
@@ -259,6 +266,7 @@ async def root():
     """Root endpoint"""
     return {
         "message": "Welcome to Streamline AI Backend v2.0",
+        "version": "2.0.0",
         "docs": "/docs",
         "health": "/health"
     }
@@ -269,14 +277,14 @@ if __name__ == "__main__":
     # Validate required environment variables
     try:
         config.validate_required_env_vars()
-        print("âœ… Environment variables validated successfully")
+        print("✅ Environment variables validated successfully")
     except ValueError as e:
-        print(f"âŒ Configuration error: {e}")
+        print(f"❌ Configuration error: {e}")
         sys.exit(1)
     
-    print(f"ðŸš€ Starting backend server on {config.BACKEND_HOST}:{config.BACKEND_PORT}")
-    print(f"ðŸŒ Environment: {config.ENVIRONMENT}")
-    print(f"ðŸ”— Backend URL: {config.BACKEND_URL}")
+    print(f"🚀 Starting backend server on {config.BACKEND_HOST}:{config.BACKEND_PORT}")
+    print(f"🌍 Environment: {config.ENVIRONMENT}")
+    print(f"🔗 Backend URL: {config.BACKEND_URL}")
     
     uvicorn.run("main:app", host=config.BACKEND_HOST, port=config.BACKEND_PORT, reload=True)
 

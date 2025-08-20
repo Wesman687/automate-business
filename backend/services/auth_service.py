@@ -91,8 +91,7 @@ class AuthService:
             return [
                 "view_own_appointments",
                 "create_own_appointments",
-                "edit_own_appointments",
-                "cancel_own_appointments"
+                "edit_own_appointments"
             ]
     def decode_access_token(self, token: str):
         """Deprecated wrapper: use verify_token(token)"""
@@ -145,12 +144,6 @@ class AuthService:
                 user_data["is_admin"] = False
                 user_data["is_customer"] = True
             
-            # Debug logging
-            print(f"🔍 Token verification for user: {user_data['email']}")
-            print(f"   user_type: {user_data['user_type']}")
-            print(f"   is_admin: {user_data['is_admin']}")
-            print(f"   is_customer: {user_data['is_customer']}")
-            print(f"   is_super_admin: {user_data['is_super_admin']}")
             
             # Verify user still exists and is active - unified approach only
             user = self.db.query(User).filter(User.id == user_data["user_id"]).first()

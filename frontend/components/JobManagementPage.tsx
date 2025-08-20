@@ -6,6 +6,7 @@ import { api } from '@/lib/https';
 import Link from 'next/link';
 import CreateJobModal from './CreateJobModal';
 import EditJobModal from './EditJobModal';
+import JobDetailModal from './JobDetailModal';
 
 interface Job {
   id: number;
@@ -21,6 +22,35 @@ interface Job {
   actual_hours?: number;
   hourly_rate?: number;
   fixed_price?: number;
+  
+  // Business Information
+  business_name?: string;
+  business_type?: string;
+  industry?: string;
+  
+  // Project Details
+  project_goals?: string;
+  target_audience?: string;
+  timeline?: string;
+  budget_range?: string;
+  
+  // Branding & Design
+  brand_colors?: string[];
+  brand_style?: string;
+  logo_files?: number[];
+  brand_guidelines?: string;
+  
+  // Resources & Links
+  website_url?: string;
+  github_url?: string;
+  social_media?: {
+    facebook?: string;
+    linkedin?: string;
+    instagram?: string;
+    twitter?: string;
+  };
+  
+  // Project Resources
   google_drive_links?: Array<{ name: string; url: string; type?: string }>;
   github_repositories?: Array<{ name: string; url: string; type?: string }>;
   workspace_links?: Array<{ name: string; url: string; type?: string }>;
@@ -28,11 +58,18 @@ interface Job {
   calendar_links?: Array<{ name: string; url: string; type?: string }>;
   meeting_links?: Array<{ name: string; url: string; type?: string }>;
   additional_tools?: Array<{ name: string; url: string; type?: string }>;
-  website_url?: string;
-  notes?: string;
-  progress_percentage: number;
+  
+  // Project Planning
   milestones?: Array<{ name: string; description?: string; due_date?: string; completed: boolean }>;
   deliverables?: Array<{ name: string; description?: string; delivered: boolean; date?: string }>;
+  
+  // Additional Files
+  project_files?: number[];
+  reference_files?: number[];
+  requirements_doc?: string;
+  
+  notes?: string;
+  progress_percentage: number;
   created_at: string;
   updated_at?: string;
 }
@@ -49,7 +86,12 @@ interface TimeEntry {
   amount?: number;
 }
 
-export default function JobManagementPage() {
+interface JobManagementPageProps {
+  onCreateNewJob?: () => void;
+  isCustomer?: boolean; // Add this to determine context
+}
+
+export default function JobManagementPage({ onCreateNewJob, isCustomer = false }: JobManagementPageProps) {
   const [activeTab, setActiveTab] = useState('overview');
   const [jobs, setJobs] = useState<Job[]>([]);
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
@@ -57,6 +99,7 @@ export default function JobManagementPage() {
   const [loading, setLoading] = useState(true);
   const [showCreateJob, setShowCreateJob] = useState(false);
   const [showEditJob, setShowEditJob] = useState(false);
+  const [showJobDetail, setShowJobDetail] = useState(false);
   const [showTimeEntry, setShowTimeEntry] = useState(false);
 
   useEffect(() => {
@@ -71,12 +114,9 @@ export default function JobManagementPage() {
       // Fetch jobs and time entries
       console.log('Fetching jobs...');
       const [jobs, timeEntries] = await Promise.all([
-        api.get('/jobs'),
-        api.get('/time-entries')
+        api.get(isCustomer ? '/jobs/customer' : '/jobs'),
+        api.get(isCustomer ? '/time-entries/customer' : '/time-entries')
       ]);
-      
-      console.log('Jobs received:', jobs);
-      console.log('Time entries received:', timeEntries);
       
       setJobs(jobs || []);
       setTimeEntries(timeEntries || []);
@@ -90,6 +130,12 @@ export default function JobManagementPage() {
   const createJob = async (jobData: any) => {
     try {
       console.log('Creating job with data:', jobData);
+      // For customers, we'll need to create a job request instead of directly creating
+      if (isCustomer) {
+        // TODO: Implement job request endpoint for customers
+        console.log('Customer job creation - would create job request');
+        return;
+      }
       await api.post('/jobs', jobData);
       await fetchJobData(); // Refresh the data
     } catch (error) {
@@ -101,6 +147,12 @@ export default function JobManagementPage() {
   const updateJob = async (jobData: any) => {
     try {
       console.log('Updating job with data:', jobData);
+      // For customers, we'll need to create a change request instead of directly updating
+      if (isCustomer) {
+        // TODO: Implement change request endpoint for customers
+        console.log('Customer job update - would create change request');
+        return;
+      }
       await api.put(`/jobs/${selectedJob?.id}`, jobData);
       await fetchJobData(); // Refresh the data
       setShowEditJob(false);
@@ -114,6 +166,12 @@ export default function JobManagementPage() {
   const updateJobProgress = async (jobId: number, progress: number) => {
     try {
       console.log('Updating job progress:', { jobId, progress });
+      // For customers, we'll need to create a change request instead of directly updating
+      if (isCustomer) {
+        // TODO: Implement change request endpoint for customers
+        console.log('Customer progress update - would create change request');
+        return;
+      }
       await api.put(`/jobs/${jobId}`, { progress_percentage: progress });
       await fetchJobData(); // Refresh the data
     } catch (error) {
@@ -125,6 +183,12 @@ export default function JobManagementPage() {
   const deleteJob = async (jobId: number) => {
     try {
       console.log('Deleting job:', jobId);
+      // For customers, we'll need to create a change request instead of directly deleting
+      if (isCustomer) {
+        // TODO: Implement change request endpoint for customers
+        console.log('Customer job deletion - would create change request');
+        return;
+      }
       await api.del(`/jobs/${jobId}`);
       await fetchJobData(); // Refresh the data
     } catch (error) {
@@ -136,6 +200,12 @@ export default function JobManagementPage() {
   const createTimeEntry = async (timeData: any) => {
     try {
       console.log('Creating time entry:', timeData);
+      // For customers, we'll need to create a change request instead of directly creating
+      if (isCustomer) {
+        // TODO: Implement change request endpoint for customers
+        console.log('Customer time entry creation - would create change request');
+        return;
+      }
       await api.post('/time-entries', timeData);
       await fetchJobData(); // Refresh the data
     } catch (error) {
@@ -237,7 +307,13 @@ export default function JobManagementPage() {
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold text-white">Job Management</h1>
         <button 
-          onClick={() => setShowCreateJob(true)}
+          onClick={() => {
+            if (onCreateNewJob) {
+              onCreateNewJob();
+            } else {
+              setShowCreateJob(true);
+            }
+          }}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2"
         >
           <Plus className="h-4 w-4" />
@@ -333,6 +409,16 @@ export default function JobManagementPage() {
                   <div className="flex-1">
                     <h3 className="text-lg font-medium text-gray-900 mb-2">{job.title}</h3>
                     <p className="text-sm text-gray-600 line-clamp-2">{job.description}</p>
+                    {job.business_name && (
+                      <p className="text-sm text-gray-500 mt-1">
+                        <span className="font-medium">Business:</span> {job.business_name}
+                      </p>
+                    )}
+                    {job.industry && (
+                      <p className="text-sm text-gray-500">
+                        <span className="font-medium">Industry:</span> {job.industry}
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-center space-x-1 ml-4">
                     {getStatusIcon(job.status)}
@@ -421,11 +507,15 @@ export default function JobManagementPage() {
                   <button 
                     onClick={() => {
                       setSelectedJob(job);
-                      setShowEditJob(true);
+                      if (isCustomer) {
+                        setShowJobDetail(true);
+                      } else {
+                        setShowEditJob(true);
+                      }
                     }}
                     className="w-full text-center text-blue-600 hover:text-blue-800 text-sm font-medium block"
                   >
-                    View Details
+                    {isCustomer ? 'View Details' : 'Edit Job'}
                   </button>
                 </div>
               </div>
@@ -443,6 +533,16 @@ export default function JobManagementPage() {
                       <div className="flex-1">
                         <h3 className="text-lg font-medium text-gray-900 mb-2">{job.title}</h3>
                         <p className="text-sm text-gray-600 line-clamp-2">{job.description}</p>
+                        {job.business_name && (
+                          <p className="text-sm text-gray-500 mt-1">
+                            <span className="font-medium">Business:</span> {job.business_name}
+                          </p>
+                        )}
+                        {job.industry && (
+                          <p className="text-sm text-gray-500">
+                            <span className="font-medium">Industry:</span> {job.industry}
+                          </p>
+                        )}
                       </div>
                       <CheckCircle className="h-5 w-5 text-green-500 ml-4" />
                     </div>
@@ -452,12 +552,24 @@ export default function JobManagementPage() {
                       )}
                     </div>
                     <div className="mt-4">
-                      <Link 
-                        href={`/admin/jobs/${job.id}`}
-                        className="w-full text-center text-green-600 hover:text-green-800 text-sm font-medium block"
-                      >
-                        View Details
-                      </Link>
+                      {isCustomer ? (
+                        <button
+                          onClick={() => {
+                            setSelectedJob(job);
+                            setShowJobDetail(true);
+                          }}
+                          className="w-full text-center text-green-600 hover:text-green-800 text-sm font-medium block"
+                        >
+                          View Details
+                        </button>
+                      ) : (
+                        <Link 
+                          href={`/admin/jobs/${job.id}`}
+                          className="w-full text-center text-green-600 hover:text-green-800 text-sm font-medium block"
+                        >
+                          View Details
+                        </Link>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -476,16 +588,38 @@ export default function JobManagementPage() {
                       <div className="flex-1">
                         <h3 className="text-lg font-medium text-gray-900 mb-2">{job.title}</h3>
                         <p className="text-sm text-gray-600 line-clamp-2">{job.description}</p>
+                        {job.business_name && (
+                          <p className="text-sm text-gray-500 mt-1">
+                            <span className="font-medium">Business:</span> {job.business_name}
+                          </p>
+                        )}
+                        {job.industry && (
+                          <p className="text-sm text-gray-500">
+                            <span className="font-medium">Industry:</span> {job.industry}
+                          </p>
+                        )}
                       </div>
                       <AlertCircle className="h-5 w-5 text-red-500 ml-4" />
                     </div>
                     <div className="mt-4">
-                      <Link 
-                        href={`/admin/jobs/${job.id}`}
-                        className="w-full text-center text-red-600 hover:text-red-800 text-sm font-medium block"
-                      >
-                        View Details
-                      </Link>
+                      {isCustomer ? (
+                        <button
+                          onClick={() => {
+                            setSelectedJob(job);
+                            setShowJobDetail(true);
+                          }}
+                          className="w-full text-center text-red-600 hover:text-red-800 text-sm font-medium block"
+                        >
+                          View Details
+                        </button>
+                      ) : (
+                        <Link 
+                          href={`/admin/jobs/${job.id}`}
+                          className="w-full text-center text-red-600 hover:text-red-800 text-sm font-medium block"
+                        >
+                          View Details
+                        </Link>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -708,6 +842,20 @@ export default function JobManagementPage() {
         onSave={updateJob}
         job={selectedJob}
       />
+
+      {/* Job Detail Modal */}
+      {showJobDetail && selectedJob && (
+        <JobDetailModal
+          isOpen={showJobDetail}
+          onClose={() => {
+            setShowJobDetail(false);
+            setSelectedJob(null);
+          }}
+          job={selectedJob}
+          isCustomer={isCustomer}
+          onSave={isCustomer ? undefined : updateJob}
+        />
+      )}
 
       {/* Time Entry Modal */}
       {showTimeEntry && (

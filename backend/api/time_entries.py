@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
 from database.models import TimeEntry
-from api.auth import get_current_admin
+from api.auth import get_current_admin, get_current_user
 from typing import List
 from datetime import datetime
 
@@ -13,7 +13,7 @@ async def get_time_entries(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_admin)
 ):
-    """Get all time entries"""
+    """Get all time entries (Admin only)"""
     try:
         entries = db.query(TimeEntry).order_by(TimeEntry.start_time.desc()).all()
         
@@ -38,6 +38,49 @@ async def get_time_entries(
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching time entries: {str(e)}")
+
+@router.get("/time-entries/customer", response_model=List[dict])
+async def get_customer_time_entries(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Get time entries for jobs owned by the current customer"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        # Get jobs for the current customer
+        from database.models import Job
+        customer_jobs = db.query(Job.id).filter(Job.customer_id == current_user.get('user_id')).all()
+        job_ids = [job.id for job in customer_jobs]
+        
+        if not job_ids:
+            return []
+        
+        # Get time entries for those jobs
+        entries = db.query(TimeEntry).filter(TimeEntry.job_id.in_(job_ids)).order_by(TimeEntry.start_time.desc()).all()
+        
+        formatted_entries = []
+        for entry in entries:
+            formatted_entries.append({
+                "id": entry.id,
+                "job_id": entry.job_id,
+                "admin_id": entry.admin_id,
+                "start_time": entry.start_time.isoformat() if entry.start_time else None,
+                "end_time": entry.end_time.isoformat() if entry.end_time else None,
+                "duration_hours": entry.duration_hours,
+                "description": entry.description,
+                "billable": entry.billable,
+                "hourly_rate": entry.hourly_rate,
+                "amount": entry.amount,
+                "created_at": entry.created_at.isoformat() if entry.created_at else None,
+                "updated_at": entry.updated_at.isoformat() if entry.updated_at else None
+            })
+        
+        return formatted_entries
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching customer time entries: {str(e)}")
 
 @router.post("/time-entries", response_model=dict)
 async def create_time_entry(

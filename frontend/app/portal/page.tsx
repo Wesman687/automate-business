@@ -28,7 +28,7 @@ export default function Portal() {
   }, [authLoading, isAuthenticated, user]);
   const redirectBasedOnRole = (u: any) => {
     if (u?.is_admin) router.replace('/admin');
-    else router.replace('/customer');
+    else router.replace('/customer/dashboard');
   };
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

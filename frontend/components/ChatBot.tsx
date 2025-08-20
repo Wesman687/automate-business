@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import { MessageSquare, Send, Upload, X, User, Bot, Mail, Building, Phone, FileUp, MessageCircle, Paperclip } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import NotificationComponent from './NotificationComponent'
+import { api } from '@/lib/https'
 
 interface CustomerInfo {
   email: string
@@ -152,10 +153,7 @@ export default function ChatBot() {
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
       
-      const response = await fetch(`${API_BASE_URL}/health`, {
-        signal: controller.signal,
-        mode: 'cors'
-      })
+              const response = await api.get(`/health`)
       
       clearTimeout(timeoutId)
       
@@ -246,7 +244,7 @@ export default function ChatBot() {
     setIsTyping(true)
     
     try {
-      const response = await fetch(`${API_BASE_URL}/api/chat`, {
+      const response = await api.post(`/api/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -300,13 +298,7 @@ export default function ChatBot() {
 
     try {
       // First, check if this customer already exists
-      const checkResponse = await fetch(`${API_BASE_URL}/api/check-customer`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email: customerInfo.email }),
-      })
+      const checkResponse = await api.post(`/api/check-customer`, { email: customerInfo.email })
 
       if (checkResponse.ok) {
         const checkData = await checkResponse.json()
@@ -328,33 +320,21 @@ export default function ChatBot() {
       }
 
       // New customer - proceed normally but schedule appointment automatically
-      const response = await fetch(`${API_BASE_URL}/api/save-customer`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      const response = await api.post(`/api/save-customer`, {
           email: customerInfo.email,
           name: customerInfo.name,
           company: customerInfo.company,
           phone: customerInfo.phone,
           session_id: sessionId,
-        }),
       })
 
       if (response.ok) {
         const customerData = await response.json()
         
         // Automatically schedule an appointment
-        const appointmentResponse = await fetch(`${API_BASE_URL}/api/schedule-appointment`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
+        const appointmentResponse = await api.post(`/api/schedule-appointment`, {
             customer_id: customerData.customer_id,
             session_id: sessionId,
-          }),
         })
 
         setShowInfoCapture(false)
@@ -407,14 +387,8 @@ To make our call as helpful as possible, could you tell me more about:
 
   const generateProposal = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/generate-proposal`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          session_id: sessionId,
-        }),
+      const response = await api.post(`/api/generate-proposal`, {
+        session_id: sessionId,
       })
 
       if (response.ok) {
@@ -444,10 +418,7 @@ To make our call as helpful as possible, could you tell me more about:
       formData.append('customer_email', customerInfo.email)
       formData.append('description', `File uploaded during chat: ${file.name}`)
 
-      const response = await fetch(`${API_BASE_URL}/api/upload-file`, {
-        method: 'POST',
-        body: formData,
-      })
+      const response = await api.post(`/api/upload-file`, formData)
 
       if (response.ok) {
         const data = await response.json()
@@ -483,15 +454,9 @@ To make our call as helpful as possible, could you tell me more about:
   const handleAuthentication = async () => {
     try {
       if (authMode === 'login') {
-        const response = await fetch(`${API_BASE_URL}/api/customer-login`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
+          const response = await api.post(`/api/customer-login`, {
             email: authCredentials.email,
             password: authCredentials.password,
-          }),
         })
 
         if (response.ok) {
@@ -506,15 +471,9 @@ To make our call as helpful as possible, could you tell me more about:
           alert('Invalid credentials. Please try again.')
         }
       } else if (authMode === 'register') {
-        const response = await fetch(`${API_BASE_URL}/api/customer-set-password`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
+        const response = await api.post(`/api/customer-set-password`, {
             email: authCredentials.email,
             password: authCredentials.password,
-          }),
         })
 
         if (response.ok) {
@@ -541,12 +500,8 @@ To make our call as helpful as possible, could you tell me more about:
       } else if (authMode === 'reset') {
         if (!authCredentials.resetCode) {
           // Request reset code
-          const response = await fetch(`${API_BASE_URL}/api/request-password-reset`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ email: authCredentials.email }),
+          const response = await api.post(`/api/request-password-reset`, {
+            email: authCredentials.email,
           })
 
           if (response.ok) {
@@ -556,16 +511,10 @@ To make our call as helpful as possible, could you tell me more about:
           }
         } else {
           // Confirm reset with code
-          const response = await fetch(`${API_BASE_URL}/api/reset-password`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
+          const response = await api.post(`/api/reset-password`, {
               email: authCredentials.email,
               reset_code: authCredentials.resetCode,
               new_password: authCredentials.password,
-            }),
           })
 
           if (response.ok) {
@@ -586,21 +535,15 @@ To make our call as helpful as possible, could you tell me more about:
     setShowInfoCapture(false)
     
     // Check if customer has previous projects/history
-    const historyResponse = await fetch(`${API_BASE_URL}/api/customer-history/${customer.id}`)
+    const historyResponse = await api.get(`/api/customer-history/${customer.id}`)
     
     if (historyResponse.ok) {
       const historyData = await historyResponse.json()
       
       // Automatically schedule appointment
-      const appointmentResponse = await fetch(`${API_BASE_URL}/api/schedule-appointment`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      const appointmentResponse = await api.post(`/api/schedule-appointment`, {
           customer_id: customer.id,
           session_id: sessionId,
-        }),
       })
 
       let appointmentMessage = ""

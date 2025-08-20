@@ -15,7 +15,7 @@ from services.job_service import ChangeRequestService, JobService               
 from utils.appointment_helpers import create_appointment_with_notifications
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/voice", tags=["voice-agent"])
+router = APIRouter(prefix="/voice", tags=["voice-agent"])
 
 # ---------- helpers (same as before) ----------
 def digits_only(s: Optional[str]) -> Optional[str]:
@@ -71,7 +71,7 @@ Intent = Literal[
     "schedule_appointment",
     "get_customer_appointments",
     "reschedule_appointment",
-    "cancel_appointment",
+            "delete_appointment",
     "available_slots",
     "jobs_lookup",
     "create_change_request",
@@ -237,7 +237,7 @@ async def voice_agent(req: AgentRequest, db: Session = Depends(get_db), authoriz
         asvc.update_appointment(appt)
         return AgentResponse(speak=f"Done. You're now set for {ndt.strftime('%A, %B %d at %I:%M %p ET')}.")
 
-    if req.intent == "cancel_appointment":
+    if req.intent == "delete_appointment":
         if not req.appointment_id:
             raise HTTPException(status_code=400, detail="appointment_id is required.")
         asvc = AppointmentService(db)
@@ -245,8 +245,8 @@ async def voice_agent(req: AgentRequest, db: Session = Depends(get_db), authoriz
         if not appt:
             return AgentResponse(speak="I couldn't find that appointment.", error="not_found")
         when = appt.scheduled_date.strftime("%A, %B %d at %I:%M %p ET")
-        ok = asvc.cancel_appointment(req.appointment_id)
-        return AgentResponse(speak=("Cancelled your appointment for " + when) if ok else "I couldn't cancel that appointment. Please try again.")
+        ok = asvc.delete_appointment(req.appointment_id)
+        return AgentResponse(speak=("Deleted your appointment for " + when) if ok else "I couldn't delete that appointment. Please try again.")
 
     if req.intent == "available_slots":
         if not req.date:

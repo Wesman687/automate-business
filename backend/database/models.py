@@ -150,7 +150,7 @@ class Appointment(Base):
     customer_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     scheduled_date = Column(DateTime(timezone=True), nullable=False)
     duration_minutes = Column(Integer, default=30)  # Default 30 minutes
-    status = Column(String(50), default="scheduled")  # scheduled, completed, cancelled, rescheduled
+    status = Column(String(50), default="scheduled")  # scheduled, completed, rescheduled
     appointment_type = Column(String(100), default="consultation")  # consultation, follow_up, demo
     notes = Column(Text, nullable=True)  # Admin notes about the appointment
     customer_notes = Column(Text, nullable=True)  # What customer wants to discuss

@@ -18,6 +18,7 @@ export default function Home() {
           'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
           })(window,document,'script','dataLayer','GTM-TX2RM6CL');
         `}
+        
       </Script>
 
   {/* ✅ Enhanced JSON-LD Structured Data for SEO */}

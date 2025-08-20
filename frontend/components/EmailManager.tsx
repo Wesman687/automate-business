@@ -74,6 +74,7 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
   const [emailCache, setEmailCache] = useState<Map<string, Email>>(new Map());
   const [emailBodies, setEmailBodies] = useState<Map<string, string>>(new Map());
   const [preloadingEmails, setPreloadingEmails] = useState<Set<string>>(new Set());
+  const [cachingProgress, setCachingProgress] = useState({ total: 0, cached: 0 });
   
   // Email accounts state
   const [emailAccounts, setEmailAccounts] = useState<Array<{name: string, value: string, email: string}>>([]);
@@ -132,20 +133,33 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
       
       // Use api utility - automatically routes to production server
       const data = await api.get('/email/all');
-      setEmails(data.emails || []);
+      const emailList = data.emails || [];
+      setEmails(emailList);
       
-      // Preload email bodies for the first few emails for faster access
-      const emailsToPreload = data.emails?.slice(0, 5) || [];
-      for (const email of emailsToPreload) {
-        if (!emailBodies.has(email.id)) {
-          preloadEmailBody(email.id);
-        }
+      // Set caching progress
+      const uncachedEmails = emailList.filter((email: Email) => !emailBodies.has(email.id));
+      setCachingProgress({ total: uncachedEmails.length, cached: 0 });
+      
+      // Preload ALL email bodies for instant access
+      console.log(`📧 Preloading ${uncachedEmails.length} email bodies for instant access...`);
+      
+      // Process emails in batches to avoid overwhelming the server
+      const batchSize = 5;
+      for (let i = 0; i < uncachedEmails.length; i += batchSize) {
+        const batch = uncachedEmails.slice(i, i + batchSize);
+        await Promise.all(batch.map((email: Email) => preloadEmailBody(email.id)));
+        
+        // Update progress
+        setCachingProgress(prev => ({ ...prev, cached: Math.min(prev.cached + batchSize, prev.total) }));
       }
+      
+      console.log('📧 All email bodies cached successfully!');
     } catch (error) {
       console.error('Error fetching emails:', error);
       setError('Failed to fetch emails');
     } finally {
       setLoading(false);
+      setCachingProgress({ total: 0, cached: 0 });
     }
   };
 
@@ -158,6 +172,11 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
       
       // Cache the email body
       setEmailBodies(prev => new Map(prev).set(emailId, emailDetails.body || ''));
+      
+      // Also cache the full email object for instant access
+      setEmailCache(prev => new Map(prev).set(emailId, emailDetails));
+      
+      console.log(`📧 Cached email body for ${emailId}`);
     } catch (error) {
       console.error('Error preloading email body:', error);
       // Don't show error for preloading failures
@@ -172,14 +191,53 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
 
   const refreshEmails = async () => {
     setRefreshing(true);
-    await fetchEmails();
-    setRefreshing(false);
+    try {
+      // Fetch only new emails (since last refresh)
+      const data = await api.get('/email/all');
+      const newEmailList = data.emails || [];
+      
+      // Update emails list
+      setEmails(newEmailList);
+      
+      // Only preload emails that aren't already cached
+      const uncachedEmails = newEmailList.filter((email: Email) => !emailBodies.has(email.id));
+      console.log(`📧 Refreshing: ${uncachedEmails.length} new emails to cache`);
+      
+      for (const email of uncachedEmails) {
+        preloadEmailBody(email.id);
+      }
+    } catch (error) {
+      console.error('Error refreshing emails:', error);
+      setError('Failed to refresh emails');
+    } finally {
+      setRefreshing(false);
+    }
   };
 
-  const selectEmail = async (email: Email) => {
+    const selectEmail = async (email: Email) => {
     try {
-      // Check if we have the email body cached
+      // Check if we have the full email cached
+      if (emailCache.has(email.id)) {
+        console.log(`📧 Using fully cached email for ${email.id}`);
+        const cachedEmail = emailCache.get(email.id);
+        if (cachedEmail) {
+          setSelectedEmail(cachedEmail);
+          
+          // Mark as read if not already read
+          if (!email.is_read) {
+            await markAsRead(email.id);
+            // Update local state to reflect read status
+            setEmails(prev => prev.map(e => 
+              e.id === email.id ? { ...e, is_read: true } : e
+            ));
+          }
+          return;
+        }
+      }
+
+      // Check if we have just the email body cached
       if (emailBodies.has(email.id)) {
+        console.log(`📧 Using cached email body for ${email.id}`);
         const cachedEmail = { ...email, body: emailBodies.get(email.id) };
         setSelectedEmail(cachedEmail);
         
@@ -194,22 +252,24 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
         return;
       }
 
-      // Use api utility - automatically routes to production server
+      // If not cached at all, fetch and cache it
+      console.log(`📧 Fetching email body for ${email.id} (not cached)`);
       const emailDetails = await api.get(`/email/${email.id}`);
       
-      // Cache the email body for faster future access
+      // Cache both the email body and full email object
       setEmailBodies(prev => new Map(prev).set(email.id, emailDetails.body || ''));
+      setEmailCache(prev => new Map(prev).set(email.id, emailDetails));
       
       setSelectedEmail(emailDetails);
       
-              // Mark as read if not already read
-        if (!email.is_read) {
-          await markAsRead(email.id);
-          // Update local state to reflect read status
-          setEmails(prev => prev.map(e => 
-            e.id === email.id ? { ...e, is_read: true } : e
-          ));
-        }
+      // Mark as read if not already read
+      if (!email.is_read) {
+        await markAsRead(email.id);
+        // Update local state to reflect read status
+        setEmails(prev => prev.map(e => 
+          e.id === email.id ? { ...e, is_read: true } : e
+        ));
+      }
     } catch (error) {
       console.error('Error fetching email details:', error);
       setError('Failed to fetch email details');
@@ -519,6 +579,36 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
                   </option>
                 ))}
               </select>
+              
+              {/* Caching Progress */}
+              {cachingProgress.total > 0 && (
+                <div className="bg-blue-500/20 border border-blue-500/30 rounded-lg p-3">
+                  <div className="flex items-center justify-between text-sm text-blue-300 mb-2">
+                    <span>📧 Caching emails for instant access...</span>
+                    <span>{cachingProgress.cached}/{cachingProgress.total}</span>
+                  </div>
+                  <div className="w-full bg-blue-500/30 rounded-full h-2">
+                    <div 
+                      className="bg-blue-400 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${(cachingProgress.cached / cachingProgress.total) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+              
+              {/* Debug: Read/Unread Status */}
+              <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-lg p-3">
+                <div className="text-sm text-yellow-300 mb-2">
+                  🐛 Debug: Read/Unread Status
+                </div>
+                <div className="text-xs text-yellow-200 space-y-1">
+                  <div>Total emails: {emails.length}</div>
+                  <div>Read emails: {emails.filter(e => e.is_read).length}</div>
+                  <div>Unread emails: {emails.filter(e => !e.is_read).length}</div>
+                  <div>Cached bodies: {emailBodies.size}</div>
+                  <div>Cached full emails: {emailCache.size}</div>
+                </div>
+              </div>
             </div>
 
             {/* Email List */}

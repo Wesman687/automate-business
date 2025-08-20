@@ -295,6 +295,9 @@ class EmailReaderService:
                     flags = msg_data[0][0].decode() if msg_data[0][0] else ""
                     is_read = "\\Seen" in flags
                     
+                    # Debug logging for flag detection
+                    logger.debug(f"Email {msg_id.decode()} flags: '{flags}' | is_read: {is_read}")
+                    
                     # Extract email details
                     from_address = self._decode_header_value(msg.get('From', ''))
                     subject = self._decode_header_value(msg.get('Subject', ''))
@@ -305,6 +308,12 @@ class EmailReaderService:
                         received_date = email.utils.parsedate_to_datetime(date_str)
                     except:
                         received_date = datetime.now()
+                    
+                    # Fallback: Check if email is older than 24 hours (likely read)
+                    # This helps with Gmail and other providers that don't always set \Seen properly
+                    if not is_read and received_date < datetime.now() - timedelta(hours=24):
+                        is_read = True
+                        logger.debug(f"Email {msg_id.decode()} marked as read (fallback: older than 24h)")
                     
                     # Get email preview
                     preview = self._get_email_preview(msg)

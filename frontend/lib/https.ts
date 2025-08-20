@@ -17,7 +17,7 @@ export function buildBackendUrl(path: string) {
 
 export function buildProxyUrl(path: string) {
   const clean = path.replace(/^\/+/, "");
-  return `/api/${clean}`;
+  return `/${clean}`;  // Remove /api prefix since Next.js route handles it
 }
 
 type Json = Record<string, any> | any[];

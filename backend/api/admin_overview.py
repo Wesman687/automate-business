@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 
-router = APIRouter()
+router = APIRouter(prefix="/api", tags=["admin"])
 
 class OverviewResponse(BaseModel):
     upcoming_appointments: List[dict]

@@ -379,9 +379,14 @@ async def update_customer(
         print(f"🔍 Update customer {customer_id} - User: {current_user}")
         print(f"🔍 Is admin: {is_admin}, User type: {user_type}, User ID: {user_id}")
         
-        # Authorization check
-        if not is_admin and (user_type != "customer" or user_id != customer_id):
-            raise HTTPException(status_code=403, detail="Access denied - can only update your own data")
+        # Authorization check - customers can only update their own data
+        if not is_admin:
+            if user_type != "customer":
+                raise HTTPException(status_code=403, detail="Access denied - customers only")
+            
+            # For customers, they can only update their own record (user_id should match customer_id)
+            if user_id != customer_id:
+                raise HTTPException(status_code=403, detail="Access denied - can only update your own data")
         
         # Update the customer
         customer = customer_service.update_customer(customer_id, customer_data)
@@ -629,31 +634,52 @@ async def set_customer_password(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Set password for an existing customer (admin only)"""
-    # Only admins can set customer passwords
-    if not current_user.get("is_admin"):
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
-    password = password_data.get("password")
-    if not password:
-        raise HTTPException(status_code=400, detail="Password is required")
-    
-    customer_service = CustomerService(db)
-    customer = customer_service.get_customer_by_id(customer_id)
-    if not customer:
-        raise HTTPException(status_code=404, detail="Customer not found")
-    
-    # Hash the password
-    from services.auth_service import AuthService
-    auth_service = AuthService(db)
-    hashed_password = auth_service.hash_password(password)
-    
-    # Update customer with password
-    customer.password_hash = hashed_password
-    customer.is_authenticated = True
-    db.commit()
-    
-    return {"message": "Password set successfully", "customer_id": customer_id}
+    """Set password for an existing customer - Admin can set any, customers can set their own"""
+    try:
+        # Check user authorization
+        is_admin = current_user.get('is_admin', False)
+        user_type = current_user.get('user_type')
+        user_email = current_user.get('email')
+        user_id = current_user.get('user_id')
+        
+        print(f"🔐 Password update for customer {customer_id} - User: {current_user}")
+        print(f"🔐 Is admin: {is_admin}, User type: {user_type}, User email: {user_email}, User ID: {user_id}")
+        
+        # Authorization check - customers can only update their own password
+        if not is_admin:
+            if user_type != "customer":
+                raise HTTPException(status_code=403, detail="Access denied - customers only")
+            
+            # For customers, they can only update their own password (user_id should match customer_id)
+            if user_id != customer_id:
+                raise HTTPException(status_code=403, detail="Access denied - can only update your own password")
+        
+        password = password_data.get("password")
+        if not password:
+            raise HTTPException(status_code=400, detail="Password is required")
+        
+        customer_service = CustomerService(db)
+        customer = customer_service.get_customer_by_id(customer_id)
+        if not customer:
+            raise HTTPException(status_code=404, detail="Customer not found")
+        
+        # Hash the password
+        from services.auth_service import AuthService
+        auth_service = AuthService(db)
+        hashed_password = auth_service.hash_password(password)
+        
+        # Update customer with password
+        customer.password_hash = hashed_password
+        customer.is_authenticated = True
+        db.commit()
+        
+        return {"message": "Password set successfully", "customer_id": customer_id}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error setting customer password: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to set password: {str(e)}")
 
 
 

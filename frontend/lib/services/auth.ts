@@ -1,21 +1,17 @@
 // lib/services/auth.ts
-import { api, http } from '@/lib/https';
-import { clearAuthToken } from '@/lib/authToken';
+import { api } from '@/lib/https';
 
-export const login = (email: string, password: string) =>
-  http<{ token: string; user: any }>('/auth/login', {
-    method: 'POST',
-    body: JSON.stringify({ email, password }),
-    useProxy: true, // use Next.js proxy to handle CORS and cookies
-  });
+export async function verify() {
+  // Reads HttpOnly cookies server-side; returns { user }
+  return api.get('/auth/verify', { useProxy: true });
+}
 
-// ✅ browser hits Next -> Next hits FastAPI
-export const verify = () => api.get<{ valid: boolean; user?: any }>('/auth/verify');
+export async function login(email: string, password: string) {
+  // Backend sets Set-Cookie; our proxy re-emits it to browser (first-party cookie)
+  return api.post('/auth/login', { email, password }, { useProxy: true });
+}
 
-export const logout = async () => {
-  try {
-    await api.post<{ message: string }>('/auth/logout'); // via proxy
-  } finally {
-    clearAuthToken();
-  }
-};
+export async function logout() {
+  // Clears cookies on the backend; proxy re-emits Set-Cookie clearing
+  return api.post('/auth/logout', {}, { useProxy: true });
+}

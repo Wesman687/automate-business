@@ -4,13 +4,13 @@ from database import get_db
 from database.models import CustomerChangeRequest, Job, User
 from services.job_service import JobService, ChangeRequestService
 from services.appointment_service import AppointmentService
-from api.auth import get_current_user  # Legacy import
+
 from api.auth import get_current_admin
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 
-router = APIRouter(prefix="/change-request")
+router = APIRouter()
 
 
 class ChangeRequestUpdate(BaseModel):
@@ -20,7 +20,10 @@ class ChangeRequestUpdate(BaseModel):
     estimated_cost: Optional[float] = None
     rejection_reason: Optional[str] = None
     
-@router.get("/")
+class ChangeRequestResponse(BaseModel):
+    change_requests: List[dict]
+    
+@router.get("/change-requests")
 async def get_all_change_requests(
     status: Optional[str] = None,
     db: Session = Depends(get_db),
@@ -73,7 +76,7 @@ async def get_all_change_requests(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching change requests: {str(e)}")
 
-@router.put("/{request_id}")
+@router.put("/change-requests/{request_id}")
 async def update_change_request(
     request_id: int,
     update_data: ChangeRequestUpdate,

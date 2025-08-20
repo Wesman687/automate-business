@@ -2,9 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Calendar, Clock, User, Phone, Mail, MapPin, Building2, Globe, LogOut, Edit, Save, X, Plus } from 'lucide-react';
-import { getApiUrl } from '@/lib/api';
+import { Calendar, Clock, User, Phone, Mail, MapPin, Building2, Globe, LogOut, Edit, Save, X, Plus, Trash2, CheckCircle } from 'lucide-react';
+
 import EditCustomerModal from '@/components/EditCustomerModal';
+import CustomerAppointmentModal from '@/components/CustomerAppointmentModal';
+import ErrorModal from '@/components/ErrorModal';
+import { api } from '@/lib/https';
+import { useAuth } from '@/hooks/useAuth';
 
 interface Customer {
   id: number;
@@ -21,9 +25,14 @@ interface Customer {
 
 interface Appointment {
   id: number;
-  date: string;
-  time: string;
+  appointment_date?: string;
+  appointment_time?: string;
+  scheduled_date?: string; // Backend might return this instead
   status: string;
+  title?: string;
+  description?: string;
+  duration_minutes?: number;
+  meeting_type?: string;
   notes?: string;
 }
 
@@ -32,63 +41,77 @@ export default function CustomerDashboard() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
-  const [selectedDate, setSelectedDate] = useState('');
-  const [selectedTime, setSelectedTime] = useState('');
-  const [appointmentNotes, setAppointmentNotes] = useState('');
-  const [availableSlots, setAvailableSlots] = useState<string[]>([]);
-  const [schedulingLoading, setSchedulingLoading] = useState(false);
+  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
+  const [showEditAppointmentModal, setShowEditAppointmentModal] = useState(false);
+  const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+  const [rescheduleViewMode, setRescheduleViewMode] = useState<'recommended' | 'calendar'>('recommended');
+  const [rescheduleSmartSlots, setRescheduleSmartSlots] = useState<any>(null);
+  const [rescheduleLoadingSlots, setRescheduleLoadingSlots] = useState(false);
+  const [selectedRescheduleSlot, setSelectedRescheduleSlot] = useState<any>(null);
+  const [deletingAppointmentId, setDeletingAppointmentId] = useState<number | null>(null);
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
   const router = useRouter();
-
+  const { user } = useAuth();
   useEffect(() => {
     fetchCustomerData();
-    fetchAppointments();
   }, []);
+
+  // Fetch appointments when user is available
+  useEffect(() => {
+    if (user?.user_id) {
+      fetchAppointments();
+    }
+  }, [user]);
+
+  // Fetch reschedule slots when reschedule modal opens
+  useEffect(() => {
+    if (showRescheduleModal && editingAppointment) {
+      fetchRescheduleSlots();
+    }
+  }, [showRescheduleModal, editingAppointment]);
 
   const fetchCustomerData = async () => {
     try {
-      const apiUrl = getApiUrl();
-      const response = await fetch(`${apiUrl}/auth/me`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const userData = await response.json();
-        setCustomer(userData.user);
-      } else {
-        // Not authenticated, redirect to portal
+      if (!user) {
         router.push('/portal');
+        return;
+      }
+      console.log('Fetching customer data for user:', user);
+      
+      // Use user_id for customer lookup to match JWT token
+      const userData = await api.get(`/customers/${user.user_id}`);
+
+      
+      if (userData) {
+        setCustomer(userData);
+        console.log('Customer set successfully');
+      } else {
+        console.error('No customer data in response:', userData);
+        setError('Invalid customer data received');
       }
     } catch (error) {
       console.error('Error fetching customer data:', error);
-      setError('Failed to load customer data');
+      setError(`Failed to load customer data: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setLoading(false);
     }
   };
 
   const fetchAppointments = async () => {
     try {
-      const apiUrl = getApiUrl();
-      const response = await fetch(`${apiUrl}/api/appointments/customer`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const appointmentData = await response.json();
-        setAppointments(appointmentData);
+      if (!user?.user_id) return; // Use user ID from JWT token
+      const appointmentData = await api.get(`/appointments/customer?customer_id=${user.user_id}`);
+      console.log('Appointments data from backend:', appointmentData);
+      console.log('Individual appointments:', appointmentData.appointments);
+      if (appointmentData.appointments && appointmentData.appointments.length > 0) {
+        console.log('First appointment structure:', appointmentData.appointments[0]);
       }
+      setAppointments(appointmentData.appointments || []);
     } catch (error) {
       console.error('Error fetching appointments:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -97,45 +120,19 @@ export default function CustomerDashboard() {
   };
 
   const handleUpdateCustomer = async (updatedData: Partial<Customer>, passwordData?: { password: string }) => {
-    if (!customer) return;
+    if (!customer || !user) return;
     
     try {
       // If password change is requested, handle it separately first
       if (passwordData?.password) {
-        const apiUrl = getApiUrl();
-        const passwordResponse = await fetch(`${apiUrl}/api/customers/${customer.id}/set-password`, {
-          method: 'POST',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ password: passwordData.password })
-        });
-
-        if (!passwordResponse.ok) {
-          setError('Failed to update password');
-          return;
-        }
+        // Use user.user_id for password updates to match the JWT token
+        await api.post(`/customers/${user.user_id}/set-password`, { password: passwordData.password });
       }
 
-      // Update customer data
-      const apiUrl = getApiUrl();
-      const response = await fetch(`${apiUrl}/api/customers/${customer.id}`, {
-        method: 'PUT',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updatedData),
-      });
-
-      if (response.ok) {
-        const updatedCustomer = await response.json();
-        setCustomer(updatedCustomer);
-        setIsEditModalOpen(false);
-      } else {
-        setError('Failed to update information');
-      }
+      // Update customer data using user.user_id to match the JWT token
+      const updatedCustomer = await api.put(`/customers/${user.user_id}`, updatedData);
+      setCustomer(updatedCustomer);
+      setIsEditModalOpen(false);
     } catch (error) {
       console.error('Error updating customer:', error);
       setError('Failed to update information');
@@ -144,11 +141,7 @@ export default function CustomerDashboard() {
 
   const handleLogout = async () => {
     try {
-      const apiUrl = getApiUrl();
-      await fetch(`${apiUrl}/auth/logout`, {
-        method: 'POST',
-        credentials: 'include',
-      });
+      await api.post('/auth/logout');
       router.push('/');
     } catch (error) {
       console.error('Logout error:', error);
@@ -158,86 +151,138 @@ export default function CustomerDashboard() {
 
   const scheduleAppointment = () => {
     setShowScheduleModal(true);
-    setSelectedDate('');
-    setSelectedTime('');
-    setAppointmentNotes('');
-    setAvailableSlots([]);
   };
 
-  const fetchAvailableSlots = async (date: string) => {
-    if (!date) return;
+  const hasScheduledAppointment = () => {
+    return appointments.some(apt => apt.status === 'scheduled');
+  };
+
+  const editAppointment = (appointment: Appointment) => {
+    setEditingAppointment(appointment);
+    setShowEditAppointmentModal(true);
+  };
+
+  const handleUpdateAppointment = async (updatedData: Partial<Appointment>) => {
+    if (!editingAppointment) return;
     
-    setSchedulingLoading(true);
     try {
-      const apiUrl = getApiUrl();
-      const response = await fetch(`${apiUrl}/api/appointments/available-slots?date=${date}`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const slots = await response.json();
-        setAvailableSlots(slots);
-      } else {
-        setError('Failed to fetch available time slots');
-      }
+      await api.put(`/appointments/${editingAppointment.id}`, updatedData);
+      await fetchAppointments(); // Refresh the list
+      setShowEditAppointmentModal(false);
+      setEditingAppointment(null);
     } catch (error) {
-      console.error('Error fetching available slots:', error);
-      setError('Failed to fetch available time slots');
-    } finally {
-      setSchedulingLoading(false);
+      console.error('Error updating appointment:', error);
+      setError('Failed to update appointment');
     }
   };
 
-  const handleDateChange = (date: string) => {
-    setSelectedDate(date);
-    setSelectedTime('');
-    if (date) {
-      fetchAvailableSlots(date);
+
+
+  const deleteAppointment = async (appointmentId: number) => {
+    // Find the appointment to check its status
+    const appointment = appointments.find(apt => apt.id === appointmentId);
+    
+    if (appointment?.status === 'scheduled') {
+      // For scheduled appointments, show cancel confirmation
+      setDeletingAppointmentId(appointmentId);
+      setShowDeleteConfirmModal(true);
     } else {
-      setAvailableSlots([]);
+      // For other statuses, show delete confirmation
+      setDeletingAppointmentId(appointmentId);
+      setShowDeleteConfirmModal(true);
     }
   };
 
-  const handleScheduleSubmit = async () => {
-    if (!selectedDate || !selectedTime) {
-      setError('Please select both date and time');
-      return;
-    }
-
-    setSchedulingLoading(true);
+  const confirmDeleteAppointment = async () => {
+    if (!deletingAppointmentId) return;
+    
     try {
-      const apiUrl = getApiUrl();
-      const response = await fetch(`${apiUrl}/api/appointments`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          date: selectedDate,
-          time: selectedTime,
-          notes: appointmentNotes,
-        }),
+      const appointment = appointments.find(apt => apt.id === deletingAppointmentId);
+      
+      if (appointment?.status === 'scheduled') {
+        // Cancel the scheduled appointment
+        await api.put(`/appointments/${deletingAppointmentId}`, {
+          status: 'cancelled'
+        });
+        setSuccess('Appointment cancelled successfully');
+      } else {
+        // Delete the appointment permanently
+        await api.del(`/appointments/${deletingAppointmentId}`);
+        setSuccess('Appointment deleted successfully');
+      }
+      
+      await fetchAppointments(); // Refresh the list
+      setError(''); // Clear any previous errors
+      setTimeout(() => setSuccess(''), 3000); // Clear success message after 3 seconds
+    } catch (error) {
+      console.error('Error processing appointment:', error);
+      setError(appointments.find(apt => apt.id === deletingAppointmentId)?.status === 'scheduled' 
+        ? 'Failed to cancel appointment' 
+        : 'Failed to delete appointment'
+      );
+    } finally {
+      setShowDeleteConfirmModal(false);
+      setDeletingAppointmentId(null);
+    }
+  };
+
+  const fetchRescheduleSlots = async () => {
+    if (!editingAppointment) return;
+    
+    setRescheduleLoadingSlots(true);
+    try {
+      const params = new URLSearchParams({
+        duration_minutes: (editingAppointment.duration_minutes || 60).toString(),
+        days_ahead: '14'
       });
 
-      if (response.ok) {
-        setShowScheduleModal(false);
-        fetchAppointments(); // Refresh appointments
-        setError('');
-        // You might want to show a success message here
-      } else {
-        const errorData = await response.json();
-        setError(errorData.detail || 'Failed to schedule appointment');
+      const data = await api.get(`/appointments/smart-slots?${params}`);
+      setRescheduleSmartSlots(data);
+      
+      // Auto-select the next available slot
+      if (data.next_available && !selectedRescheduleSlot) {
+        setSelectedRescheduleSlot(data.next_available);
       }
     } catch (error) {
-      console.error('Error scheduling appointment:', error);
-      setError('Failed to schedule appointment');
+      console.error('Error fetching reschedule slots:', error);
+      setError('Error loading available time slots');
     } finally {
-      setSchedulingLoading(false);
+      setRescheduleLoadingSlots(false);
+    }
+  };
+
+  const handleReschedule = async () => {
+    if (!selectedRescheduleSlot || !editingAppointment) return;
+    
+    try {
+      // Update the appointment with new date/time
+      const updatedData = {
+        ...editingAppointment,
+        appointment_date: selectedRescheduleSlot.date,
+        appointment_time: selectedRescheduleSlot.time
+      };
+      
+      await api.put(`/appointments/${editingAppointment.id}`, updatedData);
+      await fetchAppointments(); // Refresh the list
+      setShowRescheduleModal(false);
+      setShowEditAppointmentModal(false);
+      setEditingAppointment(null);
+      setSelectedRescheduleSlot(null);
+    } catch (error) {
+      console.error('Error rescheduling appointment:', error);
+      setError('Failed to reschedule appointment');
+    }
+  };
+
+  const handleScheduleSubmit = async (appointmentData: any) => {
+    try {
+      // The modal already handles the API call, so we just need to refresh appointments
+      await fetchAppointments();
+      setError('');
+      // You might want to show a success message here
+    } catch (error) {
+      console.error('Error refreshing appointments:', error);
+      setError('Appointment scheduled but failed to refresh list');
     }
   };
 
@@ -298,6 +343,11 @@ export default function CustomerDashboard() {
         {error && (
           <div className="bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-lg mb-6">
             {error}
+          </div>
+        )}
+        {success && (
+          <div className="bg-green-500/10 border border-green-500/20 text-green-400 px-4 py-3 rounded-lg mb-6">
+            {success}
           </div>
         )}
 
@@ -400,11 +450,24 @@ export default function CustomerDashboard() {
               <div className="space-y-3">
                 <button
                   onClick={scheduleAppointment}
-                  className="w-full flex items-center gap-3 bg-electric-blue/20 hover:bg-electric-blue/30 text-electric-blue px-4 py-3 rounded-lg transition-colors"
+                  disabled={hasScheduledAppointment()}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                    hasScheduledAppointment()
+                      ? 'bg-gray-600/20 text-gray-400 cursor-not-allowed'
+                      : 'bg-electric-blue/20 hover:bg-electric-blue/30 text-electric-blue'
+                  }`}
                 >
                   <Calendar className="h-5 w-5" />
-                  Schedule Appointment
+                  {hasScheduledAppointment() 
+                    ? 'Appointment Already Scheduled' 
+                    : 'Schedule Appointment'
+                  }
                 </button>
+                {hasScheduledAppointment() && (
+                  <p className="text-xs text-gray-400 text-center">
+                    You can only have one appointment at a time. Cancel your current appointment to schedule a new one.
+                  </p>
+                )}
                 <button
                   onClick={() => window.open('#', '_blank')}
                   className="w-full flex items-center gap-3 bg-neon-green/20 hover:bg-neon-green/30 text-neon-green px-4 py-3 rounded-lg transition-colors"
@@ -422,42 +485,116 @@ export default function CustomerDashboard() {
                 <div className="space-y-3">
                   {appointments.slice(0, 3).map((appointment) => (
                     <div key={appointment.id} className="bg-dark-bg p-3 rounded-lg border border-dark-border">
-                      <div className="flex items-center gap-2 text-sm">
-                        <Calendar className="h-4 w-4 text-electric-blue" />
-                        <span className="text-white">{appointment.date}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm mt-1">
-                        <Clock className="h-4 w-4 text-neon-green" />
-                        <span className="text-white">{appointment.time}</span>
-                      </div>
-                      <div className="mt-2">
-                        <span className={`text-xs px-2 py-1 rounded-full ${
-                          appointment.status === 'confirmed' 
-                            ? 'bg-neon-green/20 text-neon-green' 
-                            : 'bg-yellow-500/20 text-yellow-400'
-                        }`}>
-                          {appointment.status}
-                        </span>
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 text-sm">
+                            <Calendar className="h-4 w-4 text-electric-blue" />
+                            <span className="text-white">
+                              {appointment.scheduled_date ? 
+                                new Date(appointment.scheduled_date).toLocaleDateString('en-US', {
+                                  weekday: 'short',
+                                  month: 'short',
+                                  day: 'numeric'
+                                }) : appointment.appointment_date ? 
+                                new Date(appointment.appointment_date).toLocaleDateString('en-US', {
+                                  weekday: 'short',
+                                  month: 'short',
+                                  day: 'numeric'
+                                }) : 'Date not set'
+                              }
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm mt-1">
+                            <Clock className="h-4 w-4 text-neon-green" />
+                            <span className="text-white">
+                              {appointment.scheduled_date ? 
+                                new Date(appointment.scheduled_date).toLocaleTimeString('en-US', {
+                                  hour: 'numeric',
+                                  minute: '2-digit',
+                                  hour12: true
+                                }) : appointment.appointment_time ? 
+                                new Date(`2000-01-01T${appointment.appointment_time}`).toLocaleTimeString('en-US', {
+                                  hour: 'numeric',
+                                  minute: '2-digit',
+                                  hour12: true
+                                }) : 'Time not set'
+                              }
+                            </span>
+                          </div>
+                          {appointment.title && (
+                            <div className="mt-2 text-sm text-gray-300">
+                              {appointment.title}
+                            </div>
+                          )}
+                          <div className="mt-2">
+                            <span className={`text-xs px-2 py-1 rounded-full ${
+                              appointment.status === 'confirmed' 
+                                ? 'bg-neon-green/20 text-neon-green' 
+                                : appointment.status === 'scheduled'
+                                ? 'bg-electric-blue/20 text-electric-blue'
+                                : appointment.status === 'cancelled'
+                                ? 'bg-red-500/20 text-red-400'
+                                : 'bg-yellow-500/20 text-yellow-400'
+                            }`}>
+                              {appointment.status}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-2 ml-3">
+                          <button
+                            onClick={() => editAppointment(appointment)}
+                            className="p-2 text-electric-blue hover:bg-electric-blue/10 rounded-lg transition-colors"
+                            title="Edit appointment"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => deleteAppointment(appointment.id)}
+                            className="p-2 text-red-600 hover:bg-red-600/10 rounded-lg transition-colors"
+                            title={appointment.status === 'scheduled' ? 'Cancel appointment' : 'Delete appointment'}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
+                  {appointments.length > 3 && (
+                    <div className="text-center pt-2">
+                      <span className="text-xs text-gray-400">
+                        +{appointments.length - 3} more appointments
+                      </span>
+                    </div>
+                  )}
                 </div>
               ) : (
-                <p className="text-gray-400 text-sm">No upcoming appointments</p>
+                <div className="text-center py-8">
+                  <Calendar className="h-12 w-12 text-gray-600 mx-auto mb-3" />
+                  <p className="text-gray-400 text-sm">No upcoming appointments</p>
+                  <p className="text-gray-500 text-xs mt-1">Schedule your first appointment to get started</p>
+                </div>
               )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Schedule Appointment Modal */}
-      {showScheduleModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      {/* Customer Appointment Modal */}
+      <CustomerAppointmentModal
+        isOpen={showScheduleModal}
+        onClose={() => setShowScheduleModal(false)}
+        onSave={handleScheduleSubmit}
+        customerId={user?.user_id || 0}
+      />
+
+      {/* Edit Appointment Modal */}
+      {editingAppointment && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-dark-card p-6 rounded-xl border border-dark-border w-full max-w-md mx-4">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-semibold text-white">Schedule Appointment</h3>
+              <h3 className="text-xl font-semibold text-white">Edit Appointment</h3>
               <button
-                onClick={() => setShowScheduleModal(false)}
+                onClick={() => setShowEditAppointmentModal(false)}
                 className="text-gray-400 hover:text-white"
               >
                 <X className="h-6 w-6" />
@@ -465,81 +602,367 @@ export default function CustomerDashboard() {
             </div>
 
             <div className="space-y-4">
-              {/* Date Selection */}
+              {/* Title */}
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Select Date
+                  Title
                 </label>
                 <input
-                  type="date"
-                  value={selectedDate}
-                  onChange={(e) => handleDateChange(e.target.value)}
-                  min={new Date().toISOString().split('T')[0]}
-                  className="w-full px-3 py-2 bg-dark-bg border border-dark-border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-electric-blue"
+                  type="text"
+                  defaultValue={editingAppointment.title || ''}
+                  onChange={(e) => setEditingAppointment({
+                    ...editingAppointment,
+                    title: e.target.value
+                  })}
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-electric-blue"
+                  placeholder="Appointment title"
                 />
               </div>
 
-              {/* Time Selection */}
-              {selectedDate && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Available Time Slots
-                  </label>
-                  {schedulingLoading ? (
-                    <div className="text-center py-4">
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-electric-blue mx-auto"></div>
-                      <p className="text-gray-400 text-sm mt-2">Loading available slots...</p>
-                    </div>
-                  ) : availableSlots.length > 0 ? (
-                    <div className="grid grid-cols-3 gap-2">
-                      {availableSlots.map((slot) => (
-                        <button
-                          key={slot}
-                          onClick={() => setSelectedTime(slot)}
-                          className={`px-3 py-2 rounded-lg text-sm transition-colors ${
-                            selectedTime === slot
-                              ? 'bg-electric-blue text-white'
-                              : 'bg-dark-bg border border-dark-border text-gray-300 hover:border-electric-blue'
-                          }`}
-                        >
-                          {slot}
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-gray-400 text-sm">No available slots for this date</p>
-                  )}
-                </div>
-              )}
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Description
+                </label>
+                <textarea
+                  defaultValue={editingAppointment.description || ''}
+                  onChange={(e) => setEditingAppointment({
+                    ...editingAppointment,
+                    description: e.target.value
+                  })}
+                  rows={3}
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-electric-blue"
+                  placeholder="Appointment description"
+                />
+              </div>
 
               {/* Notes */}
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Notes (Optional)
+                  Notes
                 </label>
                 <textarea
-                  value={appointmentNotes}
-                  onChange={(e) => setAppointmentNotes(e.target.value)}
+                  defaultValue={editingAppointment.notes || ''}
+                  onChange={(e) => setEditingAppointment({
+                    ...editingAppointment,
+                    notes: e.target.value
+                  })}
                   rows={3}
-                  placeholder="Any additional information or specific requirements..."
-                  className="w-full px-3 py-2 bg-dark-bg border border-dark-border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-electric-blue"
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-electric-blue"
+                  placeholder="Additional notes"
                 />
+              </div>
+
+              {/* Reschedule Section */}
+              <div className="border-t border-gray-600 pt-4">
+                <h4 className="text-sm font-medium text-gray-300 mb-3">Reschedule Appointment</h4>
+                <div className="space-y-3">
+                  <button
+                    onClick={() => setShowRescheduleModal(true)}
+                    className="w-full flex items-center justify-center gap-2 bg-electric-blue/20 hover:bg-electric-blue/30 text-electric-blue px-4 py-2 rounded-lg transition-colors"
+                  >
+                    <Calendar className="h-4 w-4" />
+                    Pick New Time Slot
+                  </button>
+                  <p className="text-xs text-gray-400 text-center">
+                    Current: {editingAppointment.scheduled_date ? 
+                      new Date(editingAppointment.scheduled_date).toLocaleDateString('en-US', {
+                        weekday: 'long',
+                        month: 'long',
+                        day: 'numeric'
+                      }) : 'Date not set'
+                    } at {editingAppointment.scheduled_date ? 
+                      new Date(editingAppointment.scheduled_date).toLocaleTimeString('en-US', {
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        hour12: true
+                      }) : 'Time not set'
+                    }
+                  </p>
+                </div>
               </div>
 
               {/* Action Buttons */}
               <div className="flex gap-3 pt-4">
                 <button
-                  onClick={() => setShowScheduleModal(false)}
+                  onClick={() => setShowEditAppointmentModal(false)}
                   className="flex-1 px-4 py-2 bg-gray-600/20 hover:bg-gray-600/30 text-gray-300 rounded-lg transition-colors"
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={handleScheduleSubmit}
-                  disabled={!selectedDate || !selectedTime || schedulingLoading}
+                  onClick={() => handleUpdateAppointment(editingAppointment)}
+                  className="flex-1 px-4 py-2 bg-electric-blue hover:bg-electric-blue/80 text-white rounded-lg transition-colors"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reschedule Appointment Modal */}
+      {showRescheduleModal && editingAppointment && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-dark-card p-6 rounded-xl border border-dark-border w-full max-w-4xl mx-4">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-white">Reschedule Appointment</h3>
+              <button
+                onClick={() => setShowRescheduleModal(false)}
+                className="text-gray-400 hover:text-white"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <p className="text-gray-300 text-sm">
+                Select a new time slot for your appointment. The current appointment will be updated with the new time.
+              </p>
+              
+              {/* Current Appointment Info */}
+              <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-600">
+                <h4 className="text-sm font-medium text-gray-300 mb-2">Current Appointment</h4>
+                <div className="text-white text-sm">
+                  <div><strong>Title:</strong> {editingAppointment.title || 'Untitled'}</div>
+                  <div><strong>Date:</strong> {editingAppointment.scheduled_date ? 
+                    new Date(editingAppointment.scheduled_date).toLocaleDateString('en-US', {
+                      weekday: 'long',
+                      month: 'long',
+                      day: 'numeric'
+                    }) : 'Date not set'
+                  }</div>
+                  <div><strong>Time:</strong> {editingAppointment.scheduled_date ? 
+                    new Date(editingAppointment.scheduled_date).toLocaleTimeString('en-US', {
+                      hour: 'numeric',
+                      minute: '2-digit',
+                      hour12: true
+                    }) : 'Time not set'
+                  }</div>
+                </div>
+              </div>
+
+              {/* Time Slot Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Select New Time Slot
+                </label>
+                
+                {/* Duration Selection */}
+                <div className="mb-4">
+                  <label className="block text-xs font-medium text-gray-400 mb-2">
+                    Appointment Duration
+                  </label>
+                  <select
+                    value={editingAppointment.duration_minutes || 60}
+                    onChange={(e) => setEditingAppointment({
+                      ...editingAppointment,
+                      duration_minutes: parseInt(e.target.value)
+                    })}
+                    className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  >
+                    <option value={30}>30 minutes</option>
+                    <option value={60}>1 hour</option>
+                    <option value={90}>1.5 hours</option>
+                    <option value={120}>2 hours</option>
+                  </select>
+                </div>
+
+                {/* View Mode Toggle */}
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-sm font-medium text-gray-300">Available Time Slots</h4>
+                  <div className="flex space-x-2">
+                    <button
+                      type="button"
+                      onClick={() => setRescheduleViewMode('recommended')}
+                      className={`px-3 py-1 rounded-md text-xs ${
+                        rescheduleViewMode === 'recommended'
+                          ? 'bg-cyan-600 text-white'
+                          : 'bg-gray-700 text-gray-300'
+                      }`}
+                    >
+                      Recommended
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRescheduleViewMode('calendar')}
+                      className={`px-3 py-1 rounded-md text-xs ${
+                        rescheduleViewMode === 'calendar'
+                          ? 'bg-cyan-600 text-white'
+                          : 'bg-gray-700 text-gray-300'
+                      }`}
+                    >
+                      Calendar View
+                    </button>
+                  </div>
+                </div>
+
+                {/* Loading State */}
+                {rescheduleLoadingSlots && (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-500 mx-auto mb-4"></div>
+                    <p className="text-gray-400 text-sm">Loading available time slots...</p>
+                  </div>
+                )}
+
+                {/* Time Slots Display */}
+                {!rescheduleLoadingSlots && rescheduleSmartSlots && (
+                  <>
+                    {/* Next Available Slot Highlight */}
+                    {rescheduleSmartSlots.next_available && (
+                      <div className="bg-green-900/50 border border-green-500 rounded-lg p-4 mb-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h4 className="font-medium text-green-300 flex items-center text-sm">
+                              <CheckCircle className="w-4 h-4 mr-2" />
+                              Next Available (Recommended)
+                            </h4>
+                            <p className="text-green-400 text-sm">
+                              {new Date(rescheduleSmartSlots.next_available.datetime).toLocaleDateString('en-US', {
+                                weekday: 'long',
+                                month: 'long',
+                                day: 'numeric'
+                              })} at {rescheduleSmartSlots.next_available.display_time}
+                              {rescheduleSmartSlots.next_available.label && ` (${rescheduleSmartSlots.next_available.label})`}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedRescheduleSlot(rescheduleSmartSlots.next_available!)}
+                            className={`px-3 py-1 rounded-md text-xs font-medium ${
+                              selectedRescheduleSlot?.datetime === rescheduleSmartSlots.next_available?.datetime
+                                ? 'bg-green-600 text-white'
+                                : 'bg-green-700 text-green-200 hover:bg-green-600'
+                            }`}
+                          >
+                            {selectedRescheduleSlot?.datetime === rescheduleSmartSlots.next_available?.datetime ? 'Selected' : 'Select'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* View Mode Content */}
+                    {rescheduleViewMode === 'recommended' && rescheduleSmartSlots.recommended_times.length > 0 && (
+                      <div className="space-y-3">
+                        <h5 className="font-medium text-white text-sm">Recommended Times</h5>
+                        <div className="max-h-96 overflow-y-auto pr-2">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {rescheduleSmartSlots.recommended_times.map((timeSlot, index) => (
+                              <button
+                                key={index}
+                                type="button"
+                                onClick={() => setSelectedRescheduleSlot(timeSlot)}
+                                className={`p-3 rounded-lg border text-left transition-colors ${
+                                  selectedRescheduleSlot?.datetime === timeSlot.datetime
+                                    ? 'border-cyan-500 bg-cyan-900/50'
+                                    : 'border-gray-600 bg-gray-800 hover:border-gray-500'
+                                }`}
+                              >
+                                <div className="font-medium text-white text-sm">
+                                  {new Date(timeSlot.datetime).toLocaleDateString('en-US', {
+                                    weekday: 'short',
+                                    month: 'short',
+                                    day: 'numeric'
+                                  })}
+                                </div>
+                                <div className="text-xs text-gray-300">
+                                  {timeSlot.display_time}
+                                  {timeSlot.label && ` (${timeSlot.label})`}
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {rescheduleViewMode === 'calendar' && rescheduleSmartSlots.available_dates.length > 0 && (
+                      <div className="space-y-3">
+                        <h5 className="font-medium text-white text-sm">Available Dates</h5>
+                        <div className="max-h-96 overflow-y-auto pr-2 space-y-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {rescheduleSmartSlots.available_dates.map((date, index) => (
+                              <div key={index} className="border border-gray-600 bg-gray-800 rounded-lg p-3">
+                                <div className="mb-2">
+                                  <h6 className="font-medium text-white text-sm">
+                                    {date.formatted_date}
+                                    {date.is_today && <span className="ml-2 text-xs bg-cyan-600 text-white px-2 py-1 rounded">Today</span>}
+                                    {date.is_tomorrow && <span className="ml-2 text-xs bg-green-600 text-white px-2 py-1 rounded">Tomorrow</span>}
+                                  </h6>
+                                  <p className="text-xs text-gray-300">{date.day_name} • {date.slots_count} slots available</p>
+                                </div>
+                                <div className="space-y-1">
+                                  {date.time_slots.slice(0, 4).map((timeSlot, timeIndex) => (
+                                    <button
+                                      key={timeIndex}
+                                      type="button"
+                                      onClick={() => setSelectedRescheduleSlot(timeSlot)}
+                                      className={`w-full px-2 py-1 rounded-md text-xs text-left transition-colors ${
+                                        selectedRescheduleSlot?.datetime === timeSlot.datetime
+                                          ? 'bg-cyan-600 text-white border border-cyan-400'
+                                          : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
+                                      }`}
+                                    >
+                                      {timeSlot.display_time}
+                                      {timeSlot.label && ` (${timeSlot.label})`}
+                                    </button>
+                                  ))}
+                                  {date.slots_count > 4 && (
+                                    <p className="text-xs text-gray-400 text-center">
+                                      +{date.slots_count - 4} more times available
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Selected Time Display */}
+                    {selectedRescheduleSlot && (
+                      <div className="bg-cyan-900/50 border border-cyan-500 rounded-lg p-4">
+                        <h4 className="font-medium text-cyan-300 mb-2 text-sm">✅ New Appointment Time</h4>
+                        <p className="text-cyan-400 text-sm">
+                          {new Date(selectedRescheduleSlot.datetime).toLocaleDateString('en-US', {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          })} at {selectedRescheduleSlot.display_time}
+                          {selectedRescheduleSlot.label && ` (${selectedRescheduleSlot.label})`}
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* No Slots Available */}
+                {!rescheduleLoadingSlots && (!rescheduleSmartSlots || (rescheduleSmartSlots.recommended_times.length === 0 && rescheduleSmartSlots.available_dates.length === 0)) && (
+                  <div className="text-center py-8 text-gray-400">
+                    <Clock className="w-12 h-12 mx-auto mb-3 text-gray-600" />
+                    <p className="text-sm">No available time slots</p>
+                    <p className="text-xs mt-1">Please try a different duration or check back later</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setShowRescheduleModal(false)}
+                  className="flex-1 px-4 py-2 bg-gray-600/20 hover:bg-gray-600/30 text-gray-300 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleReschedule}
+                  disabled={!selectedRescheduleSlot}
                   className="flex-1 px-4 py-2 bg-electric-blue hover:bg-electric-blue/80 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {schedulingLoading ? 'Scheduling...' : 'Schedule'}
+                  Reschedule
                 </button>
               </div>
             </div>
@@ -556,6 +979,31 @@ export default function CustomerDashboard() {
           onSave={handleUpdateCustomer}
         />
       )}
+
+      {/* Delete/Cancel Confirmation Modal */}
+      <ErrorModal
+        isOpen={showDeleteConfirmModal}
+        onClose={() => setShowDeleteConfirmModal(false)}
+        title={deletingAppointmentId && appointments.find(apt => apt.id === deletingAppointmentId)?.status === 'scheduled' ? 'Cancel Appointment' : 'Delete Appointment'}
+        message={
+          deletingAppointmentId && appointments.find(apt => apt.id === deletingAppointmentId)?.status === 'scheduled'
+            ? 'Are you sure you want to cancel this scheduled appointment? You can reschedule it later if needed.'
+            : 'Are you sure you want to permanently delete this appointment? This action cannot be undone.'
+        }
+        type="warning"
+        buttons={[
+          {
+            label: "Cancel",
+            onClick: () => setShowDeleteConfirmModal(false),
+            variant: "secondary"
+          },
+          {
+            label: deletingAppointmentId && appointments.find(apt => apt.id === deletingAppointmentId)?.status === 'scheduled' ? 'Cancel Appointment' : 'Delete',
+            onClick: confirmDeleteAppointment,
+            variant: "danger"
+          }
+        ]}
+      />
     </div>
   );
 }

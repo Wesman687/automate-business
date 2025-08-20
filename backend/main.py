@@ -15,6 +15,7 @@ from api.google_auth import router as google_auth_router
 from api.voice_agent import router as voice_agent_router
 from api.jobs import router as jobs_router
 from api.change_requests import router as change_requests_router
+from api.admin_overview import router as admin_overview_router
 from api.auth import get_current_user
 import logging
 import os
@@ -197,6 +198,7 @@ app.include_router(google_auth_router)
 app.include_router(voice_agent_router)
 app.include_router(jobs_router)
 app.include_router(change_requests_router)
+app.include_router(admin_overview_router)
 
 # Add debug logging for routes
 for route in app.routes:

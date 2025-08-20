@@ -10,6 +10,13 @@ function getCookie(name: string): string | null {
 
 export function buildBackendUrl(path: string) {
   if (/^https?:\/\//i.test(path)) return path;
+  
+  // Email endpoints always go to production server
+  // Check both with and without leading slash
+  if (path.startsWith('email/') || path.startsWith('/email/')) {
+    return `https://server.stream-lineai.com/${path}`;
+  }
+  
   const clean = path.replace(/^\/+/, "");
   const prefix = BACKEND_PREFIX ? BACKEND_PREFIX.replace(/^\/?/, "") + "/" : "";
   return `${API_BASE}/${prefix}${clean}`.replace(/\/+/g, "/");
@@ -17,6 +24,13 @@ export function buildBackendUrl(path: string) {
 
 export function buildProxyUrl(path: string) {
   const clean = path.replace(/^\/+/, "");
+  
+  // Email endpoints always go to production server (bypass proxy)
+  // Check both with and without leading slash
+  if (path.startsWith('email/') || path.startsWith('/email/')) {
+    return `https://server.stream-lineai.com/${clean}`;
+  }
+  
   return `/api/${clean}`;  // Restore /api prefix for Next.js proxy routing
 }
 
@@ -45,7 +59,6 @@ export async function http<T = any>(
   // Always force proxy if you want first-party cookies everywhere:
   const url = shouldProxy ? buildProxyUrl(path) : buildBackendUrl(path);
   
-
   const h = new Headers(headers || {});
   if (!h.has("Content-Type") && init.body && !(init.body instanceof FormData)) {
     h.set("Content-Type", "application/json");

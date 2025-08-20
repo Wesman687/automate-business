@@ -59,22 +59,34 @@ class EmailReaderService:
         
         # Load from database first (preferred method)
         if self.db_session:
+            logger.info("🔧 EmailReader: Database session available, loading accounts from DB")
             db_accounts = self._load_db_accounts()
             accounts.extend(db_accounts)
             
+            logger.info(f"🔧 EmailReader: Loaded {len(db_accounts)} accounts from database")
+            for acc in db_accounts:
+                logger.info(f"🔧 EmailReader: DB Account - {acc.account_name}: {acc.email}")
+            
             # If we have database accounts, prefer those over env vars
             if db_accounts:
-                logger.info(f"Loaded {len(db_accounts)} email accounts from database")
+                logger.info(f"🔧 EmailReader: Using {len(db_accounts)} database accounts")
                 return accounts
+        else:
+            logger.warning("🔧 EmailReader: No database session available")
         
         # Fallback to environment variables if no database accounts
+        logger.info("🔧 EmailReader: Loading accounts from environment variables")
         env_accounts = self._load_env_accounts()
         accounts.extend(env_accounts)
         
+        logger.info(f"🔧 EmailReader: Loaded {len(env_accounts)} accounts from environment")
+        for acc in env_accounts:
+            logger.info(f"🔧 EmailReader: ENV Account - {acc.account_name}: {acc.email}")
+        
         if env_accounts:
-            logger.info(f"Loaded {len(env_accounts)} email accounts from environment variables")
+            logger.info(f"🔧 EmailReader: Using {len(env_accounts)} environment accounts")
         else:
-            logger.warning("No email accounts found in database or environment variables")
+            logger.warning("🔧 EmailReader: No email accounts found in database or environment variables")
         
         return accounts
     
@@ -115,12 +127,16 @@ class EmailReaderService:
         try:
             from models.email_account import EmailAccount as DBEmailAccount
             
+            logger.info("🔧 EmailReader: Querying database for email accounts")
             db_accounts = self.db_session.query(DBEmailAccount).filter(
                 DBEmailAccount.is_active == True
             ).all()
             
+            logger.info(f"🔧 EmailReader: Found {len(db_accounts)} active email accounts in database")
+            
             accounts = []
             for db_account in db_accounts:
+                logger.info(f"🔧 EmailReader: Processing DB account - Name: {db_account.name}, Email: {db_account.email}, Active: {db_account.is_active}")
                 accounts.append(EmailAccount(
                     email=db_account.email,
                     password=db_account.password,  # In production, decrypt this
@@ -129,9 +145,10 @@ class EmailReaderService:
                     account_name=db_account.name
                 ))
             
+            logger.info(f"🔧 EmailReader: Successfully loaded {len(accounts)} accounts from database")
             return accounts
         except Exception as e:
-            logger.error(f"Error loading email accounts from database: {str(e)}")
+            logger.error(f"🔧 EmailReader: Error loading email accounts from database: {str(e)}")
             return []
     
     def _decode_header_value(self, value: str) -> str:

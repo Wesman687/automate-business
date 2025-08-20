@@ -172,10 +172,10 @@ export default function Dashboard() {
     }
   };
 
-  const markChatLogAsSeen = async (sessionId: number) => {
+  const markChatLogAsSeen = async (sessionId: string) => {
     try {
-      await api.put(`/admin/chat-logs/${sessionId}/mark-seen`);
-      setChatLogs((prev) => prev.filter((l) => l.id !== sessionId));
+      await api.patch(`/sessions/${sessionId}/seen`, { is_seen: true });
+      setChatLogs((prev) => prev.filter((l) => l.session_id !== sessionId));
       setStats((prev) => ({ ...prev, new_chat_logs: Math.max(0, prev.new_chat_logs - 1) }));
     } catch (e) {
       console.error('Failed to mark chat log as seen:', e);
@@ -376,7 +376,7 @@ export default function Dashboard() {
                   )}
                   <div className="mt-2 flex justify-between items-center">
                     <button
-                      onClick={() => markChatLogAsSeen(log.id)}
+                      onClick={() => markChatLogAsSeen(log.session_id)}
                       className="text-xs bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded font-medium transition-colors"
                     >
                       Mark as Seen
@@ -602,8 +602,8 @@ export default function Dashboard() {
         appointment={editingAppointment}
       />
 
-      {/* Email Manager (toggle when ready) */}
-      {false && showEmailManager && (
+      {/* Email Manager */}
+      {showEmailManager && (
         <EmailManager
           selectedEmailId={selectedEmailId}
           onClose={() => {

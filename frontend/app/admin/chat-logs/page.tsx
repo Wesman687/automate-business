@@ -97,30 +97,19 @@ export default function ChatLogs() {
 
   const toggleSeenStatus = async (sessionId: string, currentSeen: boolean) => {
     try {
-      const response = await api.put(`/sessions/${sessionId}/seen`, { is_seen: !currentSeen })
-      
+      await api.put(`/sessions/${sessionId}/seen`, { is_seen: !currentSeen });
 
-      if (response.ok) {
-        setSessions(sessions.map(s => 
-          s.session_id === sessionId 
-            ? { ...s, is_seen: !currentSeen }
-            : s
-        ));
-        setErrorModal({
-          isOpen: true,
-          title: 'Status Updated',
-          message: `Session marked as ${!currentSeen ? 'seen' : 'unseen'}.`,
-          type: 'success'
-        });
-      } else {
-        const errorData = await response.json();
-        setErrorModal({
-          isOpen: true,
-          title: 'Update Failed',
-          message: errorData.detail || 'Failed to update the seen status. Please try again.',
-          type: 'error'
-        });
-      }
+      setSessions(sessions.map(s => 
+        s.session_id === sessionId 
+          ? { ...s, is_seen: !currentSeen }
+          : s
+      ));
+      setErrorModal({
+        isOpen: true,
+        title: 'Status Updated',
+        message: `Session marked as ${!currentSeen ? 'seen' : 'unseen'}.`,
+        type: 'success'
+      });
     } catch (error) {
       console.error('Error updating seen status:', error);
       setErrorModal({

@@ -20,3 +20,5 @@ export const BACKEND_PREFIX =
   (process.env.NEXT_PUBLIC_BACKEND_PREFIX ?? '').replace(/\/+$/, '');
 
 export const API_BASE = IS_DEV ? API_BASE_DEV : API_BASE_PROD;
+
+

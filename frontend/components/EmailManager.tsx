@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Mail, Send, Reply, MoreHorizontal, Search, RefreshCw, X, Eye, EyeOff, Clock, AlertCircle, Forward } from 'lucide-react';
+import { api } from '@/lib/https';
 
 interface Email {
   id: string;
@@ -32,6 +33,8 @@ export default function EmailManager({ onClose, selectedEmailId }: EmailManagerP
   const [error, setError] = useState('');
   const [emailAccounts, setEmailAccounts] = useState<Array<{name: string, value: string, email: string}>>([]);
 
+
+  
   // Company email accounts - easily configurable
   // To add more company emails, simply add them to this array
   const companyEmailAccounts = [
@@ -89,23 +92,22 @@ export default function EmailManager({ onClose, selectedEmailId }: EmailManagerP
 
   const fetchEmailAccounts = async () => {
     try {
-      // Try to fetch from server, but fall back to local config
-      const response = await fetch('https://server.stream-lineai.com/email/accounts', {
-        credentials: 'include',
-      });
+      // Use api utility - automatically routes to production server
+      const data = await api.get('/email/accounts');
       
-      if (response.ok) {
-        const data = await response.json();
-        // Map server accounts to our format
-        const serverAccounts = data.accounts?.map((account: any) => ({
-          name: account.name,
-          value: account.name.toLowerCase(),
-          email: account.email
-        })) || [];
-        setEmailAccounts(serverAccounts.length > 0 ? serverAccounts : companyEmailAccounts);
-      } else {
-        setEmailAccounts(companyEmailAccounts);
-      }
+      console.log('🔧 Email accounts from server:', data);
+      
+      // Map server accounts to our format
+      const serverAccounts = data.accounts?.map((account: any) => ({
+        name: account.name,
+        value: account.name.toLowerCase(),
+        email: account.email
+      })) || [];
+      
+      console.log('🔧 Mapped server accounts:', serverAccounts);
+      console.log('🔧 Company fallback accounts:', companyEmailAccounts);
+      
+      setEmailAccounts(serverAccounts.length > 0 ? serverAccounts : companyEmailAccounts);
     } catch (error) {
       console.error('Error fetching email accounts:', error);
       setEmailAccounts(companyEmailAccounts);
@@ -115,16 +117,9 @@ export default function EmailManager({ onClose, selectedEmailId }: EmailManagerP
   const fetchEmails = async () => {
     try {
       setLoading(true);
-      // Always use server API for emails
-      const response = await fetch('https://server.stream-lineai.com/email/unread', {
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch emails');
-      }
-
-      const data = await response.json();
+      
+      // Use api utility - automatically routes to production server
+      const data = await api.get('/email/unread');
       setEmails(data.emails || []);
     } catch (error) {
       console.error('Error fetching emails:', error);
@@ -142,15 +137,8 @@ export default function EmailManager({ onClose, selectedEmailId }: EmailManagerP
 
   const selectEmail = async (email: Email) => {
     try {
-      const response = await fetch(`https://server.stream-lineai.com/email/${email.id}`, {
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch email details');
-      }
-
-      const emailDetails = await response.json();
+      // Use api utility - automatically routes to production server
+      const emailDetails = await api.get(`/email/${email.id}`);
       setSelectedEmail(emailDetails);
     } catch (error) {
       console.error('Error fetching email details:', error);
@@ -160,18 +148,8 @@ export default function EmailManager({ onClose, selectedEmailId }: EmailManagerP
 
   const markAsRead = async (emailId: string) => {
     try {
-      const response = await fetch(`https://server.stream-lineai.com/email/${emailId}/mark-read`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to mark email as read');
-      }
+      // Use api utility - automatically routes to production server
+      await api.post(`/email/${emailId}/mark-read`, {});
 
       // Refresh emails list
       await fetchEmails();
@@ -183,17 +161,8 @@ export default function EmailManager({ onClose, selectedEmailId }: EmailManagerP
 
   const markAsUnread = async (emailId: string) => {
     try {
-      const response = await fetch(`https://server.stream-lineai.com/email/${emailId}/mark-unread`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to mark email as unread');
-      }
+      // Use api utility - automatically routes to production server
+      await api.post(`/email/${emailId}/mark-unread`, {});
 
       // Refresh emails list
       await fetchEmails();
@@ -231,19 +200,16 @@ export default function EmailManager({ onClose, selectedEmailId }: EmailManagerP
 
     try {
       setSending(true);
-      const response = await fetch('https://server.stream-lineai.com/email/send', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(composeData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to send email');
-      }
+      
+      // Use api utility - automatically routes to production server
+      // Backend expects to_emails as array, not to_email as string
+      const emailData = {
+        to_emails: [composeData.to_email],
+        subject: composeData.subject,
+        body: composeData.body,
+        from_account: composeData.from_account
+      };
+      await api.post('/email/send', emailData);
 
       // Reset compose form
       setComposeData({
@@ -273,19 +239,9 @@ export default function EmailManager({ onClose, selectedEmailId }: EmailManagerP
 
     try {
       setAddingAccount(true);
-      const response = await fetch('https://server.stream-lineai.com/email/accounts', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(newAccountData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to add email account');
-      }
+      
+      // Use api utility - automatically routes to production server
+      await api.post('/email/accounts', newAccountData);
 
       // Reset form
       setNewAccountData({
@@ -301,7 +257,7 @@ export default function EmailManager({ onClose, selectedEmailId }: EmailManagerP
       setError('');
       
       // Refresh email accounts
-      await fetchEmailAccounts();
+      await fetchEmails();
       
       alert('Email account added successfully!');
     } catch (error) {
@@ -321,10 +277,8 @@ export default function EmailManager({ onClose, selectedEmailId }: EmailManagerP
                           email.account.toLowerCase() === selectedAccount.toLowerCase() ||
                           email.account.toLowerCase().includes(selectedAccount.toLowerCase());
     
-    // Debug logging
-    if (selectedAccount !== 'all') {
-      console.log(`Filtering debug - Selected: "${selectedAccount}", Email account: "${email.account}", Matches: ${matchesAccount}`);
-    }
+    // Debug logging for all emails to see account values
+    console.log(`Email filtering - Email: "${email.subject}", Account: "${email.account}", Selected: "${selectedAccount}", Matches: ${matchesAccount}`);
     
     return matchesSearch && matchesAccount;
   });

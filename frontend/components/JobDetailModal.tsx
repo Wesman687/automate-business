@@ -20,6 +20,7 @@ interface JobDetailData {
   business_name?: string;
   business_type?: string;
   industry?: string;
+  industry_other?: string;
   
   // Project Details
   project_goals?: string;
@@ -29,28 +30,42 @@ interface JobDetailData {
   
   // Branding & Design
   brand_colors?: string[];
+  brand_color_tags?: { [key: number]: string };
+  brand_color_tag_others?: { [key: number]: string };
   brand_style?: string;
+  brand_style_other?: string;
   logo_files?: number[];
   brand_guidelines?: string;
   
   // Resources & Links
   website_url?: string;
   github_url?: string;
+  portfolio_url?: string;
   social_media?: {
     facebook?: string;
     linkedin?: string;
     instagram?: string;
     twitter?: string;
+    youtube?: string;
+    tiktok?: string;
+    pinterest?: string;
+    snapchat?: string;
   };
   
-  // Project Resources
-  google_drive_links?: Array<{ name: string; url: string; type?: string }>;
-  github_repositories?: Array<{ name: string; url: string; type?: string }>;
-  workspace_links?: Array<{ name: string; url: string; type?: string }>;
-  server_details?: Array<{ name: string; url: string; type?: string }>;
-  calendar_links?: Array<{ name: string; url: string; type?: string }>;
+  // Unified Resources Array
+  resources?: Array<{
+    type: 'website' | 'github' | 'drive' | 'workspace' | 'tool' | 'server';
+    name: string;
+    url?: string;
+    api_key?: string;
+    description?: string;
+  }>;
+  
+  // Additional Information
+  notes?: string;
+  additional_resource_info?: string[];
+  
   meeting_links?: Array<{ name: string; url: string; type?: string }>;
-  additional_tools?: Array<{ name: string; url: string; type?: string }>;
   
   // Project Planning
   milestones?: Array<{ name: string; description?: string; due_date?: string; completed: boolean }>;
@@ -85,12 +100,23 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<Partial<JobDetailData>>({});
   const [newResource, setNewResource] = useState({ type: '', name: '', url: '' });
+  const [newTool, setNewTool] = useState({ name: '', api_key: '', url: '' });
+  const [newServer, setNewServer] = useState({ name: '', url: '', type: '' });
+  const [newNote, setNewNote] = useState('');
   const [showResourceHelp, setShowResourceHelp] = useState(false);
+  const [customResourceTypes, setCustomResourceTypes] = useState<string[]>([]);
+  const [showAddResourceType, setShowAddResourceType] = useState(false);
+  const [newResourceType, setNewResourceType] = useState('');
   const [showFileManager, setShowFileManager] = useState<'logo' | 'project' | 'reference' | null>(null);
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [newColor, setNewColor] = useState('#000000');
   const [jobFiles, setJobFiles] = useState<any[]>([]);
   const [loadingFiles, setLoadingFiles] = useState(false);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [visibleApiKeys, setVisibleApiKeys] = useState<Set<number>>(new Set());
+
+  if (!isOpen || !job) return null;
 
   useEffect(() => {
     if (job) {
@@ -113,8 +139,6 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
       setLoadingFiles(false);
     }
   };
-
-  if (!isOpen || !job) return null;
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'Not set';
@@ -147,13 +171,39 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
   };
 
   const handleSave = async () => {
-    if (onSave) {
-      try {
+    try {
+      // Show loading state
+      setIsSaving(true);
+      
+      if (onSave) {
         await onSave(editData);
-        setIsEditing(false);
-      } catch (error) {
-        console.error('Error saving job:', error);
+      } else {
+        // For customers, use the customer job update endpoint
+        const response = await api.put(`/file-upload/customer/job/${job.id}`, editData);
+        console.log('Job updated successfully:', response);
       }
+      
+      // Refresh the job data
+      if (job) {
+        // Update the job object with new data
+        Object.assign(job, editData);
+      }
+      
+      // Refresh files if we're on the files tab
+      if (activeTab === 'files') {
+        await fetchJobFiles();
+      }
+      
+      // Show success message
+      setShowSuccessMessage(true);
+      setTimeout(() => setShowSuccessMessage(false), 3000);
+      
+    } catch (error) {
+      console.error('Error saving job:', error);
+      // Revert to edit mode on error
+      setIsEditing(true);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -161,56 +211,48 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
     setEditData(job);
     setIsEditing(false);
     setNewResource({ type: '', name: '', url: '' });
+    setNewTool({ name: '', api_key: '', url: '' });
+    setNewServer({ name: '', url: '', type: '' });
   };
 
   const addResource = () => {
-    if (!newResource.type || !newResource.name || !newResource.url) return;
+    if (!newResource.type || !newResource.name) return;
     
     const resource = {
+      type: newResource.type as 'website' | 'github' | 'drive' | 'workspace' | 'tool' | 'server',
       name: newResource.name,
-      url: newResource.url,
-      type: newResource.type
+      url: newResource.url || '',
+      description: newResource.url ? `Resource: ${newResource.name}` : undefined
     };
 
-    // Add to appropriate array based on type
-    if (newResource.type === 'drive') {
-      const currentLinks = editData.google_drive_links || [];
-      setEditData({
-        ...editData,
-        google_drive_links: [...currentLinks, resource]
-      });
-    } else if (newResource.type === 'github') {
-      const currentRepos = editData.github_repositories || [];
-      setEditData({
-        ...editData,
-        github_repositories: [...currentRepos, resource]
-      });
-    } else if (newResource.type === 'workspace') {
-      const currentWorkspaces = editData.workspace_links || [];
-      setEditData({
-        ...editData,
-        workspace_links: [...currentWorkspaces, resource]
-      });
-    } else if (newResource.type === 'website' || newResource.type === 'social' || newResource.type === 'tool') {
-      const currentTools = editData.additional_tools || [];
-      setEditData({
-        ...editData,
-        additional_tools: [...currentTools, resource]
-      });
-    }
+    // Add to unified resources array
+    const currentResources = editData.resources || [];
+    setEditData({
+      ...editData,
+      resources: [...currentResources, resource]
+    });
 
     setNewResource({ type: '', name: '', url: '' });
   };
 
   const removeResource = (field: keyof JobDetailData, index: number) => {
-    const currentArray = editData[field] as any[];
-    if (!currentArray) return;
-    
-    const newArray = currentArray.filter((_, i) => i !== index);
-    setEditData({
-      ...editData,
-      [field]: newArray
-    });
+    if (field === 'resources') {
+      const currentResources = editData.resources || [];
+      const newResources = currentResources.filter((_, i) => i !== index);
+      setEditData({
+        ...editData,
+        resources: newResources
+      });
+    } else {
+      const currentArray = editData[field] as any[];
+      if (!currentArray) return;
+      
+      const newArray = currentArray.filter((_, i) => i !== index);
+      setEditData({
+        ...editData,
+        [field]: newArray
+      });
+    }
   };
 
   const handleFileUpload = async (files: FileList | null, type: 'logo' | 'project' | 'reference') => {
@@ -275,6 +317,36 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
     });
   };
 
+  const addNote = () => {
+    if (!newNote.trim()) return;
+    
+    const currentNotes = editData.additional_resource_info || [];
+    setEditData({
+      ...editData,
+      additional_resource_info: [...currentNotes, newNote.trim()]
+    });
+    setNewNote('');
+  };
+
+  const updateNote = (index: number, value: string) => {
+    const currentNotes = editData.additional_resource_info || [];
+    const updatedNotes = [...currentNotes];
+    updatedNotes[index] = value;
+    setEditData({
+      ...editData,
+      additional_resource_info: updatedNotes
+    });
+  };
+
+  const deleteNote = (index: number) => {
+    const currentNotes = editData.additional_resource_info || [];
+    const updatedNotes = currentNotes.filter((_, i) => i !== index);
+    setEditData({
+      ...editData,
+      additional_resource_info: updatedNotes
+    });
+  };
+
   const deleteFile = async (fileId: number) => {
     try {
       await api.del(`/file-upload/files/${fileId}`);
@@ -285,17 +357,17 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
     }
   };
 
-                // Tabs ordered with editable content first, read-only content last
-              const tabs = [
-                { id: 'overview', label: 'Overview & Business', icon: Target, editable: true },
-                { id: 'branding', label: 'Branding & Design', icon: Palette, editable: true },
-                { id: 'resources', label: 'Resources & Links', icon: ExternalLink, editable: true },
-                { id: 'files', label: 'Files & Assets', icon: FolderOpen, editable: true },
-                { id: 'planning', label: 'Project Planning', icon: Calendar, editable: false },
-                { id: 'financial', label: 'Financial', icon: DollarSign, editable: false }
-              ];
+  // Tabs ordered with editable content first, read-only content last
+  const tabs = [
+    { id: 'overview', label: 'Overview & Business', icon: Target, editable: true },
+    { id: 'branding', label: 'Branding & Design', icon: Palette, editable: true },
+    { id: 'resources', label: 'Resources & Links', icon: ExternalLink, editable: true },
+    { id: 'files', label: 'Files & Assets', icon: FolderOpen, editable: true },
+    { id: 'planning', label: 'Project Planning', icon: Calendar, editable: false },
+    { id: 'financial', label: 'Financial', icon: DollarSign, editable: false }
+  ];
 
-  const renderEditableField = (label: string, value: any, field: keyof JobDetailData, type: 'text' | 'textarea' | 'select' = 'text', options?: string[]) => {
+  const renderEditableField = (label: string, value: any, field: keyof JobDetailData, type: 'text' | 'textarea' | 'select' | 'date' = 'text', options?: string[]) => {
     if (!isEditing) {
       return (
         <div className="flex justify-between items-start py-3 border-b border-gray-700/50">
@@ -305,12 +377,18 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
       );
     }
 
+    // Only render editable fields for string/number types, not arrays or objects
+    const fieldValue = editData[field];
+    if (Array.isArray(fieldValue) || (typeof fieldValue === 'object' && fieldValue !== null)) {
+      return null; // Skip rendering for array/object fields
+    }
+
     if (type === 'textarea') {
       return (
         <div className="py-3 border-b border-gray-700/50">
           <label className="block text-gray-400 font-medium mb-2">{label}</label>
           <textarea
-            value={editData[field] || ''}
+            value={String(fieldValue || '')}
             onChange={(e) => setEditData({ ...editData, [field]: e.target.value })}
             className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-electric-blue focus:border-transparent"
             rows={3}
@@ -324,7 +402,7 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
         <div className="py-3 border-b border-gray-700/50">
           <label className="block text-gray-400 font-medium mb-2">{label}</label>
           <select
-            value={editData[field] || ''}
+            value={String(fieldValue || '')}
             onChange={(e) => setEditData({ ...editData, [field]: e.target.value })}
             className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-electric-blue focus:border-transparent"
           >
@@ -337,12 +415,29 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
       );
     }
 
+    if (type === 'date') {
+      return (
+        <div className="py-3 border-b border-gray-700/50">
+          <label className="block text-gray-400 font-medium mb-2">{label}</label>
+          <input
+            type="date"
+            value={fieldValue ? new Date(String(fieldValue)).toISOString().split('T')[0] : ''}
+            onChange={(e) => {
+              const dateValue = e.target.value;
+              setEditData({ ...editData, [field]: dateValue ? new Date(dateValue).toISOString() : null });
+            }}
+            className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-electric-blue focus:border-transparent"
+          />
+        </div>
+      );
+    }
+
     return (
       <div className="py-3 border-b border-gray-700/50">
         <label className="block text-gray-400 font-medium mb-2">{label}</label>
         <input
           type="text"
-          value={editData[field] || ''}
+          value={String(fieldValue || '')}
           onChange={(e) => setEditData({ ...editData, [field]: e.target.value })}
           className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-electric-blue focus:border-transparent"
         />
@@ -383,35 +478,41 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
             </div>
             
             <div className="flex items-center gap-3">
-              {onSave && (
+              {isEditing ? (
                 <>
-                  {isEditing ? (
-                    <>
-                      <button
-                        onClick={handleCancelEdit}
-                        className="px-4 py-2 text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg transition-colors flex items-center gap-2"
-                      >
-                        <ArrowLeft className="h-4 w-4" />
-                        Cancel
-                      </button>
-                      <button
-                        onClick={handleSave}
-                        className="px-6 py-2 bg-electric-blue hover:bg-electric-blue/90 text-white rounded-lg transition-colors flex items-center gap-2 font-medium"
-                      >
+                  <button
+                    onClick={handleCancelEdit}
+                    className="px-4 py-2 text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg transition-colors flex items-center gap-2"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={isSaving}
+                    className="px-6 py-2 bg-electric-blue hover:bg-electric-blue/90 text-white rounded-lg transition-colors flex items-center gap-2 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSaving ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                        Saving...
+                      </>
+                    ) : (
+                      <>
                         <Save className="h-4 w-4" />
                         Save Changes
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      onClick={() => setIsEditing(true)}
-                      className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors flex items-center gap-2"
-                    >
-                      <Edit3 className="h-4 w-4" />
-                      Edit
-                    </button>
-                  )}
+                      </>
+                    )}
+                  </button>
                 </>
+              ) : (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <Edit3 className="h-4 w-4" />
+                  Edit Job
+                </button>
               )}
               <button
                 onClick={onClose}
@@ -422,6 +523,16 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
             </div>
           </div>
         </div>
+
+        {/* Success Message */}
+        {showSuccessMessage && (
+          <div className="mx-8 mt-4 p-4 bg-green-500/20 border border-green-500/30 rounded-lg">
+            <div className="flex items-center gap-2 text-green-400">
+              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+              <span className="font-medium">Job updated successfully!</span>
+            </div>
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="border-b border-gray-700 bg-gray-800/50">
@@ -463,8 +574,21 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {renderEditableField('Project Goals', job.project_goals, 'project_goals', 'textarea')}
                   {renderEditableField('Target Audience', job.target_audience, 'target_audience')}
-                  {renderEditableField('Timeline', job.timeline, 'timeline')}
-                  {renderEditableField('Budget Range', job.budget_range, 'budget_range')}
+                  {renderEditableField('Timeline', job.timeline, 'timeline', 'select', [
+                    '1-2 weeks',
+                    '3-4 weeks', 
+                    '1-2 months',
+                    '3-6 months',
+                    '6+ months'
+                  ])}
+                  {renderEditableField('Budget Range', job.budget_range, 'budget_range', 'select', [
+                    'Under $1,000',
+                    '$1,000 - $5,000',
+                    '$5,000 - $10,000',
+                    '$10,000 - $25,000',
+                    '$25,000 - $50,000',
+                    '$50,000+'
+                  ])}
                 </div>
               </div>
 
@@ -476,8 +600,46 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {renderEditableField('Business Name', job.business_name, 'business_name')}
-                  {renderEditableField('Business Type', job.business_type, 'business_type')}
-                  {renderEditableField('Industry', job.industry, 'industry')}
+                  {renderEditableField('Business Type', job.business_type, 'business_type', 'select', [
+                    'Startup',
+                    'Small Business',
+                    'Medium Business',
+                    'Enterprise',
+                    'Non-Profit',
+                    'Agency',
+                    'Freelancer',
+                    'Other'
+                  ])}
+                  <div className="py-3 border-b border-gray-700/50">
+                    <label className="block text-gray-400 font-medium mb-2">Industry</label>
+                    <select
+                      value={editData.industry || ''}
+                      onChange={(e) => setEditData({ ...editData, industry: e.target.value })}
+                      className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-electric-blue focus:border-transparent"
+                    >
+                      <option value="">Select industry</option>
+                      <option value="Technology">Technology</option>
+                      <option value="Healthcare">Healthcare</option>
+                      <option value="Finance">Finance</option>
+                      <option value="Education">Education</option>
+                      <option value="Retail">Retail</option>
+                      <option value="Manufacturing">Manufacturing</option>
+                      <option value="Real Estate">Real Estate</option>
+                      <option value="Marketing">Marketing</option>
+                      <option value="Design">Design</option>
+                      <option value="Consulting">Consulting</option>
+                      <option value="Other">Other</option>
+                    </select>
+                    {editData.industry === 'Other' && (
+                      <input
+                        type="text"
+                        value={editData.industry_other || ''}
+                        onChange={(e) => setEditData({ ...editData, industry_other: e.target.value })}
+                        placeholder="Please describe your industry"
+                        className="w-full mt-2 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-electric-blue focus:border-transparent"
+                      />
+                    )}
+                  </div>
                   {renderEditableField('Brand Guidelines', job.brand_guidelines, 'brand_guidelines', 'textarea')}
                 </div>
               </div>
@@ -488,47 +650,126 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
                   <Globe className="h-6 w-6 text-electric-blue" />
                   Online Presence
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {renderEditableField('Website', job.website_url, 'website_url')}
-                  {renderEditableField('GitHub', job.github_url, 'github_url')}
-                </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                          <div className="space-y-2">
+                            <label className="block text-gray-400 font-medium">Website</label>
+                            <div className="flex">
+                              <span className="inline-flex items-center px-3 py-2 text-sm text-gray-400 bg-gray-700 border border-r-0 border-gray-600 rounded-l-lg">
+                                https://
+                              </span>
+                              <input
+                                type="text"
+                                value={editData.website_url?.replace('https://', '') || ''}
+                                onChange={(e) => setEditData({ ...editData, website_url: e.target.value ? `https://${e.target.value}` : '' })}
+                                className="flex-1 bg-gray-800 border border-gray-600 rounded-r-lg px-3 py-2 text-white focus:ring-2 focus:ring-electric-blue focus:border-transparent"
+                                placeholder="yourcompany.com"
+                              />
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <label className="block text-gray-400 font-medium">GitHub</label>
+                            <div className="flex">
+                              <span className="inline-flex items-center px-3 py-2 text-sm text-gray-400 bg-gray-700 border border-r-0 border-gray-600 rounded-l-lg">
+                                https://github.com/
+                              </span>
+                              <input
+                                type="text"
+                                value={editData.github_url?.replace('https://github.com/', '') || ''}
+                                onChange={(e) => setEditData({ ...editData, github_url: e.target.value ? `https://github.com/${e.target.value}` : '' })}
+                                className="flex-1 bg-gray-800 border border-gray-600 rounded-r-lg px-3 py-2 text-white focus:ring-2 focus:ring-electric-blue focus:border-transparent"
+                                placeholder="username"
+                              />
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <label className="block text-gray-400 font-medium">Portfolio</label>
+                            <div className="flex">
+                              <span className="inline-flex items-center px-3 py-2 text-sm text-gray-400 bg-gray-700 border border-r-0 border-gray-600 rounded-l-lg">
+                                https://
+                              </span>
+                              <input
+                                type="text"
+                                value={editData.portfolio_url?.replace('https://', '') || ''}
+                                onChange={(e) => setEditData({ ...editData, portfolio_url: e.target.value ? `https://${e.target.value}` : '' })}
+                                className="flex-1 bg-gray-800 border border-gray-600 rounded-r-lg px-3 py-2 text-white focus:ring-2 focus:ring-electric-blue focus:border-transparent"
+                                placeholder="yourportfolio.com"
+                              />
+                            </div>
+                          </div>
+                        </div>
                 
                 {/* Social Media */}
-                {job.social_media && Object.keys(job.social_media).length > 0 && (
-                  <div className="mt-4">
-                    <h4 className="text-lg font-medium text-white mb-3">Social Media</h4>
+                <div className="mt-4">
+                  <h4 className="text-lg font-medium text-white mb-3">Social Media</h4>
+                  {isEditing ? (
+                    <div className="grid grid-cols-2 gap-4">
+                      {[
+                        { key: 'facebook', label: 'Facebook', prefix: 'https://facebook.com/' },
+                        { key: 'twitter', label: 'Twitter/X', prefix: 'https://twitter.com/' },
+                        { key: 'instagram', label: 'Instagram', prefix: 'https://instagram.com/' },
+                        { key: 'linkedin', label: 'LinkedIn', prefix: 'https://linkedin.com/company/' },
+                        { key: 'youtube', label: 'YouTube', prefix: 'https://youtube.com/' },
+                        { key: 'tiktok', label: 'TikTok', prefix: 'https://tiktok.com/@' },
+                        { key: 'pinterest', label: 'Pinterest', prefix: 'https://pinterest.com/' },
+                        { key: 'snapchat', label: 'Snapchat', prefix: 'https://snapchat.com/add/' }
+                      ].map((platform) => (
+                        <div key={platform.key} className="space-y-2">
+                          <label className="block text-gray-400 font-medium text-sm">{platform.label}</label>
+                          <div className="flex">
+                            <span className="inline-flex items-center px-3 py-2 text-sm text-gray-400 bg-gray-700 border border-r-0 border-gray-600 rounded-l-lg">
+                              {platform.prefix}
+                            </span>
+                            <input
+                              type="text"
+                              value={editData.social_media?.[platform.key] || ''}
+                              onChange={(e) => {
+                                const newSocial = { ...editData.social_media, [platform.key]: e.target.value };
+                                setEditData({ ...editData, social_media: newSocial });
+                              }}
+                              className="flex-1 bg-gray-800 border border-gray-600 rounded-r-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-electric-blue focus:border-transparent"
+                              placeholder="username"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {Object.entries(job.social_media).map(([platform, url]) => (
+                      {Object.entries(job.social_media || {}).map(([platform, url]) => (
                         url && (
                           <div key={platform} className="flex items-center gap-2">
                             <span className="capitalize font-medium text-gray-300">{platform}:</span>
-                            {isEditing ? (
-                              <input
-                                type="url"
-                                value={url}
-                                onChange={(e) => {
-                                  const newSocial = { ...editData.social_media, [platform]: e.target.value };
-                                  setEditData({ ...editData, social_media: newSocial });
-                                }}
-                                className="flex-1 bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white text-sm"
-                                placeholder={`${platform} URL`}
-                              />
-                            ) : (
-                              <a
-                                href={url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-electric-blue hover:text-electric-blue/80 text-sm"
-                              >
-                                {url}
-                              </a>
-                            )}
+                            <a
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-electric-blue hover:text-electric-blue/80 text-sm"
+                            >
+                              {url}
+                            </a>
                           </div>
                         )
                       ))}
+                      {(!job.social_media || Object.keys(job.social_media).length === 0) && (
+                        <p className="text-gray-400 text-sm col-span-2">No social media links added yet</p>
+                      )}
+                      {job.social_media && Object.keys(job.social_media).length > 0 && (
+                        <div className="col-span-2 mt-4 p-3 bg-gray-800/50 rounded-lg border border-gray-700/50">
+                          <div className="text-sm text-gray-400 mb-2">Available platforms:</div>
+                          <div className="flex flex-wrap gap-2">
+                            {Object.entries(job.social_media).map(([platform, url]) => (
+                              url && (
+                                <span key={platform} className="px-2 py-1 bg-electric-blue/20 text-electric-blue text-xs rounded-full border border-electric-blue/30 capitalize">
+                                  {platform}
+                                </span>
+                              )
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
 
               {/* Timeline */}
@@ -538,8 +779,8 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
                   Project Timeline
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {renderEditableField('Start Date', formatDate(job.start_date), 'start_date')}
-                  {renderEditableField('Deadline', formatDate(job.deadline), 'deadline')}
+                  {renderEditableField('Start Date', formatDate(job.start_date), 'start_date', 'date')}
+                  {renderEditableField('Deadline', formatDate(job.deadline), 'deadline', 'date')}
                   {job.completion_date && (
                     <div className="flex justify-between items-center py-3 border-b border-gray-700/50">
                       <span className="text-gray-400 font-medium">Completed</span>
@@ -579,15 +820,16 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       {(editData.brand_colors || []).map((color, index) => (
                         <div key={index} className="relative group">
-                          <div
-                            className="w-20 h-20 rounded-xl border-2 border-gray-600 shadow-lg cursor-pointer transition-transform hover:scale-105"
-                            style={{ backgroundColor: color }}
-                            title={color}
-                          />
-                          <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="relative">
+                            <div
+                              className="w-20 h-20 rounded-xl border-2 border-gray-600 shadow-lg cursor-pointer transition-transform hover:scale-105"
+                              style={{ backgroundColor: color }}
+                              title={color}
+                            />
                             <button
                               onClick={() => removeBrandColor(index)}
-                              className="bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
+                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-opacity opacity-0 group-hover:opacity-100 z-10"
+                              style={{ transform: 'translate(50%, -50%)' }}
                             >
                               <X className="h-3 w-3" />
                             </button>
@@ -595,6 +837,34 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
                           <div className="mt-2 text-center">
                             <div className="text-white font-medium text-sm">{color}</div>
                             <div className="text-gray-400 text-xs">Color {index + 1}</div>
+                            <div className="mt-1">
+                              <select
+                                value={editData.brand_color_tags?.[index] || ''}
+                                onChange={(e) => {
+                                  const newTags = { ...editData.brand_color_tags, [index]: e.target.value };
+                                  setEditData({ ...editData, brand_color_tags: newTags });
+                                }}
+                                className="w-full text-xs px-2 py-1 rounded-full bg-electric-blue/20 text-electric-blue border border-electric-blue/30 focus:ring-2 focus:ring-electric-blue focus:border-transparent"
+                              >
+                                <option value="">No tag</option>
+                                <option value="primary">Primary</option>
+                                <option value="secondary">Secondary</option>
+                                <option value="accent">Accent</option>
+                                <option value="other">Other</option>
+                              </select>
+                              {editData.brand_color_tags?.[index] === 'other' && (
+                                <input
+                                  type="text"
+                                  value={editData.brand_color_tag_others?.[index] || ''}
+                                  onChange={(e) => {
+                                    const newOthers = { ...editData.brand_color_tag_others, [index]: e.target.value };
+                                    setEditData({ ...editData, brand_color_tag_others: newOthers });
+                                  }}
+                                  placeholder="Custom tag name"
+                                  className="w-full mt-1 text-xs px-2 py-1 rounded bg-gray-700 border border-gray-600 text-white focus:ring-2 focus:ring-electric-blue focus:border-transparent"
+                                />
+                              )}
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -690,16 +960,34 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
                     <Target className="h-6 w-6 text-electric-blue" />
                     Brand Style
                   </h3>
-                  {renderEditableField('Brand Style', job.brand_style, 'brand_style', 'select', [
-                    'Modern & Minimalist',
-                    'Classic & Professional',
-                    'Creative & Artistic',
-                    'Bold & Dynamic',
-                    'Elegant & Sophisticated',
-                    'Playful & Fun',
-                    'Tech & Futuristic',
-                    'Organic & Natural'
-                  ])}
+                  <div className="py-3 border-b border-gray-700/50">
+                    <label className="block text-gray-400 font-medium mb-2">Brand Style</label>
+                    <select
+                      value={editData.brand_style || ''}
+                      onChange={(e) => setEditData({ ...editData, brand_style: e.target.value })}
+                      className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-electric-blue focus:border-transparent"
+                    >
+                      <option value="">Select brand style</option>
+                      <option value="Modern & Minimalist">Modern & Minimalist</option>
+                      <option value="Classic & Professional">Classic & Professional</option>
+                      <option value="Creative & Artistic">Creative & Artistic</option>
+                      <option value="Bold & Dynamic">Bold & Dynamic</option>
+                      <option value="Elegant & Sophisticated">Elegant & Sophisticated</option>
+                      <option value="Playful & Fun">Playful & Fun</option>
+                      <option value="Tech & Futuristic">Tech & Futuristic</option>
+                      <option value="Organic & Natural">Organic & Natural</option>
+                      <option value="other">Other</option>
+                    </select>
+                    {editData.brand_style === 'other' && (
+                      <input
+                        type="text"
+                        value={editData.brand_style_other || ''}
+                        onChange={(e) => setEditData({ ...editData, brand_style_other: e.target.value })}
+                        placeholder="Describe your brand style"
+                        className="w-full mt-2 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-electric-blue focus:border-transparent"
+                      />
+                    )}
+                  </div>
                   <div className="mt-3 text-sm text-gray-400">
                     💡 Choose the style that best represents your brand personality
                   </div>
@@ -731,50 +1019,59 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
                 
                 {isEditing ? (
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="space-y-3">
-                      <label className="block text-gray-400 font-medium">🎨 Logo Files</label>
-                      <input
-                        type="file"
-                        multiple
-                        accept="image/*,.pdf,.ai,.eps,.svg"
-                        onChange={(e) => handleFileUpload(e.target.files, 'logo')}
-                        className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-electric-blue file:text-white hover:file:bg-electric-blue/90"
-                      />
-                      <p className="text-xs text-gray-500">Logos, brand assets, vector files</p>
-                      <div className="text-xs text-gray-400">
-                        <strong>Accepted:</strong> PNG, JPG, PDF, AI, EPS, SVG
+                                          <div className="space-y-3">
+                        <label className="block text-gray-400 font-medium">🎨 Logo Files</label>
+                        <input
+                          type="file"
+                          multiple
+                          accept="image/*,.pdf,.ai,.eps,.svg"
+                          onChange={(e) => handleFileUpload(e.target.files, 'logo')}
+                          disabled={uploadingFiles}
+                          className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-electric-blue file:text-white hover:file:bg-electric-blue/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                        />
+                        <p className="text-xs text-gray-500">Logos, brand assets, vector files</p>
+                        <div className="text-xs text-gray-400">
+                          <strong>Accepted:</strong> PNG, JPG, PDF, AI, EPS, SVG
+                        </div>
+                        {uploadingFiles && (
+                          <div className="flex items-center gap-2 text-electric-blue text-sm">
+                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-electric-blue border-t-transparent"></div>
+                            Uploading...
+                          </div>
+                        )}
                       </div>
-                    </div>
                     
-                    <div className="space-y-3">
-                      <label className="block text-gray-400 font-medium">📁 Project Files</label>
-                      <input
-                        type="file"
-                        multiple
-                        accept="*/*"
-                        onChange={(e) => handleFileUpload(e.target.files, 'project')}
-                        className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-electric-blue file:text-white hover:file:bg-electric-blue/90"
-                      />
-                      <p className="text-xs text-gray-500">Project documents, specifications, contracts</p>
-                      <div className="text-xs text-gray-400">
-                        <strong>Accepted:</strong> All file types
+                                          <div className="space-y-3">
+                        <label className="block text-gray-400 font-medium">📁 Project Files</label>
+                        <input
+                          type="file"
+                          multiple
+                          accept="*/*"
+                          onChange={(e) => handleFileUpload(e.target.files, 'project')}
+                          disabled={uploadingFiles}
+                          className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-electric-blue file:text-white hover:file:bg-electric-blue/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                        />
+                        <p className="text-xs text-gray-500">Project documents, specifications, contracts</p>
+                        <div className="text-xs text-gray-400">
+                          <strong>Accepted:</strong> All file types
+                        </div>
                       </div>
-                    </div>
                     
-                    <div className="space-y-3">
-                      <label className="block text-gray-400 font-medium">📚 Reference Files</label>
-                      <input
-                        type="file"
-                        multiple
-                        accept="*/*"
-                        onChange={(e) => handleFileUpload(e.target.files, 'reference')}
-                        className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-electric-blue file:text-white hover:file:bg-electric-blue/90"
-                      />
-                      <p className="text-xs text-gray-500">Inspiration, examples, mood boards</p>
-                      <div className="text-xs text-gray-400">
-                        <strong>Accepted:</strong> All file types
+                                          <div className="space-y-3">
+                        <label className="block text-gray-400 font-medium">📚 Reference Files</label>
+                        <input
+                          type="file"
+                          multiple
+                          accept="*/*"
+                          onChange={(e) => handleFileUpload(e.target.files, 'reference')}
+                          disabled={uploadingFiles}
+                          className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-electric-blue file:text-white hover:file:bg-electric-blue/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                        />
+                        <p className="text-xs text-gray-500">Inspiration, examples, mood boards</p>
+                        <div className="text-xs text-gray-400">
+                          <strong>Accepted:</strong> All file types
+                        </div>
                       </div>
-                    </div>
                   </div>
                 ) : (
                   <div className="text-center py-8">
@@ -911,10 +1208,19 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
               {/* Add New Resource Section */}
               {isEditing && (
                 <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700/50">
-                  <h3 className="text-xl font-semibold text-white mb-4 flex items-center gap-3">
-                    <Plus className="h-6 w-6 text-electric-blue" />
-                    Add New Resource
-                  </h3>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xl font-semibold text-white flex items-center gap-3">
+                      <Plus className="h-6 w-6 text-electric-blue" />
+                      Add New Resource
+                    </h3>
+                    <button
+                      onClick={() => setShowAddResourceType(true)}
+                      className="text-sm text-electric-blue hover:text-electric-blue/80 flex items-center gap-2"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Add New Resource Type
+                    </button>
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label className="block text-gray-400 font-medium mb-2">Resource Type</label>
@@ -930,6 +1236,9 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
                         <option value="github">GitHub</option>
                         <option value="workspace">Workspace</option>
                         <option value="tool">Tool/Service</option>
+                        {customResourceTypes.map((type, index) => (
+                          <option key={index} value={type.toLowerCase()}>{type}</option>
+                        ))}
                       </select>
                     </div>
                     <div>
@@ -967,137 +1276,639 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
                       </button>
                     </div>
                   </div>
+                       {/* Display Added Resources */}
+                {(editData.resources?.length || job.resources?.length) && (
+                  <div className="mt-6">
+                    <h4 className="text-lg font-medium text-white mb-4">Current Resources</h4>
+                    <div className="flex w-full flex-wrap gap-4">
+                      {/* All Resources */}
+                      {(editData.resources || job.resources || []).map((resource, index) => (
+                        <div key={`resource-${index}`} className="w-full p-4 bg-gray-800 rounded-lg border border-gray-700/50">
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className={`p-2 rounded-lg ${
+                              resource.type === 'drive' ? 'bg-blue-500/20' :
+                              resource.type === 'github' ? 'bg-gray-500/20' :
+                              resource.type === 'workspace' ? 'bg-green-500/20' :
+                              resource.type === 'tool' ? 'bg-purple-500/20' :
+                              resource.type === 'server' ? 'bg-orange-500/20' :
+                              'bg-electric-blue/20'
+                            }`}>
+                              {resource.type === 'drive' ? <FolderOpen className="h-5 w-5 text-blue-400" /> :
+                               resource.type === 'github' ? <Github className="h-5 w-5 text-gray-400" /> :
+                               resource.type === 'workspace' ? <ExternalLink className="h-5 w-5 text-green-400" /> :
+                               resource.type === 'tool' ? <ExternalLink className="h-5 w-5 text-purple-400" /> :
+                               resource.type === 'server' ? <ExternalLink className="h-5 w-5 text-orange-400" /> :
+                               <ExternalLink className="h-5 w-5 text-electric-blue" />
+                              }
+                            </div>
+                            <div className="flex-1">
+                              <div className="text-white font-medium capitalize">{resource.type}</div>
+                            </div>
+                            {isEditing && (
+                              <button
+                                onClick={() => removeResource('resources', index)}
+                                className="p-1 text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+                          
+                          {isEditing ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-gray-400 text-sm font-medium mb-1">Name</label>
+                                <input
+                                  type="text"
+                                  value={resource.name}
+                                  onChange={(e) => {
+                                    const updatedResources = [...(editData.resources || [])];
+                                    updatedResources[index] = { ...resource, name: e.target.value };
+                                    setEditData({ ...editData, resources: updatedResources });
+                                  }}
+                                  className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:ring-2 focus:ring-electric-blue focus:border-transparent"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-gray-400 text-sm font-medium mb-1">URL</label>
+                                <input
+                                  type="url"
+                                  value={resource.url || ''}
+                                  onChange={(e) => {
+                                    const updatedResources = [...(editData.resources || [])];
+                                    updatedResources[index] = { ...resource, url: e.target.value };
+                                    setEditData({ ...editData, resources: updatedResources });
+                                  }}
+                                  className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:ring-2 focus:ring-electric-blue focus:border-transparent"
+                                />
+                              </div>
+                              {resource.type === 'tool' && (
+                                <div>
+                                  <label className="block text-gray-400 text-sm font-medium mb-1">API Key</label>
+                                  <div className="relative">
+                                    <input
+                                      type={visibleApiKeys.has(index) ? "text" : "password"}
+                                      value={resource.api_key || ''}
+                                      onChange={(e) => {
+                                        const updatedResources = [...(editData.resources || [])];
+                                        updatedResources[index] = { ...resource, api_key: e.target.value };
+                                        setEditData({ ...editData, resources: updatedResources });
+                                      }}
+                                      className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 pr-10 text-white text-sm focus:ring-2 focus:ring-electric-blue focus:border-transparent"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const newVisible = new Set(visibleApiKeys);
+                                        if (newVisible.has(index)) {
+                                          newVisible.delete(index);
+                                        } else {
+                                          newVisible.add(index);
+                                        }
+                                        setVisibleApiKeys(newVisible);
+                                      }}
+                                      className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 text-gray-400 hover:text-white transition-colors"
+                                    >
+                                      {visibleApiKeys.has(index) ? (
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+                                        </svg>
+                                      ) : (
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                        </svg>
+                                      )}
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              <div className="text-white font-medium">{resource.name}</div>
+                              {resource.url && (
+                                <div className="flex items-center gap-2">
+                                  <div className="text-gray-400 text-sm truncate flex-1">{resource.url}</div>
+                                  <button
+                                    onClick={() => navigator.clipboard.writeText(resource.url || '')}
+                                    className="p-1 text-electric-blue hover:text-electric-blue/80 hover:bg-electric-blue/20 rounded transition-colors"
+                                    title="Copy URL"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              )}
+                              {resource.api_key && (
+                                <div className="flex items-center gap-2">
+                                  <div className="text-gray-500 text-xs flex-1">
+                                    API Key: {visibleApiKeys.has(index) ? resource.api_key : '•'.repeat(Math.min(resource.api_key.length, 8))}
+                                  </div>
+                                  <button
+                                    onClick={() => {
+                                      const newVisible = new Set(visibleApiKeys);
+                                      if (newVisible.has(index)) {
+                                        newVisible.delete(index);
+                                      } else {
+                                        newVisible.add(index);
+                                      }
+                                      setVisibleApiKeys(newVisible);
+                                    }}
+                                    className="p-1 text-gray-400 hover:text-white transition-colors"
+                                    title={visibleApiKeys.has(index) ? "Hide API Key" : "Show API Key"}
+                                  >
+                                    {visibleApiKeys.has(index) ? (
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+                                      </svg>
+                                    ) : (
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                      </svg>
+                                    )}
+                                  </button>
+                                  <button
+                                    onClick={() => navigator.clipboard.writeText(resource.api_key || '')}
+                                    className="p-1 text-electric-blue hover:text-electric-blue/80 hover:bg-electric-blue/20 rounded transition-colors"
+                                    title="Copy API Key"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+
+                    </div>
+                  </div>
+                )}
                 </div>
               )}
 
-              {/* Project Resources */}
-              {(job.google_drive_links?.length || job.github_repositories?.length || job.workspace_links?.length) && (
-                <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700/50">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xl font-semibold text-white">Project Resources</h3>
-                    {isEditing && (
-                      <button
-                        onClick={() => setShowResourceHelp(true)}
-                        className="text-sm text-electric-blue hover:text-electric-blue/80"
-                      >
-                        Need help? View examples
-                      </button>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {job.google_drive_links?.map((link, index) => (
-                      <div key={index} className="flex items-center gap-3 p-4 bg-gray-800 rounded-lg border border-gray-700/50">
-                        <div className="p-2 bg-blue-500/20 rounded-lg">
-                          <FolderOpen className="h-5 w-5 text-blue-400" />
-                        </div>
-                        <div className="flex-1">
-                          <div className="text-white font-medium">{link.name || 'Google Drive'}</div>
-                          <div className="text-gray-400 text-sm">{link.type || 'Document'}</div>
-                        </div>
-                        {isEditing && (
-                          <button
-                            onClick={() => removeResource('google_drive_links', index)}
-                            className="p-1 text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        )}
+           
+
+              {/* Add New Resource Type Modal */}
+              {showAddResourceType && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                  <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 max-w-md w-full mx-4">
+                    <h3 className="text-xl font-semibold text-white mb-4">Add New Resource Type</h3>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-gray-400 font-medium mb-2">Resource Type Name</label>
+                        <input
+                          type="text"
+                          value={newResourceType}
+                          onChange={(e) => setNewResourceType(e.target.value)}
+                          placeholder="e.g., Calendar, Analytics, CRM"
+                          className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-electric-blue focus:border-transparent"
+                        />
                       </div>
-                    ))}
-                    {job.github_repositories?.map((repo, index) => (
-                      <div key={index} className="flex items-center gap-3 p-4 bg-gray-800 rounded-lg border border-gray-700/50">
-                        <div className="p-2 bg-gray-500/20 rounded-lg">
-                          <Github className="h-5 w-5 text-gray-400" />
-                        </div>
-                        <div className="flex-1">
-                          <div className="text-white font-medium">{repo.name || 'GitHub Repository'}</div>
-                          <div className="text-gray-400 text-sm">{repo.type || 'Code'}</div>
-                        </div>
-                        {isEditing && (
-                          <button
-                            onClick={() => removeResource('github_repositories', index)}
-                            className="p-1 text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        )}
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => {
+                            if (newResourceType.trim()) {
+                              setCustomResourceTypes([...customResourceTypes, newResourceType.trim()]);
+                              setNewResourceType('');
+                              setShowAddResourceType(false);
+                            }
+                          }}
+                          disabled={!newResourceType.trim()}
+                          className="flex-1 px-4 py-2 bg-electric-blue hover:bg-electric-blue/90 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Add Type
+                        </button>
+                        <button
+                          onClick={() => {
+                            setNewResourceType('');
+                            setShowAddResourceType(false);
+                          }}
+                          className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                        >
+                          Cancel
+                        </button>
                       </div>
-                    ))}
-                    {job.workspace_links?.map((workspace, index) => (
-                      <div key={index} className="flex items-center gap-3 p-4 bg-gray-800 rounded-lg border border-gray-700/50">
-                        <div className="p-2 bg-green-500/20 rounded-lg">
-                          <ExternalLink className="h-5 w-5 text-green-400" />
-                        </div>
-                        <div className="flex-1">
-                          <div className="text-white font-medium">{workspace.name || 'Workspace'}</div>
-                          <div className="text-gray-400 text-sm">{workspace.type || 'Collaboration'}</div>
-                        </div>
-                        {isEditing && (
-                          <button
-                            onClick={() => removeResource('workspace_links', index)}
-                            className="p-1 text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        )}
-                      </div>
-                    ))}
+                    </div>
                   </div>
                 </div>
               )}
 
               {/* Additional Tools */}
-              {job.additional_tools?.length && (
-                <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700/50">
-                  <h3 className="text-xl font-semibold text-white mb-4">Additional Tools</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {job.additional_tools.map((tool, index) => (
-                      <div key={index} className="flex items-center gap-3 p-4 bg-gray-800 rounded-lg border border-gray-700/50">
-                        <div className="p-2 bg-purple-500/20 rounded-lg">
-                          <ExternalLink className="h-5 w-5 text-purple-400" />
+              <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700/50">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xl font-semibold text-white">Additional Tools</h3>
+                </div>
+                
+                {isEditing && (
+                  <div className="mb-6 p-4 bg-gray-800 rounded-lg border border-gray-700/50">
+                    <h4 className="text-lg font-medium text-white mb-3">Add New Tool</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <input
+                        type="text"
+                        value={newTool.name}
+                        onChange={(e) => setNewTool({ ...newTool, name: e.target.value })}
+                        placeholder="Tool name"
+                        className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-electric-blue focus:border-transparent"
+                      />
+                      <input
+                        type="text"
+                        value={newTool.api_key || ''}
+                        onChange={(e) => setNewTool({ ...newTool, api_key: e.target.value })}
+                        placeholder="API Key (optional)"
+                        className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-electric-blue focus:border-transparent"
+                      />
+                      <input
+                        type="url"
+                        value={newTool.url || ''}
+                        onChange={(e) => setNewTool({ ...newTool, url: e.target.value })}
+                        placeholder="Tool URL (optional)"
+                        className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-electric-blue focus:border-transparent"
+                      />
+                    </div>
+                    <div className="flex gap-3 mt-3">
+                      <button
+                        onClick={() => {
+                          if (newTool.name) {
+                            const tool = {
+                              type: 'tool' as const,
+                              name: newTool.name,
+                              api_key: newTool.api_key || '',
+                              url: newTool.url || '',
+                              description: `Tool: ${newTool.name}`
+                            };
+                            const currentResources = editData.resources || [];
+                            setEditData({ ...editData, resources: [...currentResources, tool] });
+                            setNewTool({ name: '', api_key: '', url: '' });
+                          }
+                        }}
+                        disabled={!newTool.name}
+                        className="px-4 py-2 bg-electric-blue hover:bg-electric-blue/90 text-white rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Add Tool
+                      </button>
+                      <button
+                        onClick={() => setNewTool({ name: '', api_key: '', url: '' })}
+                        className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Display Tools from Resources */}
+                {(editData.resources?.filter(r => r.type === 'tool')?.length || job.resources?.filter(r => r.type === 'tool')?.length) ? (
+                  <div className="space-y-4">
+                    {(editData.resources || job.resources || []).filter(r => r.type === 'tool').map((tool, index) => (
+                      <div key={`tool-${index}`} className="p-4 bg-gray-800 rounded-lg border border-gray-700/50">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="p-2 bg-purple-500/20 rounded-lg">
+                            <ExternalLink className="h-5 w-5 text-purple-400" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-white font-medium capitalize">Tool</div>
+                          </div>
+                          {isEditing && (
+                            <button
+                              onClick={() => {
+                                const toolIndex = (editData.resources || []).findIndex(r => r === tool);
+                                if (toolIndex !== -1) removeResource('resources', toolIndex);
+                              }}
+                              className="p-1 text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          )}
                         </div>
-                        <div className="flex-1">
-                          <div className="text-white font-medium">{tool.name}</div>
-                          {tool.type && <div className="text-gray-400 text-sm">{tool.type}</div>}
-                        </div>
-                        {tool.url && (
-                          <a
-                            href={tool.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-electric-blue hover:text-electric-blue/80 transition-colors"
-                          >
-                            <ExternalLink className="h-5 w-5" />
-                          </a>
+                        
+                        {isEditing ? (
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                              <label className="block text-gray-400 text-sm font-medium mb-1">Name</label>
+                              <input
+                                type="text"
+                                value={tool.name}
+                                onChange={(e) => {
+                                  const updatedResources = [...(editData.resources || [])];
+                                  const toolIndex = updatedResources.findIndex(r => r === tool);
+                                  if (toolIndex !== -1) {
+                                    updatedResources[toolIndex] = { ...tool, name: e.target.value };
+                                    setEditData({ ...editData, resources: updatedResources });
+                                  }
+                                }}
+                                className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:ring-2 focus:ring-electric-blue focus:border-transparent"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-gray-400 text-sm font-medium mb-1">API Key</label>
+                              <div className="relative">
+                                <input
+                                  type={visibleApiKeys.has((editData.resources || []).findIndex(r => r === tool)) ? "text" : "password"}
+                                  value={tool.api_key || ''}
+                                  onChange={(e) => {
+                                    const updatedResources = [...(editData.resources || [])];
+                                    const toolIndex = updatedResources.findIndex(r => r === tool);
+                                    if (toolIndex !== -1) {
+                                      updatedResources[toolIndex] = { ...tool, api_key: e.target.value };
+                                      setEditData({ ...editData, resources: updatedResources });
+                                    }
+                                  }}
+                                  className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 pr-10 text-white text-sm focus:ring-2 focus:ring-electric-blue focus:border-transparent"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const toolIndex = (editData.resources || []).findIndex(r => r === tool);
+                                    if (toolIndex !== -1) {
+                                      const newVisible = new Set(visibleApiKeys);
+                                      if (newVisible.has(toolIndex)) {
+                                        newVisible.delete(toolIndex);
+                                      } else {
+                                        newVisible.add(toolIndex);
+                                      }
+                                      setVisibleApiKeys(newVisible);
+                                    }
+                                  }}
+                                  className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 text-gray-400 hover:text-white transition-colors"
+                                >
+                                  {visibleApiKeys.has((editData.resources || []).findIndex(r => r === tool)) ? (
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+                                    </svg>
+                                  ) : (
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                    </svg>
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-gray-400 text-sm font-medium mb-1">URL</label>
+                              <input
+                                type="url"
+                                value={tool.url || ''}
+                                onChange={(e) => {
+                                  const updatedResources = [...(editData.resources || [])];
+                                  const toolIndex = updatedResources.findIndex(r => r === tool);
+                                  if (toolIndex !== -1) {
+                                    updatedResources[toolIndex] = { ...tool, url: e.target.value };
+                                    setEditData({ ...editData, resources: updatedResources });
+                                  }
+                                }}
+                                className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:ring-2 focus:ring-electric-blue focus:border-transparent"
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <div className="text-white font-medium">{tool.name}</div>
+                            {tool.api_key && <div className="text-gray-400 text-sm">API Key: {tool.api_key}</div>}
+                            {tool.url && <div className="text-gray-400 text-sm truncate">{tool.url}</div>}
+                          </div>
                         )}
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
+                ) : (
+                  <div className="text-center py-8">
+                    <div className="text-4xl mb-2">🔧</div>
+                    <p className="text-gray-400">No additional tools configured yet</p>
+                  </div>
+                )}
+              </div>
 
               {/* Server Details */}
-              {job.server_details?.length && (
-                <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700/50">
-                  <h3 className="text-xl font-semibold text-white mb-4">Server Details</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {job.server_details.map((server, index) => (
-                      <div key={index} className="p-4 bg-gray-800 rounded-lg border border-gray-700/50">
-                        <div className="text-white font-medium mb-2">{server.name}</div>
-                        {server.url && <div className="text-gray-400 text-sm mb-1">URL: {server.url}</div>}
-                        {server.type && <div className="text-gray-400 text-sm">Type: {server.type}</div>}
+              <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700/50">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xl font-semibold text-white">Server Details</h3>
+                </div>
+                
+                {isEditing && (
+                  <div className="mb-6 p-4 bg-gray-800 rounded-lg border border-gray-700/50">
+                    <h4 className="text-lg font-medium text-white mb-3">Add New Server</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <input
+                        type="text"
+                        value={newServer.name}
+                        onChange={(e) => setNewServer({ ...newServer, name: e.target.value })}
+                        placeholder="Server name"
+                        className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-electric-blue focus:border-transparent"
+                      />
+                      <input
+                        type="url"
+                        value={newServer.url}
+                        onChange={(e) => setNewServer({ ...newServer, url: e.target.value })}
+                        placeholder="Server URL (optional)"
+                        className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-electric-blue focus:border-transparent"
+                      />
+                      <input
+                        type="text"
+                        value={newServer.type}
+                        onChange={(e) => setNewServer({ ...newServer, type: e.target.value })}
+                        placeholder="Server type (optional)"
+                        className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-electric-blue focus:border-transparent"
+                      />
+                    </div>
+                    <div className="flex gap-3 mt-3">
+                      <button
+                        onClick={() => {
+                          if (newServer.name) {
+                            const server = {
+                              type: 'server' as const,
+                              name: newServer.name,
+                              url: newServer.url || '',
+                              description: `Server: ${newServer.name}`
+                            };
+                            const currentResources = editData.resources || [];
+                            setEditData({ ...editData, resources: [...currentResources, server] });
+                            setNewServer({ name: '', url: '', type: '' });
+                          }
+                        }}
+                        disabled={!newServer.name}
+                        className="px-4 py-2 bg-electric-blue hover:bg-electric-blue/90 text-white rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Add Server
+                      </button>
+                      <button
+                        onClick={() => setNewServer({ name: '', url: '', type: '' })}
+                        className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Display Servers from Resources */}
+                {(editData.resources?.filter(r => r.type === 'server')?.length || job.resources?.filter(r => r.type === 'server')?.length) ? (
+                  <div className="space-y-4">
+                    {(editData.resources || job.resources || []).filter(r => r.type === 'server').map((server, index) => (
+                      <div key={`server-${index}`} className="p-4 bg-gray-800 rounded-lg border border-gray-700/50">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="p-2 bg-orange-500/20 rounded-lg">
+                            <ExternalLink className="h-5 w-5 text-orange-400" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-white font-medium capitalize">Server</div>
+                          </div>
+                          {isEditing && (
+                            <button
+                              onClick={() => {
+                                const serverIndex = (editData.resources || []).findIndex(r => r === server);
+                                if (serverIndex !== -1) removeResource('resources', serverIndex);
+                              }}
+                              className="p-1 text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+                        
+                        {isEditing ? (
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                              <label className="block text-gray-400 text-sm font-medium mb-1">Name</label>
+                              <input
+                                type="text"
+                                value={server.name}
+                                onChange={(e) => {
+                                  const updatedResources = [...(editData.resources || [])];
+                                  const serverIndex = updatedResources.findIndex(r => r === server);
+                                  if (serverIndex !== -1) {
+                                    updatedResources[serverIndex] = { ...server, name: e.target.value };
+                                    setEditData({ ...editData, resources: updatedResources });
+                                  }
+                                }}
+                                className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:ring-2 focus:ring-electric-blue focus:border-transparent"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-gray-400 text-sm font-medium mb-1">URL</label>
+                              <input
+                                type="url"
+                                value={server.url || ''}
+                                onChange={(e) => {
+                                  const updatedResources = [...(editData.resources || [])];
+                                  const serverIndex = updatedResources.findIndex(r => r === server);
+                                  if (serverIndex !== -1) {
+                                    updatedResources[serverIndex] = { ...server, url: e.target.value };
+                                    setEditData({ ...editData, resources: updatedResources });
+                                  }
+                                }}
+                                className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:ring-2 focus:ring-electric-blue focus:border-transparent"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-gray-400 text-sm font-medium mb-1">Type</label>
+                              <input
+                                type="text"
+                                value={server.description?.replace('Server: ', '') || ''}
+                                onChange={(e) => {
+                                  const updatedResources = [...(editData.resources || [])];
+                                  const serverIndex = updatedResources.findIndex(r => r === server);
+                                  if (serverIndex !== -1) {
+                                    updatedResources[serverIndex] = { ...server, description: `Server: ${e.target.value}` };
+                                    setEditData({ ...editData, resources: updatedResources });
+                                  }
+                                }}
+                                className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:ring-2 focus:ring-electric-blue focus:border-transparent"
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <div className="text-white font-medium">{server.name}</div>
+                            {server.url && <div className="text-gray-400 text-sm">URL: {server.url}</div>}
+                            {server.description && <div className="text-gray-400 text-sm">Type: {server.description.replace('Server: ', '')}</div>}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
+                ) : (
+                  <div className="text-center py-8">
+                    <div className="text-4xl mb-2">🖥️</div>
+                    <p className="text-gray-400">No server details configured yet</p>
+                  </div>
+                )}
+              </div>
 
-              {(!job.google_drive_links?.length && !job.github_repositories?.length && !job.workspace_links?.length && !job.additional_tools?.length && !job.server_details?.length) && (
-                <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700/50 text-center">
-                  <div className="text-4xl mb-4">🔧</div>
-                  <p className="text-gray-400">No resources or tools configured yet</p>
-                </div>
-              )}
+
+
+              {/* Additional Notes */}
+              <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700/50">
+                <h3 className="text-xl font-semibold text-white mb-4 flex items-center gap-3">
+                  <FileText className="h-6 w-6 text-electric-blue" />
+                  Additional Notes
+                </h3>
+                
+                {/* Add New Note */}
+                {isEditing && (
+                  <div className="mb-4">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newNote}
+                        onChange={(e) => setNewNote(e.target.value)}
+                        placeholder="Add a new note..."
+                        className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-electric-blue focus:border-transparent"
+                      />
+                      <button
+                        onClick={addNote}
+                        disabled={!newNote.trim()}
+                        className="px-4 py-2 bg-electric-blue text-white rounded-lg hover:bg-electric-blue/80 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                      >
+                        Add Note
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Display Notes */}
+                {(editData.additional_resource_info?.length || job.additional_resource_info?.length) && (
+                  <div className="space-y-2">
+                    {(editData.additional_resource_info || job.additional_resource_info || []).map((note, index) => (
+                      <div key={index} className="flex items-start gap-2 p-3 bg-gray-800 border border-gray-700/50 rounded-lg">
+                        {isEditing ? (
+                          <>
+                            <input
+                              type="text"
+                              value={note}
+                              onChange={(e) => updateNote(index, e.target.value)}
+                              className="flex-1 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-white text-sm focus:ring-1 focus:ring-electric-blue focus:border-transparent"
+                            />
+                            <button
+                              onClick={() => deleteNote(index)}
+                              className="p-1 text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </>
+                        ) : (
+                          <div className="flex-1 text-white text-sm">{note}</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                {/* Empty State */}
+                {!editData.additional_resource_info?.length && !job.additional_resource_info?.length && (
+                  <div className="text-gray-500 text-sm italic">
+                    No additional notes yet. {isEditing && 'Add your first note above!'}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

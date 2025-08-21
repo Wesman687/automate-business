@@ -3,7 +3,8 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from database import get_db
 from api.auth import get_current_user, get_current_admin
-from models.file_upload import FileUpload
+from database.models import FileUpload
+from database.models import Job
 import requests
 import base64
 import logging
@@ -480,6 +481,81 @@ async def get_customer_job_files(
         
     except Exception as e:
         logger.error(f"Error getting customer job files: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.put("/customer/job/{job_id}")
+async def update_customer_job(
+    job_id: int,
+    job_data: dict,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Update job information for the current customer"""
+    try:
+        # Verify the job belongs to the current customer
+        job = db.query(Job).filter(
+            Job.id == job_id,
+            Job.customer_id == current_user.get('user_id')
+        ).first()
+        
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found or access denied")
+        
+        # Update job fields (only allow certain fields to be updated by customers)
+        allowed_fields = [
+            'title', 'description', 'business_name', 'business_type', 'industry', 'industry_other',
+            'project_goals', 'target_audience', 'timeline', 'budget_range',
+            'brand_colors', 'brand_color_tags', 'brand_color_tag_others', 'brand_style', 'brand_style_other', 'brand_guidelines',
+            'website_url', 'github_url', 'portfolio_url', 'social_media',
+            'google_drive_links', 'github_repositories', 'workspace_links', 'additional_tools', 'server_details',
+            'notes', 'additional_resource_info'
+        ]
+        
+        for field, value in job_data.items():
+            if field in allowed_fields and hasattr(job, field):
+                setattr(job, field, value)
+        
+        db.commit()
+        db.refresh(job)
+        
+        return {
+            "message": "Job updated successfully",
+            "job": {
+                "id": job.id,
+                "title": job.title,
+                "description": job.description,
+                "business_name": job.business_name,
+                "business_type": job.business_type,
+                "industry": job.industry,
+                "industry_other": job.industry_other,
+                "project_goals": job.project_goals,
+                "target_audience": job.target_audience,
+                "timeline": job.timeline,
+                "budget_range": job.budget_range,
+                "brand_colors": job.brand_colors,
+                "brand_color_tags": job.brand_color_tags,
+                "brand_color_tag_others": job.brand_color_tag_others,
+                "brand_style": job.brand_style,
+                "brand_style_other": job.brand_style_other,
+                "brand_guidelines": job.brand_guidelines,
+                "website_url": job.website_url,
+                "github_url": job.github_url,
+                "portfolio_url": job.portfolio_url,
+                "social_media": job.social_media,
+                "google_drive_links": job.google_drive_links,
+                "github_repositories": job.github_repositories,
+                "workspace_links": job.workspace_links,
+                "additional_tools": job.additional_tools,
+                "server_details": job.server_details,
+                "notes": job.notes,
+                "additional_resource_info": job.additional_resource_info
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating customer job: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # Admin endpoints

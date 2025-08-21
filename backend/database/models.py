@@ -63,6 +63,7 @@ class User(Base):
     chat_sessions = relationship("ChatSession", back_populates="user")
     appointments = relationship("Appointment", back_populates="customer")
     portal_invites = relationship("PortalInvite", back_populates="user")
+    file_uploads = relationship("FileUpload", foreign_keys="[FileUpload.user_id]", back_populates="user")
     
     @property
     def is_admin(self) -> bool:
@@ -280,6 +281,7 @@ class Job(Base):
     user = relationship("User")
     time_entries = relationship("TimeEntry", back_populates="job")
     change_requests = relationship("CustomerChangeRequest", back_populates="job")
+    file_uploads = relationship("FileUpload", foreign_keys="[FileUpload.job_id]", back_populates="job")
 
 class TimeEntry(Base):
     __tablename__ = "time_entries"
@@ -300,3 +302,44 @@ class TimeEntry(Base):
     # Relationships
     job = relationship("Job", back_populates="time_entries")
     admin = relationship("Admin")
+
+
+class FileUpload(Base):
+    __tablename__ = "file_uploads"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    filename = Column(String(255), nullable=False)
+    original_filename = Column(String(255), nullable=False)
+    file_size = Column(Integer, nullable=False)  # Size in bytes
+    mime_type = Column(String(100), nullable=False)
+    upload_type = Column(String(50), nullable=False)  # 'project', 'branding', 'job_setup', etc.
+    
+    # File server info
+    file_server_url = Column(String(500), nullable=False)
+    file_key = Column(String(100), nullable=False)  # File server's unique key
+    folder = Column(String(255), nullable=True)  # Folder path on file server
+    
+    # Metadata
+    description = Column(Text, nullable=True)
+    tags = Column(String(500), nullable=True)  # Comma-separated tags
+    
+    # Relationships
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    customer_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    job_id = Column(Integer, ForeignKey("jobs.id"), nullable=True)
+    
+    # Timestamps
+    uploaded_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # Status
+    is_active = Column(Boolean, default=True)
+    is_deleted = Column(Boolean, default=False)
+    
+    # Relationships
+    user = relationship("User", foreign_keys=[user_id], back_populates="file_uploads")
+    customer = relationship("User", foreign_keys=[customer_id])
+    job = relationship("Job", foreign_keys=[job_id], back_populates="file_uploads")
+    
+    def __repr__(self):
+        return f"<FileUpload(id={self.id}, filename='{self.filename}', type='{self.upload_type}')>"

@@ -5,7 +5,7 @@ from typing import Optional, Dict, Any
 from datetime import datetime
 import logging
 from sqlalchemy.orm import Session
-from models.file_upload import FileUpload
+from database.models import FileUpload
 
 logger = logging.getLogger(__name__)
 

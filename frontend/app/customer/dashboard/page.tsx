@@ -690,7 +690,7 @@ export default function CustomerDashboard() {
                               <span>Edit</span>
                             </button>
                             <button
-                              onClick={() => deleteAppointment(appointment.id)}
+                              onClick={() => appointment.id && deleteAppointment(appointment.id)}
                               className="flex items-center space-x-1 px-3 py-1 text-xs bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors"
                               title="Delete appointment"
                             >

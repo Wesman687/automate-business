@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, LogIn, User, Shield } from 'lucide-react';
+import { Eye, EyeOff, LogIn, User, Shield, UserPlus } from 'lucide-react';
 import { getApiUrl } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import Script from 'next/script';
+import CustomerSignup from '@/components/CustomerSignup';
 
 export default function Portal() {
   const [email, setEmail] = useState('');
@@ -14,6 +15,7 @@ export default function Portal() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const [showSignup, setShowSignup] = useState(false);
   const router = useRouter();
   
   // Use JWT AuthProvider for authentication
@@ -84,6 +86,12 @@ export default function Portal() {
   const redirectBasedOnRole = (u: any) => {
     if (u?.is_admin) router.replace('/admin');
     else router.replace('/customer/dashboard');
+  };
+
+  const handleSignupSuccess = (customerData: any) => {
+    setShowSignup(false);
+    // The customer can now log in with their email and password
+    // You could also auto-login them here if desired
   };
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -252,8 +260,22 @@ export default function Portal() {
               </div>
               <p className="text-xs text-gray-500 mt-3 text-center">
                 Use your email and password to access your dashboard. 
-                You willll be automatically redirected to the appropriate area.
+                You will be automatically redirected to the appropriate area.
               </p>
+              
+              {/* Signup Option */}
+              <div className="mt-4 pt-4 border-t border-dark-border">
+                <p className="text-xs text-gray-500 text-center mb-3">
+                  Don't have an account yet?
+                </p>
+                <button
+                  onClick={() => setShowSignup(true)}
+                  className="w-full flex justify-center items-center gap-2 py-2 px-4 bg-neon-green/20 hover:bg-neon-green/30 text-neon-green rounded-lg transition-colors"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  Create Customer Account
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -270,6 +292,13 @@ export default function Portal() {
         )}
       </div>
     </div>
+
+    {/* Customer Signup Modal */}
+    <CustomerSignup
+      isOpen={showSignup}
+      onClose={() => setShowSignup(false)}
+      onSuccess={handleSignupSuccess}
+    />
     </>
   );
 }

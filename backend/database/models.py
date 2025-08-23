@@ -70,6 +70,12 @@ class User(Base):
     lead_status = Column(String(50), default="lead")  # lead, qualified, customer, closed
     notes = Column(Text, nullable=True)
     
+    # Email verification fields
+    is_authenticated = Column(Boolean, default=False)  # Has set password
+    email_verified = Column(Boolean, default=False)  # Email verified with code
+    verification_code = Column(String(10), nullable=True)  # 6-digit verification code
+    verification_expires = Column(DateTime(timezone=True), nullable=True)  # When verification code expires
+    
     # Credits system
     credits = Column(Integer, nullable=False, default=0)
     

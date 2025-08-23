@@ -11,6 +11,7 @@ interface Customer {
 }
 
 interface Job {
+  // Basic Job Info
   id: number;
   customer_id: number;
   title: string;
@@ -20,22 +21,90 @@ interface Job {
   start_date?: string;
   deadline?: string;
   completion_date?: string;
+  progress_percentage: number;
+  
+  // Business Information
+  business_name?: string;
+  business_type?: string;
+  industry?: string;
+  industry_other?: string;
+  
+  // Project Details
+  project_goals?: string;
+  target_audience?: string;
+  timeline?: string;
+  budget_range?: string;
+  
+  // Branding & Design
+  brand_colors?: string[];
+  brand_color_tags?: { [key: number]: string };
+  brand_color_tag_others?: { [key: number]: string };
+  brand_style?: string;
+  brand_style_other?: string;
+  logo_files?: number[];
+  brand_guidelines?: string;
+  
+  // Resources & Links
+  website_url?: string;
+  github_url?: string;
+  portfolio_url?: string;
+  social_media?: {
+    facebook?: string;
+    linkedin?: string;
+    instagram?: string;
+    twitter?: string;
+    youtube?: string;
+    tiktok?: string;
+    pinterest?: string;
+    snapchat?: string;
+  };
+  
+  // Unified Resources Array
+  resources?: Array<{
+    type: 'website' | 'github' | 'drive' | 'workspace' | 'service';
+    name: string;
+    url?: string;
+    description?: string;
+  }>;
+  
+  // Additional Tools (separate from resources)
+  additional_tools?: Array<{
+    name: string;
+    api_key?: string;
+    url?: string;
+    description?: string;
+  }>;
+
+  // Server Details (separate from resources)
+  server_details?: Array<{
+    name: string;
+    url?: string;
+    type?: string;
+    description?: string;
+  }>;
+  
+  // Additional Information
+  notes?: string;
+  additional_resource_info?: string[];
+  
+  meeting_links?: Array<{ name: string; url: string; type?: string }>;
+  
+  // Project Planning
+  milestones?: Array<{ name: string; description?: string; due_date?: string; completed: boolean }>;
+  deliverables?: Array<{ name: string; description?: string; delivered: boolean; date?: string }>;
+  
+  // Financial Data
   estimated_hours?: number;
   actual_hours?: number;
   hourly_rate?: number;
   fixed_price?: number;
-  google_drive_links?: Array<{ name: string; url: string; type?: string }>;
-  github_repositories?: Array<{ name: string; url: string; type?: string }>;
-  workspace_links?: Array<{ name: string; url: string; type?: string }>;
-  server_details?: Array<{ name: string; url: string; type?: string }>;
-  calendar_links?: Array<{ name: string; url: string; type?: string }>;
-  meeting_links?: Array<{ name: string; url: string; type?: string }>;
-  additional_tools?: Array<{ name: string; url: string; type?: string }>;
-  website_url?: string;
-  notes?: string;
-  progress_percentage: number;
-  milestones?: Array<{ name: string; description?: string; due_date?: string; completed: boolean }>;
-  deliverables?: Array<{ name: string; description?: string; delivered: boolean; date?: string }>;
+  
+  // Additional Files
+  project_files?: number[];
+  reference_files?: number[];
+  requirements_doc?: string;
+  
+  // Timestamps
   created_at: string;
   updated_at?: string;
 }
@@ -61,14 +130,72 @@ export default function EditJobModal({ isOpen, onClose, onSave, job }: EditJobMo
     estimated_hours: '',
     hourly_rate: '',
     fixed_price: '',
+    
+    // Business Information
+    business_name: '',
+    business_type: '',
+    industry: '',
+    industry_other: '',
+    
+    // Project Details
+    project_goals: '',
+    target_audience: '',
+    timeline: '',
+    budget_range: '',
+    
+    // Branding & Design
+    brand_style: '',
+    brand_style_other: '',
+    brand_guidelines: '',
+    
+    // Resources & Links
     website_url: '',
-    google_drive_links: [] as Array<{ name: string; url: string; type?: string }>,
-    github_repositories: [] as Array<{ name: string; url: string; type?: string }>,
-    workspace_links: [] as Array<{ name: string; url: string; type?: string }>,
-    additional_tools: [] as Array<{ name: string; url: string; type?: string }>,
+    github_url: '',
+    portfolio_url: '',
+    
+    // Social Media
+    social_media: {
+      facebook: '',
+      linkedin: '',
+      instagram: '',
+      twitter: '',
+      youtube: '',
+      tiktok: '',
+      pinterest: '',
+      snapchat: ''
+    },
+    
+    // Unified Resources
+    resources: [] as Array<{
+      type: 'website' | 'github' | 'drive' | 'workspace' | 'service';
+      name: string;
+      url?: string;
+      description?: string;
+    }>,
+    
+    // Additional Tools
+    additional_tools: [] as Array<{
+      name: string;
+      api_key?: string;
+      url?: string;
+      description?: string;
+    }>,
+    
+    // Server Details
+    server_details: [] as Array<{
+      name: string;
+      url?: string;
+      type?: string;
+      description?: string;
+    }>,
+    
+    // Project Planning
     milestones: [] as Array<{ name: string; description?: string; due_date?: string; completed: boolean }>,
     deliverables: [] as Array<{ name: string; description?: string; delivered: boolean; date?: string }>,
-    notes: ''
+    
+    // Additional Information
+    notes: '',
+    additional_resource_info: [] as string[]
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -101,14 +228,57 @@ export default function EditJobModal({ isOpen, onClose, onSave, job }: EditJobMo
       estimated_hours: jobData.estimated_hours?.toString() || '',
       hourly_rate: jobData.hourly_rate?.toString() || '',
       fixed_price: jobData.fixed_price?.toString() || '',
+      
+      // Business Information
+      business_name: jobData.business_name || '',
+      business_type: jobData.business_type || '',
+      industry: jobData.industry || '',
+      industry_other: jobData.industry_other || '',
+      
+      // Project Details
+      project_goals: jobData.project_goals || '',
+      target_audience: jobData.target_audience || '',
+      timeline: jobData.timeline || '',
+      budget_range: jobData.budget_range || '',
+      
+      // Branding & Design
+      brand_style: jobData.brand_style || '',
+      brand_style_other: jobData.brand_style_other || '',
+      brand_guidelines: jobData.brand_guidelines || '',
+      
+      // Resources & Links
       website_url: jobData.website_url || '',
-      google_drive_links: jobData.google_drive_links || [],
-      github_repositories: jobData.github_repositories || [],
-      workspace_links: jobData.workspace_links || [],
+      github_url: jobData.github_url || '',
+      portfolio_url: jobData.portfolio_url || '',
+      
+      // Social Media
+      social_media: {
+        facebook: jobData.social_media?.facebook || '',
+        linkedin: jobData.social_media?.linkedin || '',
+        instagram: jobData.social_media?.instagram || '',
+        twitter: jobData.social_media?.twitter || '',
+        youtube: jobData.social_media?.youtube || '',
+        tiktok: jobData.social_media?.tiktok || '',
+        pinterest: jobData.social_media?.pinterest || '',
+        snapchat: jobData.social_media?.snapchat || ''
+      },
+      
+      // Unified Resources
+      resources: jobData.resources || [],
+      
+      // Additional Tools
       additional_tools: jobData.additional_tools || [],
+      
+      // Server Details
+      server_details: jobData.server_details || [],
+      
+      // Project Planning
       milestones: jobData.milestones || [],
       deliverables: jobData.deliverables || [],
-      notes: jobData.notes || ''
+      
+      // Additional Information
+      notes: jobData.notes || '',
+      additional_resource_info: jobData.additional_resource_info || []
     });
   };
 
@@ -166,26 +336,49 @@ export default function EditJobModal({ isOpen, onClose, onSave, job }: EditJobMo
     }
   };
 
-  const addLink = (type: 'google_drive_links' | 'github_repositories' | 'workspace_links' | 'additional_tools') => {
+  const addResource = () => {
     setFormData(prev => ({
       ...prev,
-      [type]: [...prev[type], { name: '', url: '', type: '' }]
+      resources: [...prev.resources, { type: 'website', name: '', url: '', description: '' }]
     }));
   };
 
-  const updateLink = (type: 'google_drive_links' | 'github_repositories' | 'workspace_links' | 'additional_tools', index: number, field: string, value: string) => {
+  const updateResource = (index: number, field: string, value: string) => {
     setFormData(prev => ({
       ...prev,
-      [type]: prev[type].map((item, i) => 
+      resources: prev.resources.map((item, i) => 
         i === index ? { ...item, [field]: value } : item
       )
     }));
   };
 
-  const removeLink = (type: 'google_drive_links' | 'github_repositories' | 'workspace_links' | 'additional_tools', index: number) => {
+  const removeResource = (index: number) => {
     setFormData(prev => ({
       ...prev,
-      [type]: prev[type].filter((_, i) => i !== index)
+      resources: prev.resources.filter((_, i) => i !== index)
+    }));
+  };
+
+  const addTool = () => {
+    setFormData(prev => ({
+      ...prev,
+      additional_tools: [...prev.additional_tools, { name: '', url: '', description: '' }]
+    }));
+  };
+
+  const updateTool = (index: number, field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      additional_tools: prev.additional_tools.map((item, i) => 
+        i === index ? { ...item, [field]: value } : item
+      )
+    }));
+  };
+
+  const removeTool = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      additional_tools: prev.additional_tools.filter((_, i) => i !== index)
     }));
   };
 
@@ -430,41 +623,52 @@ export default function EditJobModal({ isOpen, onClose, onSave, job }: EditJobMo
                 />
               </div>
 
-              {/* Google Drive Links */}
+              {/* Resources */}
               <div>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-medium text-gray-900 flex items-center">
                     <FolderOpen className="h-5 w-5 mr-2 text-blue-500" />
-                    Google Drive Links
+                    Resources
                   </h3>
                   <button
                     type="button"
-                    onClick={() => addLink('google_drive_links')}
+                    onClick={addResource}
                     className="flex items-center space-x-2 px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200"
                   >
                     <Plus className="h-4 w-4" />
-                    <span>Add Link</span>
+                    <span>Add Resource</span>
                   </button>
                 </div>
-                {formData.google_drive_links.map((link, index) => (
+                {formData.resources.map((resource, index) => (
                   <div key={index} className="flex gap-3 mb-3">
+                    <select
+                      value={resource.type}
+                      onChange={(e) => updateResource(index, 'type', e.target.value)}
+                      className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    >
+                      <option value="website">Website</option>
+                      <option value="github">GitHub</option>
+                      <option value="drive">Google Drive</option>
+                      <option value="workspace">Workspace</option>
+                      <option value="service">Service</option>
+                    </select>
                     <input
                       type="text"
-                      value={link.name}
-                      onChange={(e) => updateLink('google_drive_links', index, 'name', e.target.value)}
+                      value={resource.name}
+                      onChange={(e) => updateResource(index, 'name', e.target.value)}
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      placeholder="Link name"
+                      placeholder="Resource name"
                     />
                     <input
                       type="url"
-                      value={link.url}
-                      onChange={(e) => updateLink('google_drive_links', index, 'url', e.target.value)}
+                      value={resource.url || ''}
+                      onChange={(e) => updateResource(index, 'url', e.target.value)}
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      placeholder="https://drive.google.com/..."
+                      placeholder="URL (optional)"
                     />
                     <button
                       type="button"
-                      onClick={() => removeLink('google_drive_links', index)}
+                      onClick={() => removeResource(index)}
                       className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -473,41 +677,41 @@ export default function EditJobModal({ isOpen, onClose, onSave, job }: EditJobMo
                 ))}
               </div>
 
-              {/* GitHub Repositories */}
+              {/* Additional Tools */}
               <div>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-medium text-gray-900 flex items-center">
-                    <Github className="h-5 w-5 mr-2 text-gray-800" />
-                    GitHub Repositories
+                    <Target className="h-5 w-5 mr-2 text-purple-500" />
+                    Additional Tools
                   </h3>
                   <button
                     type="button"
-                    onClick={() => addLink('github_repositories')}
-                    className="flex items-center space-x-2 px-3 py-1 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+                    onClick={addTool}
+                    className="flex items-center space-x-2 px-3 py-1 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200"
                   >
                     <Plus className="h-4 w-4" />
-                    <span>Add Repository</span>
+                    <span>Add Tool</span>
                   </button>
                 </div>
-                {formData.github_repositories.map((repo, index) => (
+                {formData.additional_tools.map((tool, index) => (
                   <div key={index} className="flex gap-3 mb-3">
                     <input
                       type="text"
-                      value={repo.name}
-                      onChange={(e) => updateLink('github_repositories', index, 'name', e.target.value)}
+                      value={tool.name}
+                      onChange={(e) => updateTool(index, 'name', e.target.value)}
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      placeholder="Repository name"
+                      placeholder="Tool name"
                     />
                     <input
                       type="url"
-                      value={repo.url}
-                      onChange={(e) => updateLink('github_repositories', index, 'url', e.target.value)}
+                      value={tool.url || ''}
+                      onChange={(e) => updateTool(index, 'url', e.target.value)}
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      placeholder="https://github.com/..."
+                      placeholder="URL (optional)"
                     />
                     <button
                       type="button"
-                      onClick={() => removeLink('github_repositories', index)}
+                      onClick={() => removeTool(index)}
                       className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -516,41 +720,41 @@ export default function EditJobModal({ isOpen, onClose, onSave, job }: EditJobMo
                 ))}
               </div>
 
-              {/* Workspace Links */}
+              {/* Server Details */}
               <div>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-medium text-gray-900 flex items-center">
                     <ExternalLink className="h-5 w-5 mr-2 text-green-500" />
-                    Workspace Links
+                    Server Details
                   </h3>
                   <button
                     type="button"
-                    onClick={() => addLink('workspace_links')}
+                    onClick={addTool}
                     className="flex items-center space-x-2 px-3 py-1 bg-green-100 text-green-700 rounded-lg hover:bg-green-200"
                   >
                     <Plus className="h-4 w-4" />
-                    <span>Add Workspace</span>
+                    <span>Add Server</span>
                   </button>
                 </div>
-                {formData.workspace_links.map((workspace, index) => (
+                {formData.server_details.map((server, index) => (
                   <div key={index} className="flex gap-3 mb-3">
                     <input
                       type="text"
-                      value={workspace.name}
-                      onChange={(e) => updateLink('workspace_links', index, 'name', e.target.value)}
+                      value={server.name}
+                      onChange={(e) => updateTool(index, 'name', e.target.value)}
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      placeholder="Workspace name (Slack, Discord, etc.)"
+                      placeholder="Server name"
                     />
                     <input
                       type="url"
-                      value={workspace.url}
-                      onChange={(e) => updateLink('workspace_links', index, 'url', e.target.value)}
+                      value={server.url || ''}
+                      onChange={(e) => updateTool(index, 'url', e.target.value)}
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      placeholder="Workspace URL"
+                      placeholder="Server URL"
                     />
                     <button
                       type="button"
-                      onClick={() => removeLink('workspace_links', index)}
+                      onClick={() => removeTool(index)}
                       className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -568,7 +772,7 @@ export default function EditJobModal({ isOpen, onClose, onSave, job }: EditJobMo
                   </h3>
                   <button
                     type="button"
-                    onClick={() => addLink('additional_tools')}
+                    onClick={addTool}
                     className="flex items-center space-x-2 px-3 py-1 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200"
                   >
                     <Plus className="h-4 w-4" />
@@ -580,27 +784,27 @@ export default function EditJobModal({ isOpen, onClose, onSave, job }: EditJobMo
                     <input
                       type="text"
                       value={tool.name}
-                      onChange={(e) => updateLink('additional_tools', index, 'name', e.target.value)}
+                      onChange={(e) => updateTool(index, 'name', e.target.value)}
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-gray-900"
                       placeholder="Resource name (Figma, Notion, API docs, etc.)"
                     />
                     <input
                       type="url"
-                      value={tool.url}
-                      onChange={(e) => updateLink('additional_tools', index, 'url', e.target.value)}
+                      value={tool.url || ''}
+                      onChange={(e) => updateTool(index, 'url', e.target.value)}
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-gray-900"
                       placeholder="Resource URL"
                     />
                     <input
                       type="text"
-                      value={tool.type || ''}
-                      onChange={(e) => updateLink('additional_tools', index, 'type', e.target.value)}
+                      value={tool.description || ''}
+                      onChange={(e) => updateTool(index, 'description', e.target.value)}
                       className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-gray-900"
-                      placeholder="Type/Category"
+                      placeholder="Description"
                     />
                     <button
                       type="button"
-                      onClick={() => removeLink('additional_tools', index)}
+                      onClick={() => removeTool(index)}
                       className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
                     >
                       <Trash2 className="h-4 w-4" />

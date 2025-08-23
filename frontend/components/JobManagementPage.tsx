@@ -5,7 +5,7 @@ import { Plus, Briefcase, Clock, CheckCircle, AlertCircle, Calendar, ExternalLin
 import { api } from '@/lib/https';
 import Link from 'next/link';
 import CreateJobModal from './CreateJobModal';
-import EditJobModal from './EditJobModal';
+// EditJobModal import removed - using JobDetailModal instead
 import JobDetailModal from './JobDetailModal';
 
 interface Job {
@@ -74,6 +74,13 @@ interface Job {
   updated_at?: string;
 }
 
+interface Customer {
+  id: number;
+  name: string;
+  email: string;
+  company?: string;
+}
+
 interface TimeEntry {
   id: number;
   job_id: number;
@@ -94,11 +101,11 @@ interface JobManagementPageProps {
 export default function JobManagementPage({ onCreateNewJob, isCustomer = false }: JobManagementPageProps) {
   const [activeTab, setActiveTab] = useState('overview');
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
   const [showCreateJob, setShowCreateJob] = useState(false);
-  const [showEditJob, setShowEditJob] = useState(false);
   const [showJobDetail, setShowJobDetail] = useState(false);
   const [showTimeEntry, setShowTimeEntry] = useState(false);
 
@@ -109,16 +116,16 @@ export default function JobManagementPage({ onCreateNewJob, isCustomer = false }
   const fetchJobData = async () => {
     console.log('Fetching job data...');
     try {
-
-
-      // Fetch jobs and time entries
+      // Fetch jobs, customers, and time entries
       console.log('Fetching jobs...');
-      const [jobs, timeEntries] = await Promise.all([
+      const [jobs, customers, timeEntries] = await Promise.all([
         api.get(isCustomer ? '/jobs/customer' : '/jobs'),
+        api.get('/customers'),
         api.get(isCustomer ? '/time-entries/customer' : '/time-entries')
       ]);
       
       setJobs(jobs || []);
+      setCustomers(customers || []);
       setTimeEntries(timeEntries || []);
     } catch (error) {
       console.error('Error fetching job data:', error);
@@ -155,8 +162,8 @@ export default function JobManagementPage({ onCreateNewJob, isCustomer = false }
       }
       await api.put(`/jobs/${selectedJob?.id}`, jobData);
       await fetchJobData(); // Refresh the data
-      setShowEditJob(false);
-      setSelectedJob(null);
+      // Don't close the modal - let the JobDetailModal handle it
+      console.log('Job updated successfully');
     } catch (error) {
       console.error('Error updating job:', error);
       throw error;
@@ -264,6 +271,14 @@ export default function JobManagementPage({ onCreateNewJob, isCustomer = false }
     if (percentage >= 50) return 'bg-blue-500';
     if (percentage >= 25) return 'bg-yellow-500';
     return 'bg-gray-300';
+  };
+
+  const getCustomerName = (customerId: number) => {
+    const customer = customers.find(c => c.id === customerId);
+    if (customer) {
+      return customer.name || customer.company || `Customer #${customerId}`;
+    }
+    return `Customer #${customerId}`;
   };
 
   const getStatusIcon = (status: string) => {
@@ -409,8 +424,11 @@ export default function JobManagementPage({ onCreateNewJob, isCustomer = false }
                   <div className="flex-1">
                     <h3 className="text-lg font-medium text-gray-900 mb-2">{job.title}</h3>
                     <p className="text-sm text-gray-600 line-clamp-2">{job.description}</p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      <span className="font-medium">Customer:</span> {getCustomerName(job.customer_id)}
+                    </p>
                     {job.business_name && (
-                      <p className="text-sm text-gray-500 mt-1">
+                      <p className="text-sm text-gray-500">
                         <span className="font-medium">Business:</span> {job.business_name}
                       </p>
                     )}
@@ -510,7 +528,7 @@ export default function JobManagementPage({ onCreateNewJob, isCustomer = false }
                       if (isCustomer) {
                         setShowJobDetail(true);
                       } else {
-                        setShowEditJob(true);
+                        setShowJobDetail(true);
                       }
                     }}
                     className="w-full text-center text-blue-600 hover:text-blue-800 text-sm font-medium block"
@@ -676,7 +694,7 @@ export default function JobManagementPage({ onCreateNewJob, isCustomer = false }
                                             <button 
                         onClick={() => {
                           setSelectedJob(job);
-                          setShowEditJob(true);
+                          setShowJobDetail(true);
                         }}
                         className="text-cyan-600 hover:text-cyan-800 font-medium"
                       >
@@ -684,7 +702,7 @@ export default function JobManagementPage({ onCreateNewJob, isCustomer = false }
                       </button>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      Customer #{job.customer_id}
+                      {getCustomerName(job.customer_id)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(job.status)}`}>
@@ -715,7 +733,7 @@ export default function JobManagementPage({ onCreateNewJob, isCustomer = false }
                                               <button 
                         onClick={() => {
                           setSelectedJob(job);
-                          setShowEditJob(true);
+                          setShowJobDetail(true);
                         }}
                         className="inline-flex items-center px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
                       >
@@ -724,12 +742,12 @@ export default function JobManagementPage({ onCreateNewJob, isCustomer = false }
                         <button 
                           onClick={() => {
                             setSelectedJob(job);
-                            setShowEditJob(true);
+                            setShowJobDetail(true);
                           }}
                           className="inline-flex items-center px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
                         >
-                          <Edit3 className="h-3 w-3 mr-1" />
-                          Edit
+                          <FileText className="h-3 w-3 mr-1" />
+                          View
                         </button>
                         <button 
                           onClick={() => {
@@ -830,17 +848,6 @@ export default function JobManagementPage({ onCreateNewJob, isCustomer = false }
         isOpen={showCreateJob}
         onClose={() => setShowCreateJob(false)}
         onSave={createJob}
-      />
-
-      {/* Edit Job Modal */}
-      <EditJobModal
-        isOpen={showEditJob}
-        onClose={() => {
-          setShowEditJob(false);
-          setSelectedJob(null);
-        }}
-        onSave={updateJob}
-        job={selectedJob}
       />
 
       {/* Job Detail Modal */}

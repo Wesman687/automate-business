@@ -197,5 +197,78 @@ class EmailService:
             attachments=attachments
         )
 
+    async def send_verification_email(self, to_email: str, customer_name: str, verification_code: str):
+        """Send email verification code to customer"""
+        subject = "Verify Your StreamlineAI Account"
+        
+        # Plain text version
+        body = f"""
+Hello {customer_name},
+
+Thank you for creating your StreamlineAI account! To complete your registration, please use the following verification code:
+
+{verification_code}
+
+This code will expire in 24 hours.
+
+If you didn't create this account, please ignore this email.
+
+Best regards,
+The StreamlineAI Team
+        """
+        
+        # HTML version
+        html_body = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Your StreamlineAI Account</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+        .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }}
+        .content {{ background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }}
+        .verification-code {{ background: #667eea; color: white; padding: 20px; text-align: center; font-size: 24px; font-weight: bold; border-radius: 8px; margin: 20px 0; letter-spacing: 3px; }}
+        .footer {{ text-align: center; margin-top: 30px; color: #666; font-size: 14px; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚡ StreamlineAI</h1>
+            <p>Account Verification</p>
+        </div>
+        <div class="content">
+            <h2>Hello {customer_name},</h2>
+            <p>Thank you for creating your StreamlineAI account! To complete your registration, please use the following verification code:</p>
+            
+            <div class="verification-code">
+                {verification_code}
+            </div>
+            
+            <p><strong>This code will expire in 24 hours.</strong></p>
+            
+            <p>If you didn't create this account, please ignore this email.</p>
+            
+            <p>Best regards,<br>The StreamlineAI Team</p>
+        </div>
+        <div class="footer">
+            <p>© 2025 StreamlineAI. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
+        """
+        
+        return self.send_email(
+            from_account='no-reply',
+            to_emails=[to_email],
+            subject=subject,
+            body=body,
+            html_body=html_body
+        )
+
 # Global email service instance
 email_service = EmailService()

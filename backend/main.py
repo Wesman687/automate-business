@@ -19,6 +19,7 @@ from api.time_entries import router as time_entries_router
 from api.change_requests import router as change_requests_router
 from api.admin_overview import router as admin_overview_router
 from api.file_upload import router as file_upload_router
+from api.ai import router as ai_router
 from api.auth import get_current_user
 import logging
 import os
@@ -207,6 +208,7 @@ app.include_router(change_requests_router, prefix="/api")
 app.include_router(admin_overview_router, prefix="/api")
 app.include_router(file_upload_router, prefix="/api")
 app.include_router(users_router, prefix="/api")
+app.include_router(ai_router, prefix="/api/ai")
 
 
 @app.get("/api/health")

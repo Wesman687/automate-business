@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query, File, UploadFile, Form
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
@@ -746,3 +746,102 @@ async def update_session_seen_status(
         print(f"❌ Error updating session seen status: {str(e)}")
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error updating session seen status: {str(e)}")
+
+# Customer Signup and Email Verification Endpoints
+@router.post("/customers/signup")
+async def customer_signup(
+    customer_data: CustomerCreate,
+    db: Session = Depends(get_db)
+):
+    """Create a new customer account and send verification email"""
+    try:
+        customer_service = CustomerService(db)
+        
+        # Check if customer already exists
+        existing_customer = customer_service.get_customer_by_email(customer_data.email)
+        if existing_customer:
+            if existing_customer.is_authenticated:
+                raise HTTPException(status_code=400, detail="Customer already exists and is authenticated")
+            else:
+                # Customer exists but not verified - resend verification
+                pass
+        
+        # Create customer account
+        customer = customer_service.create_customer(customer_data)
+        
+        # Generate verification code (6 digits)
+        import random
+        verification_code = str(random.randint(100000, 999999))
+        
+        # Store verification code in customer record (you might want to add a field for this)
+        # For now, we'll store it in a temporary way
+        customer.verification_code = verification_code
+        customer.verification_expires = datetime.utcnow() + timedelta(hours=24)
+        db.commit()
+        
+        # Send verification email
+        try:
+            await email_service.send_verification_email(
+                to_email=customer.email,
+                customer_name=customer.name or "Customer",
+                verification_code=verification_code
+            )
+        except Exception as email_error:
+            print(f"⚠️ Warning: Failed to send verification email: {email_error}")
+            # Don't fail the signup if email fails
+        
+        return {
+            "message": "Account created successfully. Please check your email for verification code.",
+            "customer_id": customer.id,
+            "email": customer.email
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error creating customer account: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to create account: {str(e)}")
+
+@router.post("/customers/verify-email")
+async def verify_customer_email(
+    email: str,
+    verification_code: str,
+    db: Session = Depends(get_db)
+):
+    """Verify customer email with verification code"""
+    try:
+        customer_service = CustomerService(db)
+        customer = customer_service.get_customer_by_email(email)
+        
+        if not customer:
+            raise HTTPException(status_code=404, detail="Customer not found")
+        
+        if customer.is_authenticated:
+            raise HTTPException(status_code=400, detail="Email already verified")
+        
+        # Check verification code
+        if not hasattr(customer, 'verification_code') or customer.verification_code != verification_code:
+            raise HTTPException(status_code=400, detail="Invalid verification code")
+        
+        # Check if code is expired
+        if hasattr(customer, 'verification_expires') and customer.verification_expires < datetime.utcnow():
+            raise HTTPException(status_code=400, detail="Verification code expired")
+        
+        # Mark email as verified
+        customer.is_authenticated = True
+        customer.email_verified = True
+        customer.verification_code = None
+        customer.verification_expires = None
+        db.commit()
+        
+        return {
+            "message": "Email verified successfully",
+            "customer_id": customer.id,
+            "email": customer.email
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error verifying email: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to verify email: {str(e)}")

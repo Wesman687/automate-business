@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Building2, Palette, Globe, Github, Calendar, Clock, DollarSign, Target, Users, FileText, ExternalLink, CheckCircle, AlertCircle, FolderOpen, Edit3, Save, ArrowLeft, Plus } from 'lucide-react';
 import { api } from '@/lib/https';
+import FileManagementModal from './FileManagementModal';
 
 interface JobDetailData {
   // Basic Job Info
@@ -130,6 +131,8 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [visibleApiKeys, setVisibleApiKeys] = useState<Set<number>>(new Set());
+  const [showFileManagementModal, setShowFileManagementModal] = useState(false);
+  const [selectedFileType, setSelectedFileType] = useState<'logo' | 'project' | 'reference' | null>(null);
 
   if (!isOpen || !job) return null;
 
@@ -183,6 +186,11 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
       case 'urgent': return 'bg-red-500/20 text-red-400 border-red-500/30';
       default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
     }
+  };
+
+  const openFileManagement = (fileType: 'logo' | 'project' | 'reference') => {
+    setSelectedFileType(fileType);
+    setShowFileManagementModal(true);
   };
 
   const handleSave = async () => {
@@ -324,6 +332,7 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
         formData.append('upload_type', type);
         formData.append('description', `${type} file for job: ${job.title}`);
         formData.append('job_id', job.id.toString());
+        formData.append('folder', type); // Add folder information (logo, project, reference)
         
         // Use the customer-specific file upload endpoint
         const response = await api.post('/file-upload/customer/upload', formData);
@@ -1161,43 +1170,43 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
                 <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700/50 text-center">
                   <div className="text-3xl mb-2">🎨</div>
                   <div className="text-white font-medium text-lg">Logo Files</div>
-                  <div className="text-gray-400 text-sm mb-3">{job.logo_files?.length || 0} uploaded</div>
-                  {isEditing && (
-                    <button
-                      onClick={() => setShowFileManager('logo')}
-                      className="text-sm text-electric-blue hover:text-electric-blue/80"
-                    >
-                      Manage Files
-                    </button>
-                  )}
+                                  <div className="text-gray-400 text-sm mb-3">
+                  {jobFiles.filter(file => file.folder === 'documents/logo').length} uploaded
+                </div>
+                  <button
+                    onClick={() => openFileManagement('logo')}
+                    className="text-sm text-electric-blue hover:text-electric-blue/80"
+                  >
+                    Manage Files
+                  </button>
                 </div>
                 
                 <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700/50 text-center">
                   <div className="text-3xl mb-2">📁</div>
                   <div className="text-white font-medium text-lg">Project Files</div>
-                  <div className="text-gray-400 text-sm mb-3">{job.project_files?.length || 0} uploaded</div>
-                  {isEditing && (
-                    <button
-                      onClick={() => setShowFileManager('project')}
-                      className="text-sm text-electric-blue hover:text-electric-blue/80"
-                    >
-                      Manage Files
-                    </button>
-                  )}
+                                  <div className="text-gray-400 text-sm mb-3">
+                  {jobFiles.filter(file => file.folder === 'documents/project').length} uploaded
+                </div>
+                  <button
+                    onClick={() => openFileManagement('project')}
+                    className="text-sm text-electric-blue hover:text-electric-blue/80"
+                  >
+                    Manage Files
+                  </button>
                 </div>
                 
                 <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700/50 text-center">
                   <div className="text-3xl mb-2">📚</div>
                   <div className="text-white font-medium text-lg">Reference Files</div>
-                  <div className="text-gray-400 text-sm mb-3">{job.reference_files?.length || 0} uploaded</div>
-                  {isEditing && (
-                    <button
-                      onClick={() => setShowFileManager('reference')}
-                      className="text-sm text-electric-blue hover:text-electric-blue/80"
-                    >
-                      Manage Files
-                    </button>
-                  )}
+                                  <div className="text-gray-400 text-sm mb-3">
+                  {jobFiles.filter(file => file.folder === 'documents/reference').length} uploaded
+                </div>
+                  <button
+                    onClick={() => openFileManagement('reference')}
+                    className="text-sm text-electric-blue hover:text-electric-blue/80"
+                  >
+                    Manage Files
+                  </button>
                 </div>
               </div>
 
@@ -1893,6 +1902,18 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
           )}
         </div>
       </div>
+
+      {/* File Management Modal */}
+      <FileManagementModal
+        isOpen={showFileManagementModal}
+        onClose={() => {
+          setShowFileManagementModal(false);
+          setSelectedFileType(null);
+        }}
+        jobId={job?.id}
+        title={`${selectedFileType ? selectedFileType.charAt(0).toUpperCase() + selectedFileType.slice(1) : ''} Files`}
+        defaultFolder={selectedFileType || undefined}
+      />
     </div>
   );
 }

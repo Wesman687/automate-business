@@ -11,6 +11,8 @@ import JobManagementPage from '@/components/JobManagementPage';
 import ErrorModal from '@/components/ErrorModal';
 import DeleteModal from '@/components/DeleteModal';
 import SuccessModal from '@/components/SuccessModal';
+import FileManagementModal from '@/components/FileManagementModal';
+import JobDetailModal from '@/components/JobDetailModal';
 import { 
   Plus, 
   FileText, 
@@ -115,6 +117,11 @@ export default function CustomerDashboard() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [showFileManagementModal, setShowFileManagementModal] = useState(false);
+  const [loadingJobs, setLoadingJobs] = useState(false);
+  const [activeJobsTab, setActiveJobsTab] = useState<'view' | 'create'>('view');
+  const [selectedJob, setSelectedJob] = useState<any>(null);
+  const [showJobDetailModal, setShowJobDetailModal] = useState(false);
   const [stats, setStats] = useState({
     totalFiles: 0,
     totalJobs: 0,
@@ -127,9 +134,18 @@ export default function CustomerDashboard() {
       fetchRecentFiles();
       fetchJobs();
       fetchAppointments();
-      fetchStats();
+      fetchStats(); // Keep this for files count
     }
   }, [user]);
+
+  // Auto-switch tabs based on job availability
+  useEffect(() => {
+    if (jobs.length === 0 && activeJobsTab === 'view') {
+      setActiveJobsTab('create');
+    } else if (jobs.length > 0 && activeJobsTab === 'create') {
+      setActiveJobsTab('view');
+    }
+  }, [jobs.length, activeJobsTab]);
 
   const fetchCustomerData = async () => {
     try {
@@ -152,10 +168,57 @@ export default function CustomerDashboard() {
 
   const fetchJobs = async () => {
     try {
-      const response = await api.get('/jobs/customer');
-      setJobs(response.jobs || []);
-    } catch (error) {
-      console.error('Error fetching jobs:', error);
+      setLoadingJobs(true);
+      console.log('🔍 Fetching jobs from /jobs/customer...');
+      console.log('👤 Current user:', user);
+      console.log('👤 User ID:', user?.user_id);
+      console.log('👤 User type:', user?.user_type);
+      console.log('🔑 Auth token exists:', !!localStorage.getItem('auth_token') || !!localStorage.getItem('customer_token'));
+      
+
+      
+      // Try the customer-specific endpoint first
+      let response;
+      try {
+        response = await api.get('/jobs/customer');
+        console.log('✅ Customer jobs endpoint worked');
+      } catch (customerError: any) {
+        console.log('❌ Customer jobs endpoint failed:', customerError?.message);
+        // Fallback: try to get jobs with customer_id filter
+        try {
+          console.log('🔄 Trying fallback: /jobs?customer_id=' + user?.user_id);
+          response = await api.get(`/jobs?customer_id=${user?.user_id}`);
+          console.log('✅ Fallback endpoint worked');
+        } catch (fallbackError: any) {
+          console.log('❌ Fallback endpoint also failed:', fallbackError?.message);
+          throw customerError; // Throw the original error
+        }
+      }
+      console.log('📋 Jobs response:', response);
+      
+      // Check if response has jobs property or if it's directly an array
+      const jobsData = response.jobs || response || [];
+      console.log('📊 Jobs data:', jobsData);
+      
+      setJobs(jobsData);
+      console.log('✅ Jobs set in state:', jobsData);
+      
+      // Update stats with the new jobs data
+      setStats(prevStats => ({
+        ...prevStats,
+        totalJobs: jobsData.length,
+        activeProjects: jobsData.filter((j: any) => j.status === 'active').length || 0
+      }));
+    } catch (error: any) {
+      console.error('❌ Error fetching jobs:', error);
+      console.error('❌ Error details:', {
+        message: error?.message || 'Unknown error',
+        status: error?.status || 'No status',
+        response: error?.response || 'No response'
+      });
+      setJobs([]);
+    } finally {
+      setLoadingJobs(false);
     }
   };
 
@@ -170,14 +233,13 @@ export default function CustomerDashboard() {
 
   const fetchStats = async () => {
     try {
-      // Fetch stats from various endpoints
+      // Fetch files count and use current jobs data from state
       const filesResponse = await api.get('/file-upload/files');
-      const jobsResponse = await api.get('/jobs/customer');
       
       setStats({
         totalFiles: filesResponse.files?.length || 0,
-        totalJobs: jobsResponse.jobs?.length || 0,
-        activeProjects: jobsResponse.jobs?.filter((j: any) => j.status === 'active').length || 0
+        totalJobs: jobs.length, // Use the jobs from state instead of re-fetching
+        activeProjects: jobs.filter((j: any) => j.status === 'active').length || 0
       });
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -256,7 +318,14 @@ export default function CustomerDashboard() {
   };
 
   const handleViewJobs = () => {
+    // Open the jobs modal instead of navigating away
     setShowJobsModal(true);
+  };
+
+  const handleViewJob = (job: any) => {
+    // Open the existing job detail modal with the selected job
+    setSelectedJob(job);
+    setShowJobDetailModal(true);
   };
 
   const editAppointment = (appointment: Appointment) => {
@@ -462,55 +531,98 @@ export default function CustomerDashboard() {
               <p className="text-white/90 text-sm">Begin a new automation project</p>
             </button>
 
-            <button 
-              onClick={handleViewJobs}
-              className="group p-6 bg-gradient-to-br from-red-500 to-red-600 rounded-xl text-white hover:from-red-600 hover:to-red-700 transform hover:scale-105 transition-all duration-200 font-semibold"
-            >
+            <div className="group p-6 bg-gradient-to-br from-red-500 to-red-600 rounded-xl text-white hover:from-red-600 hover:to-red-700 transform hover:scale-105 transition-all duration-200 font-semibold">
               <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mb-4 group-hover:bg-white/30 transition-colors">
                 <Eye className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-semibold mb-2">View Jobs</h3>
-              <p className="text-red-100 text-sm">Check current job status</p>
-            </button>
-
-                              <button 
-                    onClick={() => {
-                      // Open file upload functionality
-                      const input = document.createElement('input');
-                      input.type = 'file';
-                      input.multiple = true;
-                      input.accept = '*/*';
-                      input.onchange = async (e) => {
-                        const files = (e.target as HTMLInputElement).files;
-                        if (files) {
-                          try {
-                            console.log('Files selected:', files);
-                                              // Upload each file
-                  for (let i = 0; i < files.length; i++) {
-                    const file = files[i];
-                    const formData = new FormData();
-                    formData.append('file', file);
-                    formData.append('upload_type', 'project_file');
-                    
-                    const result = await api.post('/file-upload/upload', formData);
-                    console.log('File upload result:', result);
-                  }
-                  
-                  // Refresh files list
-                  await fetchRecentFiles();
-                  setErrorMessage("Files uploaded successfully!");
-                  setShowErrorModal(true);
-                          } catch (error) {
-                            console.error('Error uploading files:', error);
-                            setErrorMessage('Error uploading files. Please try again.');
-                            setShowErrorModal(true);
-                          }
-                        }
-                      };
-                      input.click();
-                    }}
-                    className="group p-6 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl text-white hover:from-purple-600 hover:to-purple-700 transform hover:scale-105 transition-all duration-200 font-semibold w-full text-left"
+              <h3 className="text-lg font-semibold mb-2">Jobs</h3>
+              
+              {/* Jobs Tabs */}
+              <div className="flex space-x-1 mb-4">
+                {jobs.length > 0 && (
+                  <button
+                    onClick={() => setActiveJobsTab('view')}
+                    className={`px-3 py-1 text-xs rounded transition-colors ${
+                      activeJobsTab === 'view' 
+                        ? 'bg-white/30 text-white' 
+                        : 'bg-white/10 text-red-100 hover:bg-white/20'
+                    }`}
                   >
+                    View ({jobs.length})
+                  </button>
+                )}
+                <button
+                  onClick={() => setActiveJobsTab('create')}
+                  className={`px-3 py-1 text-xs rounded transition-colors ${
+                    activeJobsTab === 'create' 
+                      ? 'bg-white/30 text-white' 
+                      : 'bg-white/10 text-red-100 hover:bg-white/20'
+                  }`}
+                >
+                  Create
+                </button>
+              </div>
+              
+              {/* Jobs Content */}
+              {activeJobsTab === 'view' && jobs.length > 0 ? (
+                <div className="space-y-2">
+                  {loadingJobs ? (
+                    <div className="text-center py-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mx-auto"></div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-32 overflow-y-auto">
+                      {jobs.slice(0, 3).map((job: any) => (
+                        <div
+                          key={job.id}
+                          onClick={() => handleViewJob(job)}
+                          className="bg-white/10 rounded-lg p-2 text-xs cursor-pointer hover:bg-white/20 transition-colors"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-white truncate">
+                                {job.title || job.job_name || `Job #${job.id}`}
+                              </p>
+                              <p className="text-red-200">
+                                {job.status || 'pending'} • {new Date(job.created_at || job.created_date).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric'
+                                })}
+                              </p>
+                            </div>
+                            <span className="text-red-300">→</span>
+                          </div>
+                        </div>
+                      ))}
+                      {jobs.length > 3 && (
+                        <p className="text-red-200 text-xs text-center">
+                          +{jobs.length - 3} more jobs
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  
+                  <button
+                    onClick={handleViewJobs}
+                    className="w-full mt-3 bg-white/20 hover:bg-white/30 text-white px-3 py-2 rounded-lg transition-colors font-medium text-xs"
+                  >
+                    View All Jobs
+                  </button>
+                </div>
+              ) : (
+                <div className="text-center">
+                  <p className="text-red-100 text-sm mb-3">Start a new automation project</p>
+                  <button
+                    onClick={() => setShowJobSetup(true)}
+                    className="w-full bg-white/20 hover:bg-white/30 text-white px-3 py-2 rounded-lg transition-colors font-medium text-xs"
+                  >
+                    Create New Job
+                  </button>
+                </div>
+              )}
+            </div>
+
+                              <div className="group p-6 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl text-white hover:from-purple-600 hover:to-purple-700 transform hover:scale-105 transition-all duration-200 font-semibold w-full text-left">
                     <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mb-4 group-hover:bg-white/30 transition-colors">
                       <Upload className="w-6 h-6" />
                     </div>
@@ -548,10 +660,63 @@ export default function CustomerDashboard() {
                     )}
                     
                     {/* Upload Button */}
-                    <div className="w-full bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-colors font-medium text-sm text-center">
+                    <button
+                      onClick={() => {
+                        // Open file upload functionality
+                        const input = document.createElement('input');
+                        input.type = 'file';
+                        input.multiple = true;
+                        input.accept = '*/*';
+                        input.onchange = async (e) => {
+                          const files = (e.target as HTMLInputElement).files;
+                          if (files) {
+                            try {
+                              console.log('Files selected:', files);
+                              // Upload each file
+                              for (let i = 0; i < files.length; i++) {
+                                const file = files[i];
+                                const formData = new FormData();
+                                formData.append('file', file);
+                                formData.append('upload_type', 'project_file');
+                                
+                                const result = await api.post('/file-upload/upload', formData);
+                                console.log('File upload result:', result);
+                              }
+                              
+                              // Refresh files list
+                              await fetchRecentFiles();
+                              setSuccessMessage("Files uploaded successfully!");
+                              setShowSuccessModal(true);
+                            } catch (error) {
+                              console.error('Error uploading files:', error);
+                              setErrorMessage('Error uploading files. Please try again.');
+                              setShowErrorModal(true);
+                            }
+                          }
+                        };
+                        input.click();
+                      }}
+                      className="w-full bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-colors font-medium text-sm text-center"
+                    >
                       {recentFiles.length > 0 ? 'Upload More Files' : 'Upload Your First File'}
-                    </div>
-                  </button>
+                    </button>
+                    
+                    {/* Manage Files Button - Only show if there are files */}
+                    {recentFiles.length > 0 && (
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setShowFileManagementModal(true);
+                        }}
+                        className="w-full mt-3 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors font-medium text-sm"
+                      >
+                        📁 Manage Files ({recentFiles.length})
+                      </button>
+                    )}
+                  </div>
+
+
 
             <button className="group p-6 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl text-white hover:from-orange-600 hover:to-orange-700 transform hover:scale-105 transition-all duration-200 font-semibold">
               <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mb-4 group-hover:bg-white/30 transition-colors">
@@ -1019,6 +1184,31 @@ export default function CustomerDashboard() {
           onClose={() => setShowErrorModal(false)}
           title="Error"
           message={errorMessage}
+        />
+      )}
+
+      {/* File Management Modal */}
+      <FileManagementModal
+        isOpen={showFileManagementModal}
+        onClose={() => setShowFileManagementModal(false)}
+        userId={user?.user_id}
+        title="Your Files"
+      />
+
+      {/* Job Detail Modal */}
+      {selectedJob && (
+        <JobDetailModal
+          isOpen={showJobDetailModal}
+          onClose={() => {
+            setShowJobDetailModal(false);
+            setSelectedJob(null);
+          }}
+          job={selectedJob}
+          isCustomer={true}
+          onSave={async (updatedJob) => {
+            // Refresh jobs after save
+            await fetchJobs();
+          }}
         />
       )}
     </div>

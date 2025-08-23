@@ -36,7 +36,7 @@ export default function AppointmentsPage() {
 
   const fetchAppointments = async () => {
     try {
-      const response = await api.get('/api/appointments');
+      const response = await api.get('/appointments');
 
       if (response.ok) {
         const data = await response.json();
@@ -55,7 +55,7 @@ export default function AppointmentsPage() {
     if (!confirm('Are you sure you want to delete this appointment?')) return;
 
     try {
-        const response = await api.del(`/api/appointments/${id}`);
+        const response = await api.del(`/appointments/${id}`);
 
       if (response.ok) {
         setAppointments(appointments.filter(apt => apt.id !== id));

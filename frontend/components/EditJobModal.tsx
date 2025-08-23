@@ -114,8 +114,8 @@ export default function EditJobModal({ isOpen, onClose, onSave, job }: EditJobMo
 
   const fetchCustomers = async () => {
     try {
-      console.log('Fetching customers...');
-      const data = await api.get('/api/customers');
+      console.log('Fetching customers...');   
+      const data = await api.get('/customers');
       console.log('Customers received:', data);
       setCustomers(data);
     } catch (error) {
@@ -642,7 +642,7 @@ Additional Context: ${aiPrompt}
 
 Please create specific milestones with due dates and deliverables that would help complete this project successfully.`;
 
-                          const response = await fetch('/api/ai/generate-plan', {
+                          const response = await fetch('/ai/generate-plan', {
                             method: 'POST',
                             headers: {
                               'Authorization': `Bearer ${token}`,
@@ -869,7 +869,7 @@ Please analyze the project complexity and provide realistic estimates for:
 
 Return only a JSON object with these fields: estimated_hours, recommended_hourly_rate, fixed_price_estimate, breakdown_notes`;
 
-                        const response = await fetch('/api/ai/generate-plan', {
+                        const response = await fetch('/ai/generate-plan', {
                           method: 'POST',
                           headers: {
                             'Authorization': `Bearer ${token}`,

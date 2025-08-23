@@ -39,10 +39,10 @@ export default function CreateInvoiceModal({ isOpen, onClose, onSave }: CreateIn
     }
   }, [isOpen]);
 
-  const fetchCustomers = async () => {
+  const fetchCustomers = async () => {  
     try {
       const token = localStorage.getItem('admin_token');
-      const response = await fetch('/api/customers', {
+      const response = await fetch('/customers', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

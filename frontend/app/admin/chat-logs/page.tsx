@@ -46,7 +46,7 @@ export default function ChatLogs() {
 
   const fetchChatLogs = async () => {
     try {
-      const data = await api.get('/api/sessions');
+      const data = await api.get('/sessions');
       setSessions(data);
     } catch (error) {
       console.error('Error fetching chat logs:', error);
@@ -74,7 +74,7 @@ export default function ChatLogs() {
     if (!confirmModal.sessionId) return;
     
     try {
-      await api.del(`/api/sessions/${confirmModal.sessionId}`);
+      await api.del(`/sessions/${confirmModal.sessionId}`);
       setSessions(sessions.filter(s => s.session_id !== confirmModal.sessionId));
       setErrorModal({
         isOpen: true,
@@ -97,7 +97,7 @@ export default function ChatLogs() {
 
   const toggleSeenStatus = async (sessionId: string, currentSeen: boolean) => {
     try {
-      await api.patch(`/api/sessions/${sessionId}/seen`, { is_seen: true })
+      await api.patch(`/sessions/${sessionId}/seen`, { is_seen: true })
 
       setSessions(sessions.map(s => 
         s.session_id === sessionId 

@@ -130,7 +130,7 @@ export default function AppointmentModal({ isOpen, onClose, onSave, appointment 
 
   const fetchCustomers = async () => {
     try {
-      const response = await fetch('/api/customers', {
+      const response = await fetch('/customers', {
         credentials: 'include'
       });
 
@@ -157,7 +157,7 @@ export default function AppointmentModal({ isOpen, onClose, onSave, appointment 
         params.append('preferred_date', preferredDate);
       }
 
-      const response = await fetch(`/api/appointments/smart-slots?${params}`, {
+      const response = await fetch(`/appointments/smart-slots?${params}`, {
         credentials: 'include'
       });
 
@@ -230,7 +230,7 @@ export default function AppointmentModal({ isOpen, onClose, onSave, appointment 
         appointment_time: selectedTime
       };
 
-      const url = appointment ? `/api/appointments/${appointment.id}` : '/api/appointments';
+      const url = appointment ? `/appointments/${appointment.id}` : '/appointments';
       const method = appointment ? 'PUT' : 'POST';
       
       // Add force parameter for conflict override

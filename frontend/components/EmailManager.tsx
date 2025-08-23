@@ -106,7 +106,7 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
   const fetchEmailAccounts = async () => {
     try {
       // Use api utility - automatically routes to production server
-      const data = await api.get('/api/email/accounts');
+      const data = await api.get('/email/accounts');
       
       console.log('🔧 Email accounts from server:', data);
       
@@ -132,7 +132,7 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
       setLoading(true);
       
       // Use api utility - automatically routes to production server
-      const data = await api.get('/api/email/all');
+      const data = await api.get('/email/all');
       const emailList = data.emails || [];
       setEmails(emailList);
       
@@ -168,7 +168,7 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
       setPreloadingEmails(prev => new Set(prev).add(emailId));
       
       // Use api utility - automatically routes to production server
-      const emailDetails = await api.get(`/api/email/${emailId}`);
+      const emailDetails = await api.get(`/email/${emailId}`);
       
       // Cache the email body
       setEmailBodies(prev => new Map(prev).set(emailId, emailDetails.body || ''));
@@ -193,7 +193,7 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
     setRefreshing(true);
     try {
       // Fetch only new emails (since last refresh)
-      const data = await api.get('/api/email/all');
+      const data = await api.get('/email/all');
       const newEmailList = data.emails || [];
       
       // Update emails list
@@ -254,7 +254,7 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
 
       // If not cached at all, fetch and cache it
       console.log(`📧 Fetching email body for ${email.id} (not cached)`);
-      const emailDetails = await api.get(`/api/email/${email.id}`);
+      const emailDetails = await api.get(`/email/${email.id}`);
       
       // Cache both the email body and full email object
       setEmailBodies(prev => new Map(prev).set(email.id, emailDetails.body || ''));
@@ -279,7 +279,7 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
   const markAsRead = async (emailId: string) => {
     try {
       // Use api utility - automatically routes to production server
-      await api.post(`/api/email/${emailId}/mark-read`, {});
+      await api.post(`/email/${emailId}/mark-read`, {});
 
       // Update local state immediately for better UX
       setEmails(prev => prev.map(email => 
@@ -299,7 +299,7 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
   const markAsUnread = async (emailId: string) => {
     try {
       // Use api utility - automatically routes to production server
-      await api.post(`/api/email/${emailId}/mark-unread`, {});
+      await api.post(`/email/${emailId}/mark-unread`, {});
 
       // Update local state immediately for better UX
       setEmails(prev => prev.map(email => 
@@ -323,7 +323,7 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
 
     try {
       // Use api utility - automatically routes to production server
-      await api.del(`/api/email/${emailId}`);
+      await api.del(`/email/${emailId}`);
 
       // Remove from local state
       setEmails(prev => prev.filter(email => email.id !== emailId));
@@ -390,7 +390,7 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
         body: composeData.body,
         from_account: composeData.from_account
       };
-      await api.post('/api/email/send', emailData);
+      await api.post('/email/send', emailData);
 
       // Reset compose form
       setComposeData({
@@ -428,7 +428,7 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
       setAddingAccount(true);
       
       // Use api utility - automatically routes to production server
-      await api.post('/api/email/accounts', newAccountData);
+      await api.post('/email/accounts', newAccountData);
 
       // Reset form
       setNewAccountData({

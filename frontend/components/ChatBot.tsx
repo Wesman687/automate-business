@@ -242,9 +242,8 @@ export default function ChatBot() {
 
   const sendToAI = async (message: string) => {
     setIsTyping(true)
-    
     try {
-      const response = await api.post(`/api/chat`, {
+      const response = await api.post(`/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -298,7 +297,7 @@ export default function ChatBot() {
 
     try {
       // First, check if this customer already exists
-      const checkResponse = await api.post(`/api/check-customer`, { email: customerInfo.email })
+      const checkResponse = await api.post(`/check-customer`, { email: customerInfo.email })
 
       if (checkResponse.ok) {
         const checkData = await checkResponse.json()
@@ -320,7 +319,7 @@ export default function ChatBot() {
       }
 
       // New customer - proceed normally but schedule appointment automatically
-      const response = await api.post(`/api/save-customer`, {
+      const response = await api.post(`/save-customer`, {
           email: customerInfo.email,
           name: customerInfo.name,
           company: customerInfo.company,
@@ -332,7 +331,7 @@ export default function ChatBot() {
         const customerData = await response.json()
         
         // Automatically schedule an appointment
-        const appointmentResponse = await api.post(`/api/schedule-appointment`, {
+        const appointmentResponse = await api.post(`/schedule-appointment`, {
             customer_id: customerData.customer_id,
             session_id: sessionId,
         })
@@ -387,7 +386,7 @@ To make our call as helpful as possible, could you tell me more about:
 
   const generateProposal = async () => {
     try {
-      const response = await api.post(`/api/generate-proposal`, {
+      const response = await api.post(`/generate-proposal`, {
         session_id: sessionId,
       })
 
@@ -418,7 +417,7 @@ To make our call as helpful as possible, could you tell me more about:
       formData.append('customer_email', customerInfo.email)
       formData.append('description', `File uploaded during chat: ${file.name}`)
 
-      const response = await api.post(`/api/upload-file`, formData)
+      const response = await api.post(`/upload-file`, formData)
 
       if (response.ok) {
         const data = await response.json()
@@ -454,7 +453,7 @@ To make our call as helpful as possible, could you tell me more about:
   const handleAuthentication = async () => {
     try {
       if (authMode === 'login') {
-          const response = await api.post(`/api/customer-login`, {
+          const response = await api.post(`/customer-login`, {
             email: authCredentials.email,
             password: authCredentials.password,
         })
@@ -471,7 +470,7 @@ To make our call as helpful as possible, could you tell me more about:
           alert('Invalid credentials. Please try again.')
         }
       } else if (authMode === 'register') {
-        const response = await api.post(`/api/customer-set-password`, {
+        const response = await api.post(`/customer-set-password`, {
             email: authCredentials.email,
             password: authCredentials.password,
         })
@@ -481,7 +480,7 @@ To make our call as helpful as possible, could you tell me more about:
           setShowAuthModal(false)
           
           // Get customer data and proceed
-          const customerResponse = await fetch(`${API_BASE_URL}/api/get-customer-by-email`, {
+          const customerResponse = await fetch(`${API_BASE_URL}/get-customer-by-email`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -500,7 +499,7 @@ To make our call as helpful as possible, could you tell me more about:
       } else if (authMode === 'reset') {
         if (!authCredentials.resetCode) {
           // Request reset code
-          const response = await api.post(`/api/request-password-reset`, {
+          const response = await api.post(`/request-password-reset`, {
             email: authCredentials.email,
           })
 
@@ -511,7 +510,7 @@ To make our call as helpful as possible, could you tell me more about:
           }
         } else {
           // Confirm reset with code
-          const response = await api.post(`/api/reset-password`, {
+          const response = await api.post(`/reset-password`, {
               email: authCredentials.email,
               reset_code: authCredentials.resetCode,
               new_password: authCredentials.password,
@@ -535,13 +534,13 @@ To make our call as helpful as possible, could you tell me more about:
     setShowInfoCapture(false)
     
     // Check if customer has previous projects/history
-    const historyResponse = await api.get(`/api/customer-history/${customer.id}`)
+      const historyResponse = await api.get(`/customer-history/${customer.id}`)
     
     if (historyResponse.ok) {
       const historyData = await historyResponse.json()
       
       // Automatically schedule appointment
-      const appointmentResponse = await api.post(`/api/schedule-appointment`, {
+      const appointmentResponse = await api.post(`/schedule-appointment`, {
           customer_id: customer.id,
           session_id: sessionId,
       })

@@ -101,11 +101,11 @@ export default function Dashboard() {
     try {
       const [overviewR, requestsR, appointmentsR, sessionsR, emailsR] =
         await Promise.allSettled([
-          api.get<any>('/api/overview'),
-          api.get<{ change_requests: ChangeRequest[] }>('/api/change-requests'),
-          api.get<Appointment[]>('/api/appointments?upcoming=true'),
-          api.get<ChatLog[]>('/api/sessions'),
-          api.get<{ emails: any[]; count?: number }>('/api/email/unread'),
+          api.get<any>('/overview'),
+          api.get<{ change_requests: ChangeRequest[] }>('/change-requests'),
+          api.get<Appointment[]>('/appointments?upcoming=true'),
+          api.get<ChatLog[]>('/sessions'),
+          api.get<{ emails: any[]; count?: number }>('/email/unread'),
         ]);
 
       // Overview / stats
@@ -174,7 +174,7 @@ export default function Dashboard() {
 
   const markChatLogAsSeen = async (sessionId: string) => {
     try {
-      await api.patch(`/api/sessions/${sessionId}/seen`, { is_seen: true });
+      await api.patch(`/sessions/${sessionId}/seen`, { is_seen: true });
       setChatLogs((prev) => prev.filter((l) => l.session_id !== sessionId));
       setStats((prev) => ({ ...prev, new_chat_logs: Math.max(0, prev.new_chat_logs - 1) }));
     } catch (e) {
@@ -184,7 +184,7 @@ export default function Dashboard() {
 
   const updateChangeRequestStatus = async (requestId: number, newStatus: string) => {
     try {
-      await api.put(`/api/change-requests/${requestId}`, { status: newStatus });
+      await api.put(`/change-requests/${requestId}`, { status: newStatus });
       setChangeRequests((prev) =>
         prev.map((r) => (r.id === requestId ? { ...r, status: newStatus as any } : r))
       );
@@ -200,7 +200,7 @@ export default function Dashboard() {
 
   const handleSaveRequest = async (updated: Partial<ChangeRequest>) => {
     try {
-      await api.put(`/api/change-requests/${updated.id}`, updated);
+      await api.put(`/change-requests/${updated.id}`, updated);
       setChangeRequests((prev) => prev.map((r) => (r.id === updated.id ? { ...r, ...updated } : r)));
     } catch (e) {
       console.error('Error saving change request:', e);

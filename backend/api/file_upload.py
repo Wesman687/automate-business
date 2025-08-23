@@ -333,6 +333,7 @@ async def customer_upload_file(
     upload_type: str = Form(...),
     description: Optional[str] = Form(None),
     job_id: Optional[int] = Form(None),
+    folder: Optional[str] = Form(None),
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
@@ -347,10 +348,12 @@ async def customer_upload_file(
         
         # Get customer email for file server
         customer_email = current_user.get('email')
-        
         # Determine folder structure for customer uploads
-        if job_id:
-            # Job-specific files go to /documents/{job_id}
+        if folder:
+            # Use the folder specified by the frontend (logo, project, reference)
+            folder = f"documents/{folder}"
+        elif job_id:
+            # Job-specific files without type go to /documents/{job_id}
             folder = f"documents/{job_id}"
         elif upload_type in ["logo", "project", "reference"]:
             # Job-related files without specific job_id go to main documents

@@ -47,7 +47,7 @@ export default function CreateJobModal({ isOpen, onClose, onSave }: CreateJobMod
     console.log('Fetching customers...');
     try {
 
-      const data = await api.get('/api/customers');
+      const data = await api.get('/customers');
       setCustomers(data);
     } catch (error) {
       console.error('Error fetching customers:', error);

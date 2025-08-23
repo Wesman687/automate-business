@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, DollarSign, FileText, Calendar, Clock, TrendingUp } from 'lucide-react';
 import CreateInvoiceModal from './CreateInvoiceModal';
 import CreateRecurringPaymentModal from './CreateRecurringPaymentModal';
+import { api } from '@/lib/https';
 
 interface Invoice {
   id: number;
@@ -68,9 +69,9 @@ export default function FinancialPage() {
 
       // Fetch all financial data
       const [invoicesRes, recurringRes, summaryRes] = await Promise.all([
-        fetch('/api/invoices', { headers }),
-        fetch('/api/recurring-payments', { headers }),
-        fetch('/api/financial-summary', { headers })
+        api.get('/invoices'),
+        api.get('/recurring-payments'),
+        api.get('/financial-summary')
       ]);
 
       if (invoicesRes.ok) {
@@ -97,7 +98,7 @@ export default function FinancialPage() {
   const createInvoice = async (invoiceData: any) => {
     try {
       const token = localStorage.getItem('admin_token');
-      const response = await fetch('/api/invoices', {
+      const response = await api.post('/invoices', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -120,7 +121,7 @@ export default function FinancialPage() {
   const createRecurringPayment = async (paymentData: any) => {
     try {
       const token = localStorage.getItem('admin_token');
-      const response = await fetch('/api/recurring-payments', {
+      const response = await api.post('/recurring-payments', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

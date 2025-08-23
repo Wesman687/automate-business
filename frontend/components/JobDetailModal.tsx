@@ -54,10 +54,25 @@ interface JobDetailData {
   
   // Unified Resources Array
   resources?: Array<{
-    type: 'website' | 'github' | 'drive' | 'workspace' | 'tool' | 'server';
+    type: 'website' | 'github' | 'drive' | 'workspace' | 'service';
     name: string;
     url?: string;
+    description?: string;
+  }>;
+  
+  // Additional Tools (separate from resources)
+  additional_tools?: Array<{
+    name: string;
     api_key?: string;
+    url?: string;
+    description?: string;
+  }>;
+
+  // Server Details (separate from resources)
+  server_details?: Array<{
+    name: string;
+    url?: string;
+    type?: string;
     description?: string;
   }>;
   
@@ -219,7 +234,7 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
     if (!newResource.type || !newResource.name) return;
     
     const resource = {
-      type: newResource.type as 'website' | 'github' | 'drive' | 'workspace' | 'tool' | 'server',
+      type: newResource.type as 'website' | 'github' | 'drive' | 'workspace' | 'service',
       name: newResource.name,
       url: newResource.url || '',
       description: newResource.url ? `Resource: ${newResource.name}` : undefined
@@ -233,6 +248,46 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
     });
 
     setNewResource({ type: '', name: '', url: '' });
+  };
+
+  const addTool = () => {
+    if (!newTool.name) return;
+    
+    const tool = {
+      name: newTool.name,
+      api_key: newTool.api_key || '',
+      url: newTool.url || '',
+      description: `Tool: ${newTool.name}`
+    };
+
+    // Add to additional_tools array
+    const currentTools = editData.additional_tools || [];
+    setEditData({
+      ...editData,
+      additional_tools: [...currentTools, tool]
+    });
+
+    setNewTool({ name: '', api_key: '', url: '' });
+  };
+
+  const addServer = () => {
+    if (!newServer.name) return;
+    
+    const server = {
+      name: newServer.name,
+      url: newServer.url || '',
+      type: newServer.type || '',
+      description: `Server: ${newServer.name}`
+    };
+
+    // Add to server_details array
+    const currentServers = editData.server_details || [];
+    setEditData({
+      ...editData,
+      server_details: [...currentServers, server]
+    });
+
+    setNewServer({ name: '', url: '', type: '' });
   };
 
   const removeResource = (field: keyof JobDetailData, index: number) => {
@@ -610,36 +665,45 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
                     'Freelancer',
                     'Other'
                   ])}
-                  <div className="py-3 border-b border-gray-700/50">
-                    <label className="block text-gray-400 font-medium mb-2">Industry</label>
-                    <select
-                      value={editData.industry || ''}
-                      onChange={(e) => setEditData({ ...editData, industry: e.target.value })}
-                      className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-electric-blue focus:border-transparent"
-                    >
-                      <option value="">Select industry</option>
-                      <option value="Technology">Technology</option>
-                      <option value="Healthcare">Healthcare</option>
-                      <option value="Finance">Finance</option>
-                      <option value="Education">Education</option>
-                      <option value="Retail">Retail</option>
-                      <option value="Manufacturing">Manufacturing</option>
-                      <option value="Real Estate">Real Estate</option>
-                      <option value="Marketing">Marketing</option>
-                      <option value="Design">Design</option>
-                      <option value="Consulting">Consulting</option>
-                      <option value="Other">Other</option>
-                    </select>
-                    {editData.industry === 'Other' && (
-                      <input
-                        type="text"
-                        value={editData.industry_other || ''}
-                        onChange={(e) => setEditData({ ...editData, industry_other: e.target.value })}
-                        placeholder="Please describe your industry"
-                        className="w-full mt-2 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-electric-blue focus:border-transparent"
-                      />
-                    )}
-                  </div>
+                  {isEditing ? (
+                    <div className="py-3 border-b border-gray-700/50">
+                      <label className="block text-gray-400 font-medium mb-2">Industry</label>
+                      <select
+                        value={editData.industry || ''}
+                        onChange={(e) => setEditData({ ...editData, industry: e.target.value })}
+                        className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-electric-blue focus:border-transparent"
+                      >
+                        <option value="">Select industry</option>
+                        <option value="Technology">Technology</option>
+                        <option value="Healthcare">Healthcare</option>
+                        <option value="Finance">Finance</option>
+                        <option value="Education">Education</option>
+                        <option value="Retail">Retail</option>
+                        <option value="Manufacturing">Manufacturing</option>
+                        <option value="Real Estate">Real Estate</option>
+                        <option value="Marketing">Marketing</option>
+                        <option value="Design">Design</option>
+                        <option value="Consulting">Consulting</option>
+                        <option value="Other">Other</option>
+                      </select>
+                      {editData.industry === 'Other' && (
+                        <input
+                          type="text"
+                          value={editData.industry_other || ''}
+                          onChange={(e) => setEditData({ ...editData, industry_other: e.target.value })}
+                          placeholder="Please describe your industry"
+                          className="w-full mt-2 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-electric-blue focus:border-transparent"
+                        />
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex justify-between items-start py-3 border-b border-gray-700/50">
+                      <span className="text-gray-400 font-medium min-w-[120px]">Industry</span>
+                      <span className="text-white text-right flex-1 ml-4">
+                        {job.industry === 'Other' ? (job.industry_other || 'Other') : (job.industry || 'Not specified')}
+                      </span>
+                    </div>
+                  )}
                   {renderEditableField('Brand Guidelines', job.brand_guidelines, 'brand_guidelines', 'textarea')}
                 </div>
               </div>
@@ -721,7 +785,7 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
                             </span>
                             <input
                               type="text"
-                              value={editData.social_media?.[platform.key] || ''}
+                              value={editData.social_media?.[platform.key as keyof typeof editData.social_media] || ''}
                               onChange={(e) => {
                                 const newSocial = { ...editData.social_media, [platform.key]: e.target.value };
                                 setEditData({ ...editData, social_media: newSocial });
@@ -826,13 +890,7 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
                               style={{ backgroundColor: color }}
                               title={color}
                             />
-                            <button
-                              onClick={() => removeBrandColor(index)}
-                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-opacity opacity-0 group-hover:opacity-100 z-10"
-                              style={{ transform: 'translate(50%, -50%)' }}
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
+
                           </div>
                           <div className="mt-2 text-center">
                             <div className="text-white font-medium text-sm">{color}</div>
@@ -865,6 +923,13 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
                                 />
                               )}
                             </div>
+                            <button
+                              onClick={() => removeBrandColor(index)}
+                              className="bg-red-500 hover:bg-red-600 text-white rounded-lg px-2 py-1 text-xs font-medium transition-all duration-200 opacity-0 group-hover:opacity-100 z-10 shadow-lg hover:scale-105"
+                              style={{ transform: 'translate(50%, -50%)' }}
+                            >
+                              Remove
+                            </button>
                           </div>
                         </div>
                       ))}
@@ -960,34 +1025,43 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
                     <Target className="h-6 w-6 text-electric-blue" />
                     Brand Style
                   </h3>
-                  <div className="py-3 border-b border-gray-700/50">
-                    <label className="block text-gray-400 font-medium mb-2">Brand Style</label>
-                    <select
-                      value={editData.brand_style || ''}
-                      onChange={(e) => setEditData({ ...editData, brand_style: e.target.value })}
-                      className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-electric-blue focus:border-transparent"
-                    >
-                      <option value="">Select brand style</option>
-                      <option value="Modern & Minimalist">Modern & Minimalist</option>
-                      <option value="Classic & Professional">Classic & Professional</option>
-                      <option value="Creative & Artistic">Creative & Artistic</option>
-                      <option value="Bold & Dynamic">Bold & Dynamic</option>
-                      <option value="Elegant & Sophisticated">Elegant & Sophisticated</option>
-                      <option value="Playful & Fun">Playful & Fun</option>
-                      <option value="Tech & Futuristic">Tech & Futuristic</option>
-                      <option value="Organic & Natural">Organic & Natural</option>
-                      <option value="other">Other</option>
-                    </select>
-                    {editData.brand_style === 'other' && (
-                      <input
-                        type="text"
-                        value={editData.brand_style_other || ''}
-                        onChange={(e) => setEditData({ ...editData, brand_style_other: e.target.value })}
-                        placeholder="Describe your brand style"
-                        className="w-full mt-2 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-electric-blue focus:border-transparent"
-                      />
-                    )}
-                  </div>
+                  {isEditing ? (
+                    <div className="py-3 border-b border-gray-700/50">
+                      <label className="block text-gray-400 font-medium mb-2">Brand Style</label>
+                      <select
+                        value={editData.brand_style || ''}
+                        onChange={(e) => setEditData({ ...editData, brand_style: e.target.value })}
+                        className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-electric-blue focus:border-transparent"
+                      >
+                        <option value="">Select brand style</option>
+                        <option value="Modern & Minimalist">Modern & Minimalist</option>
+                        <option value="Classic & Professional">Classic & Professional</option>
+                        <option value="Creative & Artistic">Creative & Artistic</option>
+                        <option value="Bold & Dynamic">Bold & Dynamic</option>
+                        <option value="Elegant & Sophisticated">Elegant & Sophisticated</option>
+                        <option value="Playful & Fun">Playful & Fun</option>
+                        <option value="Tech & Futuristic">Tech & Futuristic</option>
+                        <option value="Organic & Natural">Organic & Natural</option>
+                        <option value="other">Other</option>
+                      </select>
+                      {editData.brand_style === 'other' && (
+                        <input
+                          type="text"
+                          value={editData.brand_style_other || ''}
+                          onChange={(e) => setEditData({ ...editData, brand_style_other: e.target.value })}
+                          placeholder="Describe your brand style"
+                          className="w-full mt-2 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-electric-blue focus:border-transparent"
+                        />
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex justify-between items-start py-3 border-b border-gray-700/50">
+                      <span className="text-gray-400 font-medium min-w-[120px]">Brand Style</span>
+                      <span className="text-white text-right flex-1 ml-4">
+                        {job.brand_style === 'other' ? (job.brand_style_other || 'Other') : (job.brand_style || 'Not specified')}
+                      </span>
+                    </div>
+                  )}
                   <div className="mt-3 text-sm text-gray-400">
                     💡 Choose the style that best represents your brand personality
                   </div>
@@ -1235,7 +1309,7 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
                         <option value="drive">Google Drive</option>
                         <option value="github">GitHub</option>
                         <option value="workspace">Workspace</option>
-                        <option value="tool">Tool/Service</option>
+                        <option value="service">Service</option>
                         {customResourceTypes.map((type, index) => (
                           <option key={index} value={type.toLowerCase()}>{type}</option>
                         ))}
@@ -1276,28 +1350,31 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
                       </button>
                     </div>
                   </div>
-                       {/* Display Added Resources */}
-                {(editData.resources?.length || job.resources?.length) && (
-                  <div className="mt-6">
-                    <h4 className="text-lg font-medium text-white mb-4">Current Resources</h4>
-                    <div className="flex w-full flex-wrap gap-4">
-                      {/* All Resources */}
-                      {(editData.resources || job.resources || []).map((resource, index) => (
+                </div>
+              )}
+
+              {/* Display Added Resources */}
+              <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700/50">
+                <h3 className="text-xl font-semibold text-white mb-4 flex items-center gap-3">
+                  <ExternalLink className="h-6 w-6 text-electric-blue" />
+                  Resources & Links
+                </h3>
+                
+                {(editData.resources?.length || job.resources?.length) ? (
+                  <div className="flex w-full flex-wrap gap-4">
+                    {/* All Resources */}
+                    {(editData.resources || job.resources || []).map((resource, index) => (
                         <div key={`resource-${index}`} className="w-full p-4 bg-gray-800 rounded-lg border border-gray-700/50">
                           <div className="flex items-center gap-3 mb-3">
                             <div className={`p-2 rounded-lg ${
                               resource.type === 'drive' ? 'bg-blue-500/20' :
                               resource.type === 'github' ? 'bg-gray-500/20' :
                               resource.type === 'workspace' ? 'bg-green-500/20' :
-                              resource.type === 'tool' ? 'bg-purple-500/20' :
-                              resource.type === 'server' ? 'bg-orange-500/20' :
                               'bg-electric-blue/20'
                             }`}>
                               {resource.type === 'drive' ? <FolderOpen className="h-5 w-5 text-blue-400" /> :
                                resource.type === 'github' ? <Github className="h-5 w-5 text-gray-400" /> :
                                resource.type === 'workspace' ? <ExternalLink className="h-5 w-5 text-green-400" /> :
-                               resource.type === 'tool' ? <ExternalLink className="h-5 w-5 text-purple-400" /> :
-                               resource.type === 'server' ? <ExternalLink className="h-5 w-5 text-orange-400" /> :
                                <ExternalLink className="h-5 w-5 text-electric-blue" />
                               }
                             </div>
@@ -1342,47 +1419,7 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
                                   className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:ring-2 focus:ring-electric-blue focus:border-transparent"
                                 />
                               </div>
-                              {resource.type === 'tool' && (
-                                <div>
-                                  <label className="block text-gray-400 text-sm font-medium mb-1">API Key</label>
-                                  <div className="relative">
-                                    <input
-                                      type={visibleApiKeys.has(index) ? "text" : "password"}
-                                      value={resource.api_key || ''}
-                                      onChange={(e) => {
-                                        const updatedResources = [...(editData.resources || [])];
-                                        updatedResources[index] = { ...resource, api_key: e.target.value };
-                                        setEditData({ ...editData, resources: updatedResources });
-                                      }}
-                                      className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 pr-10 text-white text-sm focus:ring-2 focus:ring-electric-blue focus:border-transparent"
-                                    />
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        const newVisible = new Set(visibleApiKeys);
-                                        if (newVisible.has(index)) {
-                                          newVisible.delete(index);
-                                        } else {
-                                          newVisible.add(index);
-                                        }
-                                        setVisibleApiKeys(newVisible);
-                                      }}
-                                      className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 text-gray-400 hover:text-white transition-colors"
-                                    >
-                                      {visibleApiKeys.has(index) ? (
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
-                                        </svg>
-                                      ) : (
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                        </svg>
-                                      )}
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
+
                             </div>
                           ) : (
                             <div className="space-y-2">
@@ -1401,56 +1438,21 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
                                   </button>
                                 </div>
                               )}
-                              {resource.api_key && (
-                                <div className="flex items-center gap-2">
-                                  <div className="text-gray-500 text-xs flex-1">
-                                    API Key: {visibleApiKeys.has(index) ? resource.api_key : '•'.repeat(Math.min(resource.api_key.length, 8))}
-                                  </div>
-                                  <button
-                                    onClick={() => {
-                                      const newVisible = new Set(visibleApiKeys);
-                                      if (newVisible.has(index)) {
-                                        newVisible.delete(index);
-                                      } else {
-                                        newVisible.add(index);
-                                      }
-                                      setVisibleApiKeys(newVisible);
-                                    }}
-                                    className="p-1 text-gray-400 hover:text-white transition-colors"
-                                    title={visibleApiKeys.has(index) ? "Hide API Key" : "Show API Key"}
-                                  >
-                                    {visibleApiKeys.has(index) ? (
-                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
-                                      </svg>
-                                    ) : (
-                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                      </svg>
-                                    )}
-                                  </button>
-                                  <button
-                                    onClick={() => navigator.clipboard.writeText(resource.api_key || '')}
-                                    className="p-1 text-electric-blue hover:text-electric-blue/80 hover:bg-electric-blue/20 rounded transition-colors"
-                                    title="Copy API Key"
-                                  >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                    </svg>
-                                  </button>
-                                </div>
-                              )}
+                              {/* API keys are now handled in Additional Tools section */}
                             </div>
                           )}
                         </div>
                       ))}
 
                     </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <div className="text-4xl mb-2">🔗</div>
+                    <p className="text-gray-400">No resources added yet</p>
+                    <p className="text-xs text-gray-500 mt-1">Resources and links will appear here when added</p>
                   </div>
                 )}
-                </div>
-              )}
+              </div>
 
            
 
@@ -1533,20 +1535,7 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
                     </div>
                     <div className="flex gap-3 mt-3">
                       <button
-                        onClick={() => {
-                          if (newTool.name) {
-                            const tool = {
-                              type: 'tool' as const,
-                              name: newTool.name,
-                              api_key: newTool.api_key || '',
-                              url: newTool.url || '',
-                              description: `Tool: ${newTool.name}`
-                            };
-                            const currentResources = editData.resources || [];
-                            setEditData({ ...editData, resources: [...currentResources, tool] });
-                            setNewTool({ name: '', api_key: '', url: '' });
-                          }
-                        }}
+                        onClick={addTool}
                         disabled={!newTool.name}
                         className="px-4 py-2 bg-electric-blue hover:bg-electric-blue/90 text-white rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
@@ -1561,129 +1550,8 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
                       </button>
                     </div>
                   </div>
-                )}
-                
-                {/* Display Tools from Resources */}
-                {(editData.resources?.filter(r => r.type === 'tool')?.length || job.resources?.filter(r => r.type === 'tool')?.length) ? (
-                  <div className="space-y-4">
-                    {(editData.resources || job.resources || []).filter(r => r.type === 'tool').map((tool, index) => (
-                      <div key={`tool-${index}`} className="p-4 bg-gray-800 rounded-lg border border-gray-700/50">
-                        <div className="flex items-center gap-3 mb-3">
-                          <div className="p-2 bg-purple-500/20 rounded-lg">
-                            <ExternalLink className="h-5 w-5 text-purple-400" />
-                          </div>
-                          <div className="flex-1">
-                            <div className="text-white font-medium capitalize">Tool</div>
-                          </div>
-                          {isEditing && (
-                            <button
-                              onClick={() => {
-                                const toolIndex = (editData.resources || []).findIndex(r => r === tool);
-                                if (toolIndex !== -1) removeResource('resources', toolIndex);
-                              }}
-                              className="p-1 text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded"
-                            >
-                              <X className="h-4 w-4" />
-                            </button>
-                          )}
-                        </div>
-                        
-                        {isEditing ? (
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                            <div>
-                              <label className="block text-gray-400 text-sm font-medium mb-1">Name</label>
-                              <input
-                                type="text"
-                                value={tool.name}
-                                onChange={(e) => {
-                                  const updatedResources = [...(editData.resources || [])];
-                                  const toolIndex = updatedResources.findIndex(r => r === tool);
-                                  if (toolIndex !== -1) {
-                                    updatedResources[toolIndex] = { ...tool, name: e.target.value };
-                                    setEditData({ ...editData, resources: updatedResources });
-                                  }
-                                }}
-                                className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:ring-2 focus:ring-electric-blue focus:border-transparent"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-gray-400 text-sm font-medium mb-1">API Key</label>
-                              <div className="relative">
-                                <input
-                                  type={visibleApiKeys.has((editData.resources || []).findIndex(r => r === tool)) ? "text" : "password"}
-                                  value={tool.api_key || ''}
-                                  onChange={(e) => {
-                                    const updatedResources = [...(editData.resources || [])];
-                                    const toolIndex = updatedResources.findIndex(r => r === tool);
-                                    if (toolIndex !== -1) {
-                                      updatedResources[toolIndex] = { ...tool, api_key: e.target.value };
-                                      setEditData({ ...editData, resources: updatedResources });
-                                    }
-                                  }}
-                                  className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 pr-10 text-white text-sm focus:ring-2 focus:ring-electric-blue focus:border-transparent"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const toolIndex = (editData.resources || []).findIndex(r => r === tool);
-                                    if (toolIndex !== -1) {
-                                      const newVisible = new Set(visibleApiKeys);
-                                      if (newVisible.has(toolIndex)) {
-                                        newVisible.delete(toolIndex);
-                                      } else {
-                                        newVisible.add(toolIndex);
-                                      }
-                                      setVisibleApiKeys(newVisible);
-                                    }
-                                  }}
-                                  className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 text-gray-400 hover:text-white transition-colors"
-                                >
-                                  {visibleApiKeys.has((editData.resources || []).findIndex(r => r === tool)) ? (
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
-                                    </svg>
-                                  ) : (
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                    </svg>
-                                  )}
-                                </button>
-                              </div>
-                            </div>
-                            <div>
-                              <label className="block text-gray-400 text-sm font-medium mb-1">URL</label>
-                              <input
-                                type="url"
-                                value={tool.url || ''}
-                                onChange={(e) => {
-                                  const updatedResources = [...(editData.resources || [])];
-                                  const toolIndex = updatedResources.findIndex(r => r === tool);
-                                  if (toolIndex !== -1) {
-                                    updatedResources[toolIndex] = { ...tool, url: e.target.value };
-                                    setEditData({ ...editData, resources: updatedResources });
-                                  }
-                                }}
-                                className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:ring-2 focus:ring-electric-blue focus:border-transparent"
-                              />
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="space-y-2">
-                            <div className="text-white font-medium">{tool.name}</div>
-                            {tool.api_key && <div className="text-gray-400 text-sm">API Key: {tool.api_key}</div>}
-                            {tool.url && <div className="text-gray-400 text-sm truncate">{tool.url}</div>}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <div className="text-4xl mb-2">🔧</div>
-                    <p className="text-gray-400">No additional tools configured yet</p>
-                  </div>
-                )}
+                )}                
+
               </div>
 
               {/* Server Details */}
@@ -1720,19 +1588,7 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
                     </div>
                     <div className="flex gap-3 mt-3">
                       <button
-                        onClick={() => {
-                          if (newServer.name) {
-                            const server = {
-                              type: 'server' as const,
-                              name: newServer.name,
-                              url: newServer.url || '',
-                              description: `Server: ${newServer.name}`
-                            };
-                            const currentResources = editData.resources || [];
-                            setEditData({ ...editData, resources: [...currentResources, server] });
-                            setNewServer({ name: '', url: '', type: '' });
-                          }
-                        }}
+                        onClick={addServer}
                         disabled={!newServer.name}
                         className="px-4 py-2 bg-electric-blue hover:bg-electric-blue/90 text-white rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
@@ -1749,10 +1605,10 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
                   </div>
                 )}
                 
-                {/* Display Servers from Resources */}
-                {(editData.resources?.filter(r => r.type === 'server')?.length || job.resources?.filter(r => r.type === 'server')?.length) ? (
+                {/* Display Servers */}
+                {(editData.server_details?.length || job.server_details?.length) ? (
                   <div className="space-y-4">
-                    {(editData.resources || job.resources || []).filter(r => r.type === 'server').map((server, index) => (
+                    {(editData.server_details || job.server_details || []).map((server, index) => (
                       <div key={`server-${index}`} className="p-4 bg-gray-800 rounded-lg border border-gray-700/50">
                         <div className="flex items-center gap-3 mb-3">
                           <div className="p-2 bg-orange-500/20 rounded-lg">
@@ -1764,8 +1620,9 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
                           {isEditing && (
                             <button
                               onClick={() => {
-                                const serverIndex = (editData.resources || []).findIndex(r => r === server);
-                                if (serverIndex !== -1) removeResource('resources', serverIndex);
+                                const currentServers = editData.server_details || [];
+                                const newServers = currentServers.filter((_, i) => i !== index);
+                                setEditData({ ...editData, server_details: newServers });
                               }}
                               className="p-1 text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded"
                             >
@@ -1782,12 +1639,9 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
                                 type="text"
                                 value={server.name}
                                 onChange={(e) => {
-                                  const updatedResources = [...(editData.resources || [])];
-                                  const serverIndex = updatedResources.findIndex(r => r === server);
-                                  if (serverIndex !== -1) {
-                                    updatedResources[serverIndex] = { ...server, name: e.target.value };
-                                    setEditData({ ...editData, resources: updatedResources });
-                                  }
+                                  const updatedServers = [...(editData.server_details || [])];
+                                  updatedServers[index] = { ...server, name: e.target.value };
+                                  setEditData({ ...editData, server_details: updatedServers });
                                 }}
                                 className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:ring-2 focus:ring-electric-blue focus:border-transparent"
                               />
@@ -1798,12 +1652,9 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
                                 type="url"
                                 value={server.url || ''}
                                 onChange={(e) => {
-                                  const updatedResources = [...(editData.resources || [])];
-                                  const serverIndex = updatedResources.findIndex(r => r === server);
-                                  if (serverIndex !== -1) {
-                                    updatedResources[serverIndex] = { ...server, url: e.target.value };
-                                    setEditData({ ...editData, resources: updatedResources });
-                                  }
+                                  const updatedServers = [...(editData.server_details || [])];
+                                  updatedServers[index] = { ...server, url: e.target.value };
+                                  setEditData({ ...editData, server_details: updatedServers });
                                 }}
                                 className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:ring-2 focus:ring-electric-blue focus:border-transparent"
                               />
@@ -1812,14 +1663,11 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
                               <label className="block text-gray-400 text-sm font-medium mb-1">Type</label>
                               <input
                                 type="text"
-                                value={server.description?.replace('Server: ', '') || ''}
+                                value={server.type || ''}
                                 onChange={(e) => {
-                                  const updatedResources = [...(editData.resources || [])];
-                                  const serverIndex = updatedResources.findIndex(r => r === server);
-                                  if (serverIndex !== -1) {
-                                    updatedResources[serverIndex] = { ...server, description: `Server: ${e.target.value}` };
-                                    setEditData({ ...editData, resources: updatedResources });
-                                  }
+                                  const updatedServers = [...(editData.server_details || [])];
+                                  updatedServers[index] = { ...server, type: e.target.value };
+                                  setEditData({ ...editData, server_details: updatedServers });
                                 }}
                                 className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:ring-2 focus:ring-electric-blue focus:border-transparent"
                               />
@@ -1829,7 +1677,7 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
                           <div className="space-y-2">
                             <div className="text-white font-medium">{server.name}</div>
                             {server.url && <div className="text-gray-400 text-sm">URL: {server.url}</div>}
-                            {server.description && <div className="text-gray-400 text-sm">Type: {server.description.replace('Server: ', '')}</div>}
+                            {server.type && <div className="text-gray-400 text-sm">Type: {server.type}</div>}
                           </div>
                         )}
                       </div>
@@ -1842,6 +1690,7 @@ export default function JobDetailModal({ isOpen, onClose, job, isCustomer = fals
                   </div>
                 )}
               </div>
+
 
 
 

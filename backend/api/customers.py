@@ -1,5 +1,6 @@
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query, File, UploadFile, Form
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from api.api_endpoints import SeenStatusRequest
 from database import get_db
@@ -561,55 +562,60 @@ async def upload_customer_file(
     description: str = Form(None),
     db: Session = Depends(get_db)
 ):
-    """Upload a file for a customer with security validation"""
+    """Upload a file for a customer using the file server SDK"""
     try:
+        # Import the FileServerService from file_upload module
+        from api.file_upload import FileServerService
+        
         # Validate file security
         content = await validate_upload_file(file)
         
-        # Create customer-specific upload directory using the new file manager
+        # Use customer email or default
+        user_email = customer_email or "chat@stream-lineai.com"
+        
+        # Use chat folder for chat uploads
+        folder = f"chat/{session_id}"
+        
+        # Upload to file server using SDK
+        file_server_result = await FileServerService.upload_file_to_stream_line(
+            user_email=user_email,
+            file_data=content,
+            filename=file.filename,
+            mime_type=file.content_type or "application/octet-stream",
+            folder=folder
+        )
+        
+        if not file_server_result["success"]:
+            return JSONResponse(
+                status_code=500,
+                content={"detail": f"File server upload failed: {file_server_result.get('error', 'Unknown error')}"}
+            )
+        
+        # If customer email provided, save file reference to customer notes
         if customer_email:
             customer_service = CustomerService(db)
             customer = customer_service.get_customer_by_email(customer_email)
             if customer:
-                upload_dir = CustomerFileManager.ensure_customer_directory(customer, "files")
-            else:
-                upload_dir = os.path.join("uploads", "customers", "unknown", "files")
-                os.makedirs(upload_dir, exist_ok=True)
-        else:
-            upload_dir = os.path.join("uploads", "customers", "general", "files")
-            os.makedirs(upload_dir, exist_ok=True)
-        
-        # Generate unique filename with original extension
-        file_extension = os.path.splitext(file.filename)[1].lower()
-        unique_filename = f"{uuid.uuid4()}{file_extension}"
-        file_path = os.path.join(upload_dir, unique_filename)
-        
-        # Save file with validated content
-        with open(file_path, "wb") as buffer:
-            buffer.write(content)
-        
-        # Set secure file permissions (read-only)
-        os.chmod(file_path, 0o644)
-        
-        # If customer email provided, save file reference to customer
-        if customer_email:
-            customer_service = CustomerService(db)
-            customer = customer_service.get_customer_by_email(customer_email)
-            if customer:
-                # Add file info to customer notes with security info
-                file_note = f"File uploaded: {file.filename} ({file.content_type}) - Size: {len(content)} bytes"
+                # Add file info to customer notes
+                file_note = f"File uploaded via chat: {file.filename} ({file.content_type}) - Size: {len(content)} bytes"
                 if description:
                     file_note += f" - {description}"
-                file_note += f" [Saved as: {unique_filename}]"
+                file_note += f" [File URL: {file_server_result['public_url']}]"
                 
                 customer_service.add_notes(customer.id, file_note)
         
         return {
             "status": "success",
-            "filename": unique_filename,
+            "filename": file_server_result["file_key"],
             "original_name": file.filename,
-            "file_size": len(content),
-            "message": "File uploaded successfully with security validation"
+            "file_url": file_server_result["public_url"],
+            "size": len(content),
+            "content_type": file.content_type,
+            "description": description or "",
+            "session_id": session_id,
+            "customer_email": customer_email,
+            "file_key": file_server_result["file_key"],
+            "message": "File uploaded successfully to file server"
         }
         
     except HTTPException:

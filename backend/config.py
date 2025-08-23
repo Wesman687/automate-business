@@ -33,6 +33,11 @@ class Config:
     # Security
     ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY")
     
+    # File Upload SDK Configuration
+    UPLOAD_BASE_URL = os.getenv("UPLOAD_BASE_URL", "https://file-server.stream-lineai.com")
+    AUTH_SERVICE_TOKEN = os.getenv("AUTH_SERVICE_TOKEN", os.getenv("SERVICE_TOKEN"))  # Fallback to existing SERVICE_TOKEN
+    DEFAULT_USER_ID = os.getenv("DEFAULT_USER_ID", "system@stream-lineai.com")
+    
     # Email Configuration
     SMTP_SERVER = os.getenv("SMTP_SERVER", "mail.stream-lineai.com")
     SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))

@@ -1,7 +1,7 @@
 """Add business management tables
 
 Revision ID: add_business_tables
-Revises: 003_add_customer_address_fields
+Revises: None
 Create Date: 2024-01-01 00:00:00.000000
 
 """
@@ -11,7 +11,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = 'add_business_tables'
-down_revision = '003_add_customer_address_fields'
+down_revision = None
 branch_labels = None
 depends_on = None
 

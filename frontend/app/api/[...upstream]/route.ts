@@ -17,7 +17,11 @@ function buildTargetUrl(req: NextRequest, upstreamParts: string[]) {
 function forwardHeaders(req: NextRequest) {
   const h = new Headers(req.headers);
   h.delete('host');
-  h.delete('content-length');
+  // Don't delete content-length for multipart/form-data requests
+  const contentType = req.headers.get('content-type') || '';
+  if (!contentType.includes('multipart/form-data')) {
+    h.delete('content-length');
+  }
   // keep cookies + auth
   return h;
 }
@@ -32,9 +36,16 @@ async function handler(req: NextRequest, ctx: { params: { upstream: string[] } }
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     // Preserve body for POST/PUT/PATCH/DELETE
     const contentType = req.headers.get('content-type') || '';
-    if (contentType.includes('application/json')) body = await req.text();
-    else if (contentType.includes('form')) body = await req.formData();
-    else body = await req.arrayBuffer();
+    if (contentType.includes('application/json')) {
+      body = await req.text();
+    } else if (contentType.includes('multipart/form-data')) {
+      // For multipart/form-data, pass the raw body to preserve boundary
+      body = await req.arrayBuffer();
+    } else if (contentType.includes('application/x-www-form-urlencoded')) {
+      body = await req.text();
+    } else {
+      body = await req.arrayBuffer();
+    }
   }
 
   const res = await fetch(target, {

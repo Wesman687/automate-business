@@ -157,7 +157,7 @@ export default function ChatBot() {
       
       clearTimeout(timeoutId)
       
-      if (response.ok) {
+      if (response) {
         setIsConnected(true)
         console.log('Backend connected successfully')
       } else {

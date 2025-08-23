@@ -1,6 +1,6 @@
 """Add file uploads table
 
-Revision ID: 007
+Revision ID: 007_add_file_uploads
 Revises: 006_add_email_accounts
 Create Date: 2024-01-15 10:00:00.000000
 
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = '007'
+revision = '007_add_file_uploads'
 down_revision = '006_add_email_accounts'
 branch_labels = None
 depends_on = None

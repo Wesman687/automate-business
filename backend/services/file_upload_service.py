@@ -24,7 +24,8 @@ class FileUploadService:
         customer_id: Optional[int] = None,
         job_id: Optional[int] = None,
         description: Optional[str] = None,
-        tags: Optional[str] = None
+        tags: Optional[str] = None,
+        access_email: Optional[str] = None
     ) -> Optional[FileUpload]:
         """
         Upload a file to the file server and save metadata to database
@@ -75,7 +76,8 @@ class FileUploadService:
                 tags=tags,
                 user_id=user_id,
                 customer_id=customer_id,
-                job_id=job_id
+                job_id=job_id,
+                access_email=access_email or "system@stream-lineai.com"  # Default fallback
             )
             
             self.db_session.add(file_upload)

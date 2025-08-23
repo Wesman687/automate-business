@@ -286,7 +286,7 @@ if __name__ == "__main__":
     print(f"🌍 Environment: {config.ENVIRONMENT}")
     print(f"🔗 Backend URL: {config.BACKEND_URL}")
     
-    uvicorn.run("main:app", host=config.BACKEND_HOST, port=config.BACKEND_PORT, reload=True)
+    uvicorn.run("main:app", host=config.BACKEND_HOST, port=config.BACKEND_PORT, reload=False)
 
 
 

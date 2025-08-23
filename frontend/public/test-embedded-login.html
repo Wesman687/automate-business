@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Embedded Login</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .demo-section {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .iframe-container {
+            background: #f3f4f6;
+            border-radius: 8px;
+            padding: 20px;
+            border: 2px dashed #d1d5db;
+        }
+        
+        iframe {
+            width: 100%;
+            border: none;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .size-demo {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .size-demo {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .status {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            color: #166534;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+        
+        .code {
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔗 Embedded Login Test</h1>
+        
+        <div class="demo-section">
+            <h2>📱 Compact Login (400x500)</h2>
+            <div class="status">
+                Status: <span id="status1">Waiting for login...</span>
+            </div>
+            <div class="iframe-container">
+                <iframe 
+                    id="login1"
+                    src="http://localhost:3000/portal?embedded=true" 
+                    width="400" 
+                    height="500">
+                </iframe>
+            </div>
+            <div class="code">iframe src="http://localhost:3000/portal?embedded=true" width="400" height="500"</div>
+        </div>
+        
+        <div class="size-demo">
+            <div class="demo-section">
+                <h3>📦 Small (350x450)</h3>
+                <div class="status">
+                    Status: <span id="status2">Waiting for login...</span>
+                </div>
+                <div class="iframe-container">
+                    <iframe 
+                        id="login2"
+                        src="http://localhost:3000/portal?embedded=true" 
+                        width="350" 
+                        height="450">
+                    </iframe>
+                </div>
+            </div>
+            
+            <div class="demo-section">
+                <h3>📺 Wide (500x400)</h3>
+                <div class="status">
+                    Status: <span id="status3">Waiting for login...</span>
+                </div>
+                <div class="iframe-container">
+                    <iframe 
+                        id="login3"
+                        src="http://localhost:3000/portal?embedded=true" 
+                        width="500" 
+                        height="400">
+                    </iframe>
+                </div>
+            </div>
+        </div>
+        
+        <div class="demo-section">
+            <h2>📋 Implementation Code</h2>
+            <div class="code">
+&lt;!-- Basic Implementation --&gt;
+&lt;iframe src="http://localhost:3000/portal?embedded=true" 
+        width="400" height="500" 
+        style="border:none; border-radius:8px;"&gt;
+&lt;/iframe&gt;
+
+&lt;script&gt;
+// Listen for login success messages
+window.addEventListener('message', (event) => {
+  if (event.data.type === 'AUTH_SUCCESS') {
+    console.log('🎉 Login successful!');
+    // Your success handling here
+  }
+});
+&lt;/script&gt;
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Listen for login success messages
+        window.addEventListener('message', (event) => {
+            if (event.data.type === 'AUTH_SUCCESS') {
+                console.log('🎉 Login successful from iframe!', event);
+                
+                // Update all status indicators
+                document.querySelectorAll('[id^="status"]').forEach(el => {
+                    el.textContent = '✅ Login successful!';
+                    el.parentElement.style.background = '#f0fdf4';
+                    el.parentElement.style.borderColor = '#bbf7d0';
+                    el.parentElement.style.color = '#166534';
+                });
+                
+                // Show success message
+                const successDiv = document.createElement('div');
+                successDiv.innerHTML = `
+                    <div style="
+                        position: fixed; 
+                        top: 20px; 
+                        right: 20px; 
+                        background: #10b981; 
+                        color: white; 
+                        padding: 15px 20px; 
+                        border-radius: 8px; 
+                        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                        z-index: 1000;
+                        font-weight: 500;
+                    ">
+                        🎉 Cross-page login successful!
+                    </div>
+                `;
+                document.body.appendChild(successDiv);
+                
+                // Remove success message after 3 seconds
+                setTimeout(() => {
+                    successDiv.remove();
+                }, 3000);
+            }
+        });
+        
+        // Update status when iframes load
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('iframe').forEach((iframe, index) => {
+                iframe.addEventListener('load', () => {
+                    const statusEl = document.getElementById(`status${index + 1}`);
+                    if (statusEl) {
+                        statusEl.textContent = '🔄 Login form loaded';
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

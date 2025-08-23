@@ -3,101 +3,74 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from database import get_db
 from api.auth import get_current_user, get_current_admin
-from database.models import FileUpload
-from database.models import Job
+from database.models import FileUpload, Job, User
+from config import config
 import requests
 import base64
 import logging
 import os
+import hashlib
 from dotenv import load_dotenv
+
+# Import the new SDK
+try:
+    from streamline_file_uploader import StreamlineFileUploader
+    SDK_AVAILABLE = True
+    print("✅ StreamlineFileUploader SDK loaded successfully")
+except ImportError as e:
+    print(f"❌ streamline-file-uploader SDK not available: {e}, falling back to legacy implementation")
+    SDK_AVAILABLE = False
 
 load_dotenv()
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/file-upload")
 
-# File server configuration
-FILE_SERVER_BASE_URL = os.getenv("FILE_SERVER_BASE_URL")
-SERVICE_TOKEN = os.getenv("SERVICE_TOKEN")
+# File server configuration (using config module for consistency)
+FILE_SERVER_BASE_URL = config.UPLOAD_BASE_URL
+SERVICE_TOKEN = config.AUTH_SERVICE_TOKEN
 
 class FileServerService:
     """Service for interacting with Stream-Line file server"""
     
     @staticmethod
     async def upload_file_to_stream_line(user_email: str, file_data: bytes, filename: str, mime_type: str, folder: str = None):
-        """Upload a file to Stream-Line file server using the documented API pattern"""
+        """Upload a file to Stream-Line file server using SDK or fallback to legacy API"""
         try:
-            # Step 1: Initialize upload
-            init_data = {
-                "mode": "single",
-                "files": [{
-                    "name": filename,
-                    "size": len(file_data),
-                    "mime": mime_type
-                }],
-                "meta": {
-                    "user_email": user_email
-                }
-            }
-            
-            if folder:
-                init_data["folder"] = folder
-            
-            response = requests.post(
-                f"{FILE_SERVER_BASE_URL}/v1/files/init",
-                headers={
-                    "X-Service-Token": SERVICE_TOKEN,
-                    "Content-Type": "application/json"
-                },
-                json=init_data
-            )
-            
-            if response.status_code != 200:
-                logger.error(f"File server init failed: {response.status_code} - {response.text}")
-                raise Exception(f"File server init failed: {response.status_code}")
-            
-            upload_session = response.json()
-            upload_id = upload_session["uploadId"]
-            
-            # Step 2: Upload the file data
-            file_b64 = base64.b64encode(file_data).decode('utf-8')
-            
-            complete_data = {
-                "uploadId": upload_id,
-                "parts": [{"data": file_b64}],
-                "meta": {"user_email": user_email},
-                "folder": folder
-            }
-            
-            response = requests.post(
-                f"{FILE_SERVER_BASE_URL}/v1/files/complete",
-                headers={
-                    "X-Service-Token": SERVICE_TOKEN,
-                    "Content-Type": "application/json"
-                },
-                json=complete_data
-            )
-            
-            if response.status_code != 200:
-                logger.error(f"File server complete failed: {response.status_code} - {response.text}")
-                raise Exception(f"File server complete failed: {response.status_code}")
-            
-            result = response.json()
-            
-            # Generate public URL based on folder structure
-            if folder:
-                public_url = f"{FILE_SERVER_BASE_URL}/storage/{user_email}/{folder}/{result['fileKey'].split('_', 1)[1]}"
+            if SDK_AVAILABLE:
+                # Use the new SDK
+                logger.info(f"🚀 Using StreamlineFileUploader SDK for {filename}")
+                try:
+                    async with StreamlineFileUploader(
+                        base_url=config.UPLOAD_BASE_URL,
+                        service_token=config.AUTH_SERVICE_TOKEN
+                    ) as uploader:
+                        result = await uploader.upload_file(
+                            file_content=file_data,
+                            filename=filename,
+                            folder=folder or "uploads",
+                            user_email=user_email
+                        )
+                        
+                        # ✅ FIXED: Use the correct result object structure
+                        logger.info(f"✅ SDK upload successful: {result.file_key}")
+                        return {
+                            "success": True,
+                            "file_key": result.file_key,
+                            "public_url": result.public_url,
+                            "file_id": result.file_key  # Use file_key as file_id
+                        }
+                            
+                except Exception as sdk_error:
+                    logger.error(f"❌ SDK error: {sdk_error}, falling back to legacy")
+                    return await FileServerService._legacy_upload(user_email, file_data, filename, mime_type, folder)
             else:
-                public_url = f"{FILE_SERVER_BASE_URL}/storage/{user_email}/{result['fileKey'].split('_', 1)[1]}"
-            
-            return {
-                "file_key": result["fileKey"],
-                "public_url": public_url,
-                "success": True
-            }
-            
+                # Fallback to legacy implementation
+                logger.info(f"🔄 Using legacy upload for {filename}")
+                return await FileServerService._legacy_upload(user_email, file_data, filename, mime_type, folder)
+                
         except Exception as e:
-            logger.error(f"Error uploading to file server: {str(e)}")
+            logger.error(f"Upload to Stream-Line failed: {str(e)}")
             return {"success": False, "error": str(e)}
     
     @staticmethod
@@ -138,6 +111,7 @@ async def upload_file(
 ):
     """Upload a file to the Stream-Line file server"""
     try:
+        logger.info(f"📁 File upload request: {file.filename}, type: {upload_type}, size: {file.size}, user: {current_user.get('email')}")
         # Validate file size (max 50MB)
         if file.size and file.size > 50 * 1024 * 1024:
             raise HTTPException(status_code=400, detail="File size too large. Maximum size is 50MB.")
@@ -193,7 +167,8 @@ async def upload_file(
             description=description,
             tags=tags,
             file_server_url=file_server_result["public_url"],
-            folder=folder
+            folder=folder,
+            access_email=current_user.get('email')  # Track email used for file server access
         )
         
         db.add(file_upload)
@@ -410,7 +385,8 @@ async def customer_upload_file(
             description=description,
             tags=f"customer,{upload_type}",
             file_server_url=file_server_result["public_url"],
-            folder=folder
+            folder=folder,
+            access_email=current_user.get('email')  # Track email used for file server access
         )
         
         db.add(file_upload)
@@ -501,54 +477,68 @@ async def update_customer_job(
         if not job:
             raise HTTPException(status_code=404, detail="Job not found or access denied")
         
-        # Update job fields (only allow certain fields to be updated by customers)
-        allowed_fields = [
-            'title', 'description', 'business_name', 'business_type', 'industry', 'industry_other',
-            'project_goals', 'target_audience', 'timeline', 'budget_range',
+        # Separate business/branding fields (go to User model) from job fields
+        business_fields = [
+            'business_name', 'business_type', 'industry', 'industry_other',
             'brand_colors', 'brand_color_tags', 'brand_color_tag_others', 'brand_style', 'brand_style_other', 'brand_guidelines',
-            'website_url', 'github_url', 'portfolio_url', 'social_media',
-            'google_drive_links', 'github_repositories', 'workspace_links', 'additional_tools', 'server_details',
-            'notes', 'additional_resource_info'
+            'website_url', 'github_url', 'portfolio_url', 'social_media'
         ]
         
+        job_fields = [
+            'title', 'description', 'notes', 'additional_resource_info',
+            'google_drive_links', 'github_repositories', 'workspace_links', 'additional_tools', 'server_details'
+        ]
+        
+        # Update business/branding fields in User model (customer profile)
+        customer = db.query(User).filter(User.id == current_user.get('user_id')).first()
+        if customer:
+            for field, value in job_data.items():
+                if field in business_fields and hasattr(customer, field):
+                    setattr(customer, field, value)
+        
+        # Update job fields in Job model
         for field, value in job_data.items():
-            if field in allowed_fields and hasattr(job, field):
+            if field in job_fields and hasattr(job, field):
                 setattr(job, field, value)
         
         db.commit()
         db.refresh(job)
         
+        # Commit all changes
+        db.commit()
+        db.refresh(job)
+        if customer:
+            db.refresh(customer)
+        
         return {
-            "message": "Job updated successfully",
+            "message": "Job and customer profile updated successfully",
             "job": {
                 "id": job.id,
                 "title": job.title,
                 "description": job.description,
-                "business_name": job.business_name,
-                "business_type": job.business_type,
-                "industry": job.industry,
-                "industry_other": job.industry_other,
-                "project_goals": job.project_goals,
-                "target_audience": job.target_audience,
-                "timeline": job.timeline,
-                "budget_range": job.budget_range,
-                "brand_colors": job.brand_colors,
-                "brand_color_tags": job.brand_color_tags,
-                "brand_color_tag_others": job.brand_color_tag_others,
-                "brand_style": job.brand_style,
-                "brand_style_other": job.brand_style_other,
-                "brand_guidelines": job.brand_guidelines,
-                "website_url": job.website_url,
-                "github_url": job.github_url,
-                "portfolio_url": job.portfolio_url,
-                "social_media": job.social_media,
+                "notes": job.notes,
+                "additional_resource_info": job.additional_resource_info,
                 "google_drive_links": job.google_drive_links,
                 "github_repositories": job.github_repositories,
                 "workspace_links": job.workspace_links,
                 "additional_tools": job.additional_tools,
-                "server_details": job.server_details,
-                "notes": job.notes,
-                "additional_resource_info": job.additional_resource_info
+                "server_details": job.server_details
+            },
+            "customer_profile": {
+                "business_name": customer.business_name if customer else None,
+                "business_type": customer.business_type if customer else None,
+                "industry": customer.industry if customer else None,
+                "industry_other": customer.industry_other if customer else None,
+                "brand_colors": customer.brand_colors if customer else None,
+                "brand_color_tags": customer.brand_color_tags if customer else None,
+                "brand_color_tag_others": customer.brand_color_tag_others if customer else None,
+                "brand_style": customer.brand_style if customer else None,
+                "brand_style_other": customer.brand_style_other if customer else None,
+                "brand_guidelines": customer.brand_guidelines if customer else None,
+                "website_url": customer.website_url if customer else None,
+                "github_url": customer.github_url if customer else None,
+                "portfolio_url": customer.portfolio_url if customer else None,
+                "social_media": customer.social_media if customer else None
             }
         }
         

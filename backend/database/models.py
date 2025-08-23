@@ -43,9 +43,25 @@ class User(Base):
     business_site = Column(String(500), nullable=True)
     additional_websites = Column(Text, nullable=True)  # JSON array
     business_type = Column(String(255), nullable=True)
+    industry = Column(String(255), nullable=True)
+    industry_other = Column(String(255), nullable=True)
     pain_points = Column(Text, nullable=True)
     current_tools = Column(Text, nullable=True)
     budget = Column(String(100), nullable=True)
+    
+    # Branding and Design fields (for customers)
+    brand_colors = Column(JSON, nullable=True)  # Array of hex color codes
+    brand_color_tags = Column(JSON, nullable=True)  # Object mapping color index to tag
+    brand_color_tag_others = Column(JSON, nullable=True)  # Object mapping color index to custom tag
+    brand_style = Column(String(255), nullable=True)
+    brand_style_other = Column(String(255), nullable=True)
+    brand_guidelines = Column(Text, nullable=True)
+    
+    # Online presence fields (for customers)
+    website_url = Column(String(500), nullable=True)
+    github_url = Column(String(500), nullable=True)
+    portfolio_url = Column(String(500), nullable=True)
+    social_media = Column(JSON, nullable=True)  # Object with platform keys and URLs
     
     # Admin-specific fields
     is_super_admin = Column(Boolean, default=False)
@@ -53,6 +69,9 @@ class User(Base):
     # Customer-specific fields
     lead_status = Column(String(50), default="lead")  # lead, qualified, customer, closed
     notes = Column(Text, nullable=True)
+    
+    # Credits system
+    credits = Column(Integer, nullable=False, default=0)
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -64,6 +83,8 @@ class User(Base):
     appointments = relationship("Appointment", back_populates="customer")
     portal_invites = relationship("PortalInvite", back_populates="user")
     file_uploads = relationship("FileUpload", foreign_keys="[FileUpload.user_id]", back_populates="user")
+    credit_transactions = relationship("CreditTransaction", back_populates="user")
+    videos = relationship("Video", back_populates="user")
     
     @property
     def is_admin(self) -> bool:
@@ -112,7 +133,7 @@ class ChatSession(Base):
     
     # Relationships
     user = relationship("User", back_populates="chat_sessions")
-    customer = relationship("User", foreign_keys=[customer_id])
+    customer = relationship("User", foreign_keys=[customer_id], overlaps="chat_sessions,user")
     messages = relationship("ChatMessage", back_populates="session")
 
 class ChatMessage(Base):
@@ -270,6 +291,7 @@ class Job(Base):
     
     # Notes and Progress
     notes = Column(Text, nullable=True)
+    additional_resource_info = Column(JSON, nullable=True)  # Array of additional resource information
     progress_percentage = Column(Integer, default=0)  # 0-100
     milestones = Column(JSON, nullable=True)  # Array of {name, description, due_date, completed}
     deliverables = Column(JSON, nullable=True)  # Array of {name, description, delivered, date}
@@ -319,6 +341,9 @@ class FileUpload(Base):
     file_key = Column(String(100), nullable=False)  # File server's unique key
     folder = Column(String(255), nullable=True)  # Folder path on file server
     
+    # File server access tracking
+    access_email = Column(String(255), nullable=False)  # Email used for file server access
+    
     # Metadata
     description = Column(Text, nullable=True)
     tags = Column(String(500), nullable=True)  # Comma-separated tags
@@ -343,3 +368,47 @@ class FileUpload(Base):
     
     def __repr__(self):
         return f"<FileUpload(id={self.id}, filename='{self.filename}', type='{self.upload_type}')>"
+
+
+class CreditTransaction(Base):
+    __tablename__ = "credits_transactions"
+    
+    id = Column(String(), primary_key=True, index=True)  # UUID as string
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    job_id = Column(String(255), nullable=True)  # Redis job ID
+    amount = Column(Integer, nullable=False)  # Credits spent/added (negative for spending)
+    description = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    
+    # Relationships
+    user = relationship("User", back_populates="credit_transactions")
+    
+    def __repr__(self):
+        return f"<CreditTransaction(id={self.id}, user_id={self.user_id}, amount={self.amount})>"
+
+
+class Video(Base):
+    __tablename__ = "videos"
+    
+    id = Column(String(), primary_key=True, index=True)  # UUID as string
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    job_id = Column(String(255), nullable=True)  # Redis job ID
+    title = Column(String(200), nullable=True)
+    prompt = Column(Text, nullable=False)
+    negative_prompt = Column(Text, nullable=True)
+    aspect_ratio = Column(String(20), nullable=False, default='16:9')
+    model_id = Column(String(100), nullable=False)
+    seconds = Column(Integer, nullable=False, default=5)
+    cost_cents = Column(Integer, nullable=False, default=0)
+    file_key = Column(String(500), nullable=True)  # Full path to video file
+    thumb_key = Column(String(500), nullable=True)  # Full path to thumbnail
+    status = Column(String(50), nullable=False, default='pending')
+    error = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    
+    # Relationships
+    user = relationship("User", back_populates="videos")
+    
+    def __repr__(self):
+        return f"<Video(id={self.id}, user_id={self.user_id}, title='{self.title}', status='{self.status}')>"

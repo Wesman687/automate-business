@@ -1203,7 +1203,7 @@ export default function CustomerDashboard() {
             setShowJobDetailModal(false);
             setSelectedJob(null);
           }}
-          job={selectedJob}
+          jobId={selectedJob.id}
           isCustomer={true}
           onSave={async (updatedJob) => {
             // Refresh jobs after save

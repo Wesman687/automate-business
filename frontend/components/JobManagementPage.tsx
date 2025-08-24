@@ -858,7 +858,7 @@ export default function JobManagementPage({ onCreateNewJob, isCustomer = false }
             setShowJobDetail(false);
             setSelectedJob(null);
           }}
-          job={selectedJob}
+          jobId={selectedJob.id}
           isCustomer={isCustomer}
           onSave={isCustomer ? undefined : updateJob}
         />

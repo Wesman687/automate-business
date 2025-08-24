@@ -348,19 +348,13 @@ async def customer_upload_file(
         
         # Get customer email for file server
         customer_email = current_user.get('email')
-        # Determine folder structure for customer uploads
-        if folder:
-            # Use the folder specified by the frontend (logo, project, reference)
-            folder = f"documents/{folder}"
-        elif job_id:
-            # Job-specific files without type go to /documents/{job_id}
-            folder = f"documents/{job_id}"
-        elif upload_type in ["logo", "project", "reference"]:
-            # Job-related files without specific job_id go to main documents
-            folder = "documents/main"
+        # Use job-specific, organized folder structure
+        if upload_type in ["logo", "project", "reference"]:
+            # Job-specific type folders: documents/4/logos, documents/4/project, documents/4/reference
+            folder = f"documents/{job_id}/{upload_type}s" if upload_type == "logo" else f"documents/{job_id}/{upload_type}"
         else:
-            # Default to main documents folder
-            folder = "documents/main"
+            # Job-specific general folder: documents/4
+            folder = f"documents/{job_id}"
         
         # Upload to file server
         file_server_result = await FileServerService.upload_file_to_stream_line(
@@ -418,44 +412,96 @@ async def get_customer_job_files(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get all files for a specific job for the current customer"""
+    """Get all files for a specific job using SDK folder management"""
     try:
-        # Get files from our database for this specific job
-        query = db.query(FileUpload).filter(
-            FileUpload.is_active == True,
-            FileUpload.is_deleted == False,
-            FileUpload.job_id == job_id,
-            FileUpload.customer_id == current_user.get('user_id')
-        )
+        if not SDK_AVAILABLE:
+            raise HTTPException(status_code=500, detail="File server SDK not available")
         
-        db_files = query.order_by(FileUpload.uploaded_at.desc()).all()
-        
-        # Also get files from file server for this job folder
         customer_email = current_user.get('email')
-        folder = f"documents/{job_id}"
-        file_server_result = await FileServerService.get_user_files(customer_email, folder)
+        
+        # Use SDK to get files from job-specific organized folders
+        async with StreamlineFileUploader(
+            base_url=config.UPLOAD_BASE_URL,
+            service_token=config.AUTH_SERVICE_TOKEN
+        ) as uploader:
+            file_manager = uploader.file_manager
+            
+            all_files = []
+            
+            # Get files from documents/4/logos
+            try:
+                logo_files = await file_manager.list_files(
+                    user_id=customer_email,
+                    folder=f"documents/{job_id}/logos"
+                )
+                for file in logo_files:
+                    file["upload_type"] = "logo"
+                    file["folder"] = f"documents/{job_id}/logos"
+                    file["id"] = file.get("file_key", file.get("id", 0))  # Use file_key as ID
+                    file["original_filename"] = file.get("filename", file.get("name", "Unknown"))
+                    file["file_url"] = file.get("public_url", file.get("url", ""))
+                    file["uploaded_at"] = file.get("created_at", file.get("uploaded_at", ""))
+                all_files.extend(logo_files)
+            except Exception as e:
+                logger.warning(f"Could not fetch logo files from documents/{job_id}/logos: {e}")
+            
+            # Get files from documents/4/project
+            try:
+                project_files = await file_manager.list_files(
+                    user_id=customer_email,
+                    folder=f"documents/{job_id}/project"
+                )
+                for file in project_files:
+                    file["upload_type"] = "project"
+                    file["folder"] = f"documents/{job_id}/project"
+                    file["id"] = file.get("file_key", file.get("id", 0))
+                    file["original_filename"] = file.get("filename", file.get("name", "Unknown"))
+                    file["file_url"] = file.get("public_url", file.get("url", ""))
+                    file["uploaded_at"] = file.get("created_at", file.get("uploaded_at", ""))
+                all_files.extend(project_files)
+            except Exception as e:
+                logger.warning(f"Could not fetch project files from documents/{job_id}/project: {e}")
+            
+            # Get files from documents/4/reference
+            try:
+                reference_files = await file_manager.list_files(
+                    user_id=customer_email,
+                    folder=f"documents/{job_id}/reference"
+                )
+                for file in reference_files:
+                    file["upload_type"] = "reference"
+                    file["folder"] = f"documents/{job_id}/reference"
+                    file["id"] = file.get("file_key", file.get("id", 0))
+                    file["original_filename"] = file.get("filename", file.get("name", "Unknown"))
+                    file["file_url"] = file.get("public_url", file.get("url", ""))
+                    file["uploaded_at"] = file.get("created_at", file.get("uploaded_at", ""))
+                all_files.extend(reference_files)
+            except Exception as e:
+                logger.warning(f"Could not fetch reference files from documents/{job_id}/reference: {e}")
+            
+            # Get files from documents/4 (general files)
+            try:
+                general_files = await file_manager.list_files(
+                    user_id=customer_email,
+                    folder=f"documents/{job_id}"
+                )
+                for file in general_files:
+                    file["upload_type"] = "general"
+                    file["folder"] = f"documents/{job_id}"
+                    file["id"] = file.get("file_key", file.get("id", 0))
+                    file["original_filename"] = file.get("filename", file.get("name", "Unknown"))
+                    file["file_url"] = file.get("public_url", file.get("url", ""))
+                    file["uploaded_at"] = file.get("created_at", file.get("uploaded_at", ""))
+                all_files.extend(general_files)
+            except Exception as e:
+                logger.warning(f"Could not fetch general files from documents/{job_id}: {e}")
         
         return {
-            "files": [
-                {
-                    "id": f.id,
-                    "filename": f.filename,
-                    "original_filename": f.original_filename,
-                    "file_size": f.file_size,
-                    "mime_type": f.mime_type,
-                    "upload_type": f.upload_type,
-                    "description": f.description,
-                    "tags": f.tags,
-                    "uploaded_at": f.uploaded_at.isoformat(),
-                    "file_url": f.file_server_url,
-                    "folder": f.folder
-                }
-                for f in db_files
-            ],
-            "file_server_status": "success" if file_server_result["success"] else "error",
-            "file_server_error": file_server_result.get("error") if not file_server_result["success"] else None,
+            "files": all_files,
+            "file_server_status": "success",
+            "file_server_error": None,
             "job_id": job_id,
-            "folder": folder
+            "folder": f"documents/{job_id}"
         }
         
     except Exception as e:

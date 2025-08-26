@@ -56,11 +56,6 @@ def get_current_admin(current_user: dict = Depends(get_current_user)) -> dict:
     # Check both is_admin property and user_type for compatibility
     is_admin = current_user.get("is_admin", False) or current_user.get("user_type") == "admin"
     
-    # Debug logging
-    print(f"🔐 Admin check for user: {current_user.get('email')}")
-    print(f"   user_type: {current_user.get('user_type')}")
-    print(f"   is_admin: {current_user.get('is_admin')}")
-    print(f"   final_admin_check: {is_admin}")
     
     if not is_admin:
         raise HTTPException(status_code=403, detail="Admin privileges required")

@@ -243,7 +243,7 @@ export default function ChatBot() {
   const sendToAI = async (message: string) => {
     setIsTyping(true)
     try {
-      const response = await api.post(`/api/chat`, {
+      const response = await api.post(`/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

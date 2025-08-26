@@ -299,7 +299,7 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
   const markAsUnread = async (emailId: string) => {
     try {
       // Use api utility - automatically routes to production server
-      await api.post(`/api/email/${emailId}/mark-unread`, {});
+              await api.post(`/email/${emailId}/mark-unread`, {});
 
       // Update local state immediately for better UX
       setEmails(prev => prev.map(email => 

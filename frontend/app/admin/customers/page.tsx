@@ -39,9 +39,9 @@ export default function Customers() {
 
 const fetchCustomers = async () => {
   try {
-          const data = await api.get<Customer[]>('/customers'); // parsed JSON already
+    const data = await api.get<Customer[]>('/customers');
     setCustomers(data);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching customers:', error);
   } finally {
     setLoading(false);
@@ -132,13 +132,16 @@ const updateCustomer = async (
           <h1 className="text-3xl font-bold text-white">Customer Management</h1>
           <p className="text-gray-400 mt-1">Manage your customer database and leads</p>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 transition-colors"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add Customer
-        </button>
+        <div className="flex space-x-2">
+          
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 transition-colors"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Customer
+          </button>
+        </div>
       </div>
 
       {/* Search and Filter */}

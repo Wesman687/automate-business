@@ -20,11 +20,16 @@ interface Customer {
   business_site?: string;
   business_type?: string;
   additional_websites?: string;
+  pain_points?: string;
+  current_tools?: string;
+  budget?: string;
   status: string;
   notes?: string;
   file_path?: string;
   created_at: string;
+  updated_at?: string;
   chat_sessions?: ChatSession[];
+  chat_count?: number;
 }
 
 interface ChatSession {
@@ -137,20 +142,13 @@ export default function CustomerDetail() {
       };
 
       // Fetch customer's invoices and jobs
-      const [invoicesRes, jobsRes] = await Promise.all([
-        api.get(`/api/invoices?customer_id=${customerId}`),
-        api.get(`/api/jobs?customer_id=${customerId}`)
+      const [invoicesData, jobsData] = await Promise.all([
+        api.get(`/invoices?customer_id=${customerId}`),
+        api.get(`/jobs?customer_id=${customerId}`)
       ]);
 
-      if (invoicesRes.ok) {
-        const invoicesData = await invoicesRes.json();
-        setInvoices(invoicesData);
-      }
-
-      if (jobsRes.ok) {
-        const jobsData = await jobsRes.json();
-        setJobs(jobsData);
-      }
+      setInvoices(invoicesData);
+      setJobs(jobsData);
     } catch (error) {
       console.error('Error fetching financial data:', error);
     } finally {
@@ -160,19 +158,15 @@ export default function CustomerDetail() {
 
   const fetchCustomer = async () => {
     try {
-      const response = await api.get(`/api/customers/${customerId}`);
-
-      if (response.ok) {
-        const data = await response.json();
-        setCustomer(data);
-      } else if (response.status === 404) {
+      const data = await api.get(`/customers/${customerId}`);
+      setCustomer(data);
+    } catch (error) {
+      console.error('Error fetching customer:', error);
+      if (error instanceof Error && error.message.includes('404')) {
         setError('Customer not found');
       } else {
         setError('Failed to load customer');
       }
-    } catch (error) {
-      console.error('Error fetching customer:', error);
-      setError('Failed to load customer');
     } finally {
       setLoading(false);
     }
@@ -182,25 +176,13 @@ export default function CustomerDetail() {
     try {
       // If password change is requested, handle it separately first
       if (passwordData?.password) {
-        const passwordResponse = await api.post(`/api/customers/${customerId}/set-password`,{password: passwordData.password })
-        
-
-        if (!passwordResponse.ok) {
-          throw new Error('Failed to update password');
-        }
+        await api.post(`/customers/${customerId}/set-password`, { password: passwordData.password });
       }
 
       // Update customer data
-      const response = await api.put(`/api/customers/${customerId}`,updatedData)
-    
-
-      if (response.ok) {
-        const updatedCustomer = await response.json();
-        setCustomer(updatedCustomer);
-        // Show success message or notification here if desired
-      } else {
-        throw new Error('Failed to update customer');
-      }
+      const updatedCustomer = await api.put(`/customers/${customerId}`, updatedData);
+      setCustomer(updatedCustomer);
+      // Show success message or notification here if desired
     } catch (error) {
       console.error('Error updating customer:', error);
       throw error; // Re-throw so the modal can handle it

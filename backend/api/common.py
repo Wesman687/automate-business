@@ -274,7 +274,24 @@ def serialize_job(job) -> dict:
         "milestones": job.milestones,
         "deliverables": job.deliverables,
         "created_at": job.created_at,
-        "updated_at": job.updated_at
+        "updated_at": job.updated_at,
+        # New fields added to the database
+        "project_goals": getattr(job, 'project_goals', None),
+        "target_audience": getattr(job, 'target_audience', None),
+        "timeline": getattr(job, 'timeline', None),
+        "budget_range": getattr(job, 'budget_range', None),
+        "brand_colors": getattr(job, 'brand_colors', None),
+        "brand_color_tags": getattr(job, 'brand_color_tags', None),
+        "brand_color_tag_others": getattr(job, 'brand_color_tag_others', None),
+        "brand_style": getattr(job, 'brand_style', None),
+        "brand_style_other": getattr(job, 'brand_style_other', None),
+        "logo_files": getattr(job, 'logo_files', None),
+        "brand_guidelines": getattr(job, 'brand_guidelines', None),
+        "website_url": getattr(job, 'website_url', None),
+        "github_url": getattr(job, 'github_url', None),
+        "portfolio_url": getattr(job, 'portfolio_url', None),
+        "social_media": getattr(job, 'social_media', None),
+        "resources": getattr(job, 'resources', None)
     }
 
 def serialize_time_entry(entry) -> dict:

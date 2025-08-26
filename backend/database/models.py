@@ -5,6 +5,11 @@ from . import Base
 import enum
 
 # Import models from other files
+# Note: Credit models are imported separately to avoid circular imports
+# These are string references that will be resolved after all models are loaded
+from models.cross_app_models import AppIntegration, CrossAppSession, AppCreditUsage
+
+# Re-export credit models for other services to import
 from models.credit_models import UserSubscription, CreditDispute
 
 class UserType(enum.Enum):
@@ -98,9 +103,13 @@ class User(Base):
     stripe_customer = relationship("StripeCustomer", back_populates="user", uselist=False)
     
     # Scraper relationships
-    extractor_schemas = relationship("ExtractorSchema", back_populates="user")
-    scraping_jobs = relationship("ScrapingJob", back_populates="user")
-    exports = relationship("Export", back_populates="user")
+    # Note: Scraper models are imported separately if they exist
+    
+    # Cross-app relationships
+    app_integrations_created = relationship("AppIntegration", foreign_keys="[AppIntegration.created_by]", back_populates="created_by_user")
+    app_integrations_approved = relationship("AppIntegration", foreign_keys="[AppIntegration.approved_by]", back_populates="approved_by_user")
+    cross_app_sessions = relationship("CrossAppSession", back_populates="user")
+    app_credit_usage = relationship("AppCreditUsage", back_populates="user")
     
     @property
     def is_admin(self) -> bool:
@@ -311,6 +320,30 @@ class Job(Base):
     progress_percentage = Column(Integer, default=0)  # 0-100
     milestones = Column(JSON, nullable=True)  # Array of {name, description, due_date, completed}
     deliverables = Column(JSON, nullable=True)  # Array of {name, description, delivered, date}
+    
+    # Project Planning and Goals
+    project_goals = Column(Text, nullable=True)
+    target_audience = Column(Text, nullable=True)
+    timeline = Column(Text, nullable=True)
+    budget_range = Column(Text, nullable=True)
+    
+    # Branding and Design
+    brand_colors = Column(JSON, nullable=True)  # Array of hex color codes
+    brand_color_tags = Column(JSON, nullable=True)  # Object mapping color index to tag
+    brand_color_tag_others = Column(JSON, nullable=True)  # Object mapping color index to custom tag
+    brand_style = Column(String(255), nullable=True)
+    brand_style_other = Column(String(255), nullable=True)
+    logo_files = Column(JSON, nullable=True)  # Array of file IDs
+    brand_guidelines = Column(Text, nullable=True)
+    
+    # Online Presence and Resources
+    website_url = Column(String(500), nullable=True)
+    github_url = Column(String(500), nullable=True)
+    portfolio_url = Column(String(500), nullable=True)
+    social_media = Column(JSON, nullable=True)  # Object with platform keys and URLs
+    
+    # Unified Resources Array
+    resources = Column(JSON, nullable=True)  # Array of {type, name, url, description}
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

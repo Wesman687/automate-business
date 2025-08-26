@@ -131,14 +131,11 @@ def get_jobs(
         
         # Execute query
         jobs = query.all()
-        print(f"Found {len(jobs)} jobs")
         
         # Convert SQLAlchemy models to dictionaries
         try:
             jobs_data = [serialize_job(job) for job in jobs]
-            print(f"Successfully serialized {len(jobs_data)} jobs")
         except Exception as serialize_error:
-            print(f"Error serializing jobs: {str(serialize_error)}")
             import traceback
             traceback.print_exc()
             raise serialize_error
@@ -156,13 +153,11 @@ def get_jobs(
         )
         
     except Exception as e:
-        print(f"Error in get_jobs: {str(e)}")
-        print(f"Error type: {type(e)}")
         import traceback
         traceback.print_exc()
         raise APIError(
             status_code=500,
-            error=f"Internal error: {str(e)}",
+            error=ERROR_MESSAGES["internal_error"],
             error_code=ERROR_CODES["INTERNAL_ERROR"]
         )
 
@@ -411,7 +406,8 @@ def update_job(
         
         # Update job fields
         for field, value in update_data.items():
-            setattr(job, field, value)
+            if hasattr(job, field):
+                setattr(job, field, value)
         
         # Save changes
         db.commit()

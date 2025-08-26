@@ -1,8 +1,10 @@
 from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, JSON, Enum, Index
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from database import Base
 import enum
+
+# Import Base from database to avoid circular imports
+from database import Base
 
 class AppStatus(enum.Enum):
     ACTIVE = "active"
@@ -49,7 +51,7 @@ class AppIntegration(Base):
     allowed_origins = Column(JSON, nullable=True)  # Array of allowed CORS origins
     
     # Status and metadata
-    status = Column(Enum(AppStatus), default=AppStatus.PENDING_APPROVAL, nullable=False, index=True)
+    status = Column(Enum('active', 'inactive', 'suspended', 'pending_approval', name='appstatus'), default='pending_approval', nullable=False, index=True)
     created_by = Column(Integer, ForeignKey("users.id"), nullable=True)  # Admin who created this integration
     approved_by = Column(Integer, ForeignKey("users.id"), nullable=True)  # Admin who approved this integration
     approved_at = Column(DateTime(timezone=True), nullable=True)

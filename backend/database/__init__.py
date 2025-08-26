@@ -25,11 +25,11 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 # Import all models to ensure they are registered with SQLAlchemy
+# Note: Import order matters to avoid circular dependencies
 from .models import *
 from models.credit_models import *
 from models.cross_app_models import *
 from models.email_account import *
-from .scraper_models import *
 
 def get_db():
     """Dependency to get database session"""

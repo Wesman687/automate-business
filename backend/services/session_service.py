@@ -80,6 +80,35 @@ class SessionService:
             .order_by(ChatSession.created_at.desc())\
             .all()
     
+    def get_customer_sessions_with_message_counts(self, customer_id: int) -> List[dict]:
+        """Get customer sessions with message counts using efficient SQL"""
+        result = self.db.query(
+            ChatSession,
+            func.count(ChatMessage.id).label('message_count')
+        ).outerjoin(
+            ChatMessage, ChatSession.id == ChatMessage.session_id
+        ).filter(
+            ChatSession.customer_id == customer_id
+        ).group_by(
+            ChatSession.id
+        ).order_by(
+            ChatSession.created_at.desc()
+        ).all()
+        
+        sessions_with_counts = []
+        for session, message_count in result:
+            sessions_with_counts.append({
+                "id": session.id,
+                "session_id": session.session_id,
+                "customer_id": session.customer_id,
+                "start_time": session.created_at,
+                "end_time": session.updated_at,
+                "status": session.status,
+                "message_count": message_count or 0
+            })
+        
+        return sessions_with_counts
+    
     def update_session_customer(self, session_id: str, customer_id: int) -> ChatSession:
         """Link a session to a customer"""
         session = self.get_or_create_session(session_id)

@@ -72,7 +72,7 @@ export default function JobDetail() {
   const fetchJob = async () => {
     try {
       const token = localStorage.getItem('admin_token');
-      const response = await api.get(`/api/jobs/${jobId}`);
+      const response = await api.get(`/jobs/${jobId}`);
 
       if (response.ok) {
         const jobData = await response.json();
@@ -92,7 +92,7 @@ export default function JobDetail() {
         }
 
         // Fetch change requests for this job
-        const changeRequestsResponse = await api.get(`/api/admin/change-requests?job_id=${jobId}`);
+        const changeRequestsResponse = await api.get(`/admin/change-requests?job_id=${jobId}`);
 
         if (changeRequestsResponse.ok) {
           const changeRequestsData = await changeRequestsResponse.json();
@@ -114,7 +114,7 @@ export default function JobDetail() {
   const updateJob = async (updateData: Partial<Job>) => {
     try {
       const token = localStorage.getItem('admin_token');
-      const response = await api.put(`/api/jobs/${jobId}`, updateData);
+      const response = await api.put(`/jobs/${jobId}`, updateData);
 
       if (response.ok) {
         const updatedJob = await response.json();
@@ -131,7 +131,7 @@ export default function JobDetail() {
   const updateJobFromModal = async (jobData: any) => {
     try {
       const token = localStorage.getItem('admin_token');
-      const response = await api.put(`/api/jobs/${jobId}`, jobData);
+      const response = await api.put(`/jobs/${jobId}`, jobData);
 
       if (response.ok) {
         const updatedJob = await response.json();
@@ -149,7 +149,7 @@ export default function JobDetail() {
   const updateChangeRequestStatus = async (requestId: number, newStatus: string) => {
     try {
       const token = localStorage.getItem('admin_token');
-      const response = await api.put(`/api/admin/change-requests/${requestId}`, { status: newStatus });
+      const response = await api.put(`/admin/change-requests/${requestId}`, { status: newStatus });
 
       if (response.ok) {
         // Update the local state
@@ -170,7 +170,7 @@ export default function JobDetail() {
   const handleSaveRequest = async (updatedRequest: Partial<ChangeRequest>) => {
     try {
       const token = localStorage.getItem('admin_token');
-      const response = await api.put(`/api/admin/change-requests/${updatedRequest.id}`, updatedRequest);
+      const response = await api.put(`/admin/change-requests/${updatedRequest.id}`, updatedRequest);
 
       if (response.ok) {
         // Update the local state

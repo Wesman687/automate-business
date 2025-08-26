@@ -44,9 +44,7 @@ export default function JobDetailModal({ isOpen, onClose, jobId, isCustomer = fa
   if (!isOpen || !jobId) return null;
 
   useEffect(() => {
-    console.log('🔄 useEffect triggered:', { isOpen, jobId });
     if (isOpen && jobId) {
-      console.log('🚀 Fetching job data and files...');
       fetchJobData();
       fetchJobFiles();
     }
@@ -59,42 +57,28 @@ export default function JobDetailModal({ isOpen, onClose, jobId, isCustomer = fa
   }, [job]);
 
   const fetchJobData = async () => {
-    console.log('🔍 fetchJobData called for jobId:', jobId);
     try {
       setLoading(true);
-      console.log('📡 Making API call to:', `/api/jobs/${jobId}`);
       
-      const response = await api.get(`/api/jobs/${jobId}`);
-      console.log('✅ API response received:', response);
-      console.log('📊 Response data:', response.data);
-      console.log('🔍 Response type:', typeof response);
-      console.log('🔍 Response keys:', Object.keys(response));
+      const response = await api.get(`/jobs/${jobId}`);
       
       // Handle new standardized API response format
       const jobData = response?.data || response;
-      console.log('💾 Setting job state with:', jobData);
       setJob(jobData);
       setEditData(jobData);
-      console.log('✅ Job state set successfully');
     } catch (error) {
       console.error('❌ Failed to fetch job data:', error);
     } finally {
-      console.log('🏁 Setting loading to false');
       setLoading(false);
     }
   };
 
   const fetchJobFiles = async () => {
     try {
-      const response = await api.get(`/api/file-upload/customer/job/${jobId}/files`);
-      console.log('📁 Files API response:', response);
-      console.log('📁 Files response type:', typeof response);
+      const response = await api.get(`/file-upload/customer/job/${jobId}/files`);
       
       // The API response has a nested structure: { files: Array, file_server_status: 'success', ... }
       const filesData = response.files || [];
-      console.log('📁 Files data:', filesData);
-      console.log('📁 Files count:', filesData.length);
-      console.log('📁 Sample file structure:', filesData[0]);
       setJobFiles(filesData);
     } catch (error) {
       console.error('Failed to fetch job files:', error);
@@ -108,10 +92,55 @@ export default function JobDetailModal({ isOpen, onClose, jobId, isCustomer = fa
       if (onSave) {
         await onSave(editData);
       } else {
-        const response = await api.put(`/api/jobs/${jobId}`, editData);
-        if (response.data) {
-          setJob(response.data);
-          setEditData(response.data);
+        // Split the data: job-specific fields vs user/customer fields
+        const jobFields = [
+          'title', 'description', 'status', 'priority', 'start_date', 'deadline',
+          'completion_date', 'estimated_hours', 'actual_hours', 'hourly_rate',
+          'fixed_price', 'resources', 'additional_tools', 'server_details',
+          'notes', 'milestones', 'deliverables', 'google_drive_links',
+          'github_repositories', 'workspace_links', 'calendar_links',
+          'meeting_links', 'additional_resource_info', 'progress_percentage',
+          'project_goals', 'target_audience', 'timeline', 'budget_range',
+          'brand_colors', 'brand_color_tags', 'brand_color_tag_others',
+          'brand_style', 'brand_style_other', 'logo_files', 'brand_guidelines',
+          'website_url', 'github_url', 'portfolio_url', 'social_media'
+        ];
+        
+        const userFields = [
+          'business_name', 'business_type', 'industry', 'industry_other'
+        ];
+        
+        // Extract job data
+        const jobData = {};
+        Object.keys(editData).forEach(key => {
+          if (jobFields.includes(key) && editData[key] !== undefined) {
+            jobData[key] = editData[key];
+          }
+        });
+        
+        // Extract user data
+        const userData = {};
+        Object.keys(editData).forEach(key => {
+          if (userFields.includes(key) && editData[key] !== undefined) {
+            userData[key] = editData[key];
+          }
+        });
+        
+        // Save job data
+        const jobResponse = await api.put(`/jobs/${jobId}`, jobData);
+        
+        // Save user data if there are user fields to update
+        if (Object.keys(userData).length > 0 && job?.customer_id) {
+          try {
+            await api.put(`/users/${job.customer_id}`, userData);
+          } catch (userError) {
+            console.warn('Could not update user data:', userError);
+          }
+        }
+        
+        if (jobResponse.data) {
+          setJob(jobResponse.data);
+          setEditData(jobResponse.data);
         }
       }
       
@@ -120,7 +149,7 @@ export default function JobDetailModal({ isOpen, onClose, jobId, isCustomer = fa
       setTimeout(() => setShowSuccessMessage(false), 3000);
       
     } catch (error) {
-      console.error('Error saving job:', error);
+      console.error('❌ Error saving job:', error);
     } finally {
       setIsSaving(false);
     }
@@ -370,7 +399,7 @@ export default function JobDetailModal({ isOpen, onClose, jobId, isCustomer = fa
     }
   };
 
-  console.log('🎯 Render condition check:', { loading, hasJob: !!job, jobId });
+  
   
   if (!isOpen || !jobId) return null;
   

@@ -13,6 +13,7 @@ from schemas.customer import CustomerCreate, CustomerUpdate, Customer
 from api.auth import get_current_admin, get_current_user
 from typing import List, Optional
 from pydantic import BaseModel
+from datetime import datetime
 import os
 import uuid
 
@@ -22,6 +23,28 @@ class SaveCustomerRequest(BaseModel):
     name: Optional[str] = None
     company: Optional[str] = None
     phone: Optional[str] = None
+
+class CustomerResponse(BaseModel):
+    id: int
+    name: Optional[str] = None
+    email: str
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    zip_code: Optional[str] = None
+    country: Optional[str] = None
+    phone: Optional[str] = None
+    business_site: Optional[str] = None
+    business_type: Optional[str] = None
+    pain_points: Optional[str] = None
+    current_tools: Optional[str] = None
+    budget: Optional[str] = None
+    status: Optional[str] = None
+    notes: Optional[str] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    chat_sessions: List[dict] = []
+    chat_count: int = 0
 
 # Security configurations for file uploads
 ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf', '.doc', '.docx', '.txt', '.csv', '.xls', '.xlsx', '.ppt', '.pptx'}
@@ -236,21 +259,8 @@ async def get_customers(
         # Enhanced customer data with chat sessions
         enhanced_customers = []
         for customer in customers:
-            # Get chat sessions for this customer
-            chat_sessions = session_service.get_customer_sessions(customer.id)
-            
-            # Create chat session items
-            chat_session_items = []
-            for session in chat_sessions:
-                chat_session_items.append({
-                    "id": session.id,
-                    "session_id": session.session_id,
-                    "customer_id": session.customer_id,
-                    "start_time": session.created_at,
-                    "end_time": session.updated_at,
-                    "status": session.status,
-                    "message_count": len(session.messages) if session.messages else 0
-                })
+            # Get chat sessions with message counts for this customer
+            chat_session_items = session_service.get_customer_sessions_with_message_counts(customer.id)
             
             # Create customer dict with chat sessions
             customer_dict = {
@@ -281,10 +291,27 @@ async def get_customers(
         return enhanced_customers
         
     except Exception as e:
+        import traceback
         print(f"❌ Error getting customers: {str(e)}")
+        print(f"❌ Full traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Failed to get customers: {str(e)}")
 
-@router.get("/customers/{customer_id}", response_model=Customer)
+@router.get("/customers/test")
+async def test_customers_endpoint(db: Session = Depends(get_db)):
+    """Test endpoint to check if customers API is working"""
+    try:
+        print("🔍 Testing customers endpoint...")
+        customer_service = CustomerService(db)
+        customers = customer_service.get_all_customers()
+        print(f"✅ Found {len(customers)} customers")
+        return {"message": "Customers endpoint working", "count": len(customers)}
+    except Exception as e:
+        import traceback
+        print(f"❌ Test endpoint error: {str(e)}")
+        print(f"❌ Full traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Test endpoint failed: {str(e)}")
+
+@router.get("/customers/{customer_id}", response_model=CustomerResponse)
 async def get_customer(
     customer_id: int, 
     db: Session = Depends(get_db), 
@@ -292,6 +319,9 @@ async def get_customer(
 ):
     """Get a specific customer by ID - Admin sees any, customers see only themselves"""
     try:
+        print(f"🔍 Starting get_customer for customer_id: {customer_id} (type: {type(customer_id)})")
+        print(f"🔍 Current user: {current_user}")
+        
         customer_service = CustomerService(db)
         session_service = SessionService(db)
         
@@ -300,7 +330,6 @@ async def get_customer(
         user_type = current_user.get('user_type')
         user_id = current_user.get('user_id')
         
-        print(f"🔍 Get customer {customer_id} - User: {current_user}")
         print(f"🔍 Is admin: {is_admin}, User type: {user_type}, User ID: {user_id}")
         
         # Authorization check - fixed to properly check admin status
@@ -308,25 +337,23 @@ async def get_customer(
             print(f"❌ Access denied - is_admin: {is_admin}, user_type: {user_type}, user_id: {user_id}, customer_id: {customer_id}")
             raise HTTPException(status_code=403, detail="Access denied - can only view your own data")
         
+        print(f"🔍 Authorization passed, fetching customer from database...")
         customer = customer_service.get_customer_by_id(customer_id)
+        print(f"🔍 Customer query result: {customer}")
+        
         if not customer:
+            print(f"❌ Customer not found in database for ID: {customer_id}")
             raise HTTPException(status_code=404, detail="Customer not found")
         
-        # Get chat sessions for this customer
-        chat_sessions = session_service.get_customer_sessions(customer.id)
-        
-        # Create chat session items
-        chat_session_items = []
-        for session in chat_sessions:
-            chat_session_items.append({
-                "id": session.id,
-                "session_id": session.session_id,
-                "customer_id": session.customer_id,
-                "start_time": session.created_at,
-                "end_time": session.updated_at,
-                "status": session.status,
-                "message_count": len(session.messages) if session.messages else 0
-            })
+        print(f"🔍 Customer found, fetching chat sessions...")
+        try:
+            # Get chat sessions with message counts for this customer
+            chat_session_items = session_service.get_customer_sessions_with_message_counts(customer.id)
+            print(f"🔍 Chat sessions found: {len(chat_session_items) if chat_session_items else 0}")
+        except Exception as e:
+            print(f"⚠️ Warning: Error fetching chat sessions: {str(e)}")
+            chat_session_items = []
+            print(f"🔍 Using empty chat sessions list")
         
         # Create customer dict with chat sessions
         customer_dict = {
@@ -352,12 +379,15 @@ async def get_customer(
             "chat_count": len(chat_session_items)
         }
         
+        print(f"✅ Successfully returning customer data for ID: {customer_id}")
         return customer_dict
         
     except HTTPException:
         raise
     except Exception as e:
+        import traceback
         print(f"❌ Error getting customer: {str(e)}")
+        print(f"❌ Full traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Failed to get customer: {str(e)}")
 
 @router.put("/customers/{customer_id}", response_model=Customer)
@@ -394,21 +424,12 @@ async def update_customer(
         if not customer:
             raise HTTPException(status_code=404, detail="Customer not found")
         
-        # Get chat sessions for this customer
-        chat_sessions = session_service.get_customer_sessions(customer.id)
-        
-        # Create chat session items
-        chat_session_items = []
-        for session in chat_sessions:
-            chat_session_items.append({
-                "id": session.id,
-                "session_id": session.session_id,
-                "customer_id": session.customer_id,
-                "start_time": session.created_at,
-                "end_time": session.updated_at,
-                "status": session.status,
-                "message_count": len(session.messages) if session.messages else 0
-            })
+        # Get chat sessions with message counts for this customer
+        try:
+            chat_session_items = session_service.get_customer_sessions_with_message_counts(customer.id)
+        except Exception as e:
+            print(f"⚠️ Warning: Error fetching chat sessions: {str(e)}")
+            chat_session_items = []
         
         # Create customer dict with chat sessions
         customer_dict = {
@@ -455,14 +476,14 @@ async def add_customer_notes(customer_id: int, notes: str, db: Session = Depends
 async def get_customer_sessions(customer_id: int, db: Session = Depends(get_db)):
     """Get all chat sessions for a customer"""
     session_service = SessionService(db)
-    sessions = session_service.get_customer_sessions(customer_id)
+    sessions = session_service.get_customer_sessions_with_message_counts(customer_id)
     
     return [
         {
-            "session_id": session.session_id,
-            "status": session.status,
-            "created_at": session.created_at,
-            "message_count": len(session.messages) if session.messages else 0
+            "session_id": session["session_id"],
+            "status": session["status"],
+            "created_at": session["start_time"],
+            "message_count": session["message_count"]
         }
         for session in sessions
     ]

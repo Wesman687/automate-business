@@ -69,8 +69,12 @@ const refresh = useCallback(async () => {
     const u = data?.user ?? data;
     console.log('🔍 useAuth: Setting user to:', u);
     setUser(u ?? null);
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ useAuth: Error in refresh:', error);
+    console.error('❌ useAuth: Error details:', {
+      message: error?.message || 'Unknown error',
+      status: error?.status || 'No status'
+    });
     setUser(null);
   }
 }, []);

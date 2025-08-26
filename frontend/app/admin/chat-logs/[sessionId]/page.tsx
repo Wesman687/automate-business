@@ -73,31 +73,14 @@ export default function ChatLogView() {
 
   const fetchChatLog = async () => {
     try {
-      // For chat sessions, call the backend directly since it's not under /api
-      const backendUrl = process.env.NODE_ENV === 'development' 
-        ? 'http://localhost:8005' 
-        : 'https://server.stream-lineai.com';
-      
-      // Fetch session data directly from backend
-      const sessionResponse = await api.get (`/api/sessions/${sessionId}`);
-      
-      if (!sessionResponse.ok) {
-        throw new Error(`Failed to fetch session: ${sessionResponse.status}`);
-      }
-      
-      const sessionData = await sessionResponse.json();
-      console.log('Session data received:', sessionData);
+      // Fetch session data using our API function
+      const sessionData = await api.get(`/sessions/${sessionId}`);
       
       // Fetch customer data if available
       let customer = null;
       if (sessionData.customer_id) {
         try {
-          const customerResponse = await api.get(`/api/customers/${sessionData.customer_id}`);
-          
-          if (customerResponse.ok) {
-            customer = await customerResponse.json();
-            console.log('Customer data received:', customer);
-          }
+          customer = await api.get(`/customers/${sessionData.customer_id}`);
         } catch (error) {
           console.warn('Failed to fetch customer data:', error);
         }
@@ -116,8 +99,6 @@ export default function ChatLogView() {
         customer,
         messages: sessionData.messages || []
       };
-
-      console.log('Transformed data:', transformedData);
       setData(transformedData);
     } catch (error) {
       console.error('Error fetching chat log:', error);
@@ -134,16 +115,7 @@ export default function ChatLogView() {
       // Toggle the seen status (opposite of current status)
       const newSeenStatus = !data.session.is_seen;
       
-      // Call backend directly since it's not under /api
-      const backendUrl = process.env.NODE_ENV === 'development' 
-        ? 'http://localhost:8005' 
-        : 'https://server.stream-lineai.com';
-      
-      const response = await api.patch(`/api/sessions/${sessionId}/seen`, { is_seen: newSeenStatus });
-
-      if (!response.ok) {
-        throw new Error(`Failed to update seen status: ${response.status}`);
-      }
+      await api.patch(`/sessions/${sessionId}/seen`, { is_seen: newSeenStatus });
 
       // Update local state
       setData({

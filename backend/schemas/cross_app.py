@@ -3,7 +3,7 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 from enum import Enum
 
-# Enums
+# Enums - using str, Enum for proper Pydantic serialization
 class AppStatus(str, Enum):
     ACTIVE = "active"
     INACTIVE = "inactive"
@@ -67,6 +67,7 @@ class AppIntegrationResponse(AppIntegrationBase):
 
     class Config:
         from_attributes = True
+        use_enum_values = True  # This ensures enums are serialized as strings
 
 # Cross-App Session Schemas
 class CrossAppSessionBase(BaseModel):

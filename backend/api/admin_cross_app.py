@@ -33,6 +33,21 @@ def require_admin(current_user: dict = Depends(get_current_user)):
     return current_user
 
 
+@router.get("/health")
+async def health_check(
+    current_user: dict = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Health check for cross-app tables"""
+    try:
+        # Test if we can query the table
+        from models.cross_app_models import AppIntegration
+        count = db.query(AppIntegration).count()
+        return {"status": "healthy", "table_exists": True, "record_count": count}
+    except Exception as e:
+        logger.error(f"Health check failed: {str(e)}")
+        return {"status": "unhealthy", "table_exists": False, "error": str(e)}
+
 @router.post("/integrations", response_model=AppIntegrationResponse)
 async def create_app_integration(
     app_data: AppIntegrationCreate,
@@ -43,21 +58,20 @@ async def create_app_integration(
     try:
         cross_app_service = CrossAppAuthService(db)
         
-        # Generate unique app_id if not provided
-        if not app_data.app_id:
-            app_data.app_id = f"app_{secrets.token_urlsafe(8)}"
+        # Generate unique app_id automatically
+        app_id = f"app_{secrets.token_urlsafe(8)}"
         
-        # Generate API key if not provided
-        api_key = None
-        if not app_data.api_key_hash:
-            api_key = secrets.token_urlsafe(32)
-            api_key_hash = hashlib.sha256(api_key.encode()).hexdigest()
-            app_data.api_key_hash = api_key_hash
+        # Generate API key automatically
+        api_key = secrets.token_urlsafe(32)
+        api_key_hash = hashlib.sha256(api_key.encode()).hexdigest()
         
-        # Create the app integration
+        # Create the app integration with generated values and auto-approve for admins
         app_integration = cross_app_service.create_app_integration(
             app_data=app_data,
-            created_by=current_user["user_id"]
+            app_id=app_id,
+            api_key_hash=api_key_hash,
+            created_by=current_user["user_id"],
+            auto_approve=True  # Auto-approve integrations created by admins
         )
         
         # Return response with the generated API key (only shown once)
@@ -66,7 +80,7 @@ async def create_app_integration(
             "api_key": api_key  # Include the plain API key for admin to share
         }
         
-        logger.info(f"Admin {current_user['email']} created app integration: {app_data.app_id}")
+        logger.info(f"Admin {current_user['email']} created and auto-approved app integration: {app_id}")
         return response_data
         
     except Exception as e:
@@ -79,21 +93,23 @@ async def create_app_integration(
 
 @router.get("/integrations", response_model=List[AppIntegrationResponse])
 async def list_app_integrations(
-    status: Optional[AppStatus] = None,
+    app_status: Optional[AppStatus] = None,
     current_user: dict = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
     """List all cross-app integrations with optional status filter"""
     try:
         cross_app_service = CrossAppAuthService(db)
-        integrations = cross_app_service.get_all_app_integrations(status=status)
+        integrations = cross_app_service.get_all_app_integrations(status=app_status)
         return integrations
         
     except Exception as e:
         logger.error(f"Error listing app integrations: {str(e)}")
+        logger.error(f"Error type: {type(e)}")
+        logger.error(f"Error details: {e.__dict__ if hasattr(e, '__dict__') else 'No details'}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to list app integrations"
+            detail=f"Failed to list app integrations: {str(e)}"
         )
 
 

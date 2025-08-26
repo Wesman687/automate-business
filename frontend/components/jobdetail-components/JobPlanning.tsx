@@ -28,7 +28,7 @@ export default function JobPlanning({ data, isEditing, editData, setEditData, is
 
   const handleAIPlanGenerated = useCallback((plan: any) => {
     // Handle AI plan response - could update milestones and deliverables
-    console.log('AI plan generated:', plan);
+    
     // You could implement logic here to apply the AI-generated plan
   }, []);
 

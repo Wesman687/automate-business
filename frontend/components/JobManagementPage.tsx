@@ -49,26 +49,37 @@ export default function JobManagementPage({ onCreateNewJob, isCustomer = false }
   }, []);
 
   const fetchJobData = async () => {
-    console.log('Fetching job data...');
+    console.log('🔍 Fetching job data...');
     try {
       // Fetch jobs, customers, and time entries
-      console.log('Fetching jobs...');
+      console.log('🔍 Fetching jobs...');
       const [jobsResponse, customersResponse, timeEntriesResponse] = await Promise.all([
         api.get(isCustomer ? '/jobs/customer' : '/jobs'),
         api.get('/customers'),
         api.get(isCustomer ? '/time-entries/customer' : '/time-entries')
       ]);
       
+      console.log('✅ Jobs response:', jobsResponse);
+      console.log('✅ Customers response:', customersResponse);
+      console.log('✅ Time entries response:', timeEntriesResponse);
+      
       // Handle new standardized API response format
       const jobs = jobsResponse?.data || jobsResponse || [];
       const customers = customersResponse?.data || customersResponse || [];
       const timeEntries = timeEntriesResponse?.data || timeEntriesResponse || [];
       
+      console.log('📊 Processed data:', { jobs: jobs.length, customers: customers.length, timeEntries: timeEntries.length });
+      
       setJobs(jobs);
       setCustomers(customers);
       setTimeEntries(timeEntries);
-    } catch (error) {
-      console.error('Error fetching job data:', error);
+    } catch (error: any) {
+      console.error('❌ Error fetching job data:', error);
+      console.error('❌ Error details:', {
+        message: error?.message || 'Unknown error',
+        status: error?.status || 'No status',
+        stack: error?.stack || 'No stack'
+      });
     } finally {
       setLoading(false);
     }

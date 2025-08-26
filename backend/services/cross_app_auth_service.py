@@ -343,13 +343,16 @@ class CrossAppAuthService:
             logger.info(f"Cleaned up {len(expired_sessions)} expired cross-app sessions")
 
     # Admin methods for managing app integrations
-    def create_app_integration(self, app_data, created_by: int):
+    def create_app_integration(self, app_data, app_id: str, api_key_hash: str, created_by: int, auto_approve: bool = False):
         """Create a new app integration"""
         from schemas.cross_app import AppIntegrationCreate
         
+        # Set status based on auto_approve flag - use string values that match the explicit enum
+        status = "active" if auto_approve else "pending_approval"
+        
         # Create new app integration
         app_integration = AppIntegration(
-            app_id=app_data.app_id,
+            app_id=app_id,
             app_name=app_data.app_name,
             app_domain=app_data.app_domain,
             app_url=app_data.app_url,
@@ -359,11 +362,13 @@ class CrossAppAuthService:
             permissions=app_data.permissions,
             max_users=app_data.max_users,
             is_public=app_data.is_public,
-            api_key_hash=app_data.api_key_hash,
+            api_key_hash=api_key_hash,
             webhook_url=app_data.webhook_url,
             allowed_origins=app_data.allowed_origins,
-            status=AppStatus.PENDING_APPROVAL,
-            created_by=created_by
+            status=status,
+            created_by=created_by,
+            approved_by=created_by if auto_approve else None,
+            approved_at=datetime.utcnow() if auto_approve else None
         )
         
         self.db.add(app_integration)

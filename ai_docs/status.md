@@ -98,6 +98,13 @@
 - [ ] Customer portal integration
 - [ ] Payment processing for credit purchases
 
+### 2. Admin Dashboard Enhancement
+- [ ] **New Task Created**: `ADMIN-DASH-001` - Admin Functionality & Dashboard Enhancement
+- [ ] **Current Status**: Task documented and ready for implementation
+- [ ] **Scope**: Consolidate existing admin functionality, fix authentication issues, enhance UX
+- [ ] **Priority**: High - Admin access is currently broken and needs immediate attention
+- [ ] **Dependencies**: Authentication system fixes, component consolidation, API endpoint validation
+
 ### 2. Advanced Features
 - [ ] Subscription package management UI
 - [ ] Credit dispute resolution workflow

@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, Download, Trash2, Eye, FileText, Folder, Calendar, HardDrive, 
   Grid3X3, List, Search, ArrowLeft, ArrowRight, MoreHorizontal,
-  Upload, Copy, Cut, Paste, Edit3, Share2, Info
+  Upload, Copy, Scissors, Clipboard, Edit3, Share2, Info
 } from 'lucide-react';
 import { api } from '@/lib/https';
 import DeleteModal from './DeleteModal';
@@ -726,7 +726,7 @@ export default function FileManagementModal({
             onClick={handleCut}
             className="w-full px-4 py-2 text-left text-white hover:bg-gray-700 flex items-center space-x-2"
           >
-            <Cut className="h-4 w-4" />
+            <Scissors className="h-4 w-4" />
             <span>Cut</span>
           </button>
           <button
@@ -736,7 +736,7 @@ export default function FileManagementModal({
             }`}
             disabled={!clipboard}
           >
-            <Paste className="h-4 w-4" />
+            <Clipboard className="h-4 w-4" />
             <span>Paste</span>
           </button>
           <hr className="border-gray-600 my-1" />

@@ -41,6 +41,14 @@ async function handler(req: NextRequest, ctx: { params: { upstream: string[] } }
     return NextResponse.next();
   }
   
+  // Skip this handler for admin page routes (but allow admin API endpoints)
+  const upstream = (ctx.params.upstream || []).join('/');
+  if (upstream === 'admin' && req.headers.get('accept')?.includes('text/html')) {
+    // This is the /admin page route, let Next.js handle it normally
+    return NextResponse.next();
+  }
+  // Don't skip customers or other routes - let them be proxied as API calls
+  
   console.log('Upstream parts:', ctx.params.upstream);
   const target = buildTargetUrl(req, ctx.params.upstream || []);
   console.log('Target URL:', target);

@@ -40,6 +40,30 @@ class JobBase(BaseModel):
     notes: Optional[str] = None
     milestones: Optional[List[Dict[str, Any]]] = []
     deliverables: Optional[List[Dict[str, Any]]] = []
+    
+    # Project Planning and Goals
+    project_goals: Optional[str] = None
+    target_audience: Optional[str] = None
+    timeline: Optional[str] = None
+    budget_range: Optional[str] = None
+    
+    # Branding and Design
+    brand_colors: Optional[List[str]] = None
+    brand_color_tags: Optional[Dict[str, str]] = None
+    brand_color_tag_others: Optional[Dict[str, str]] = None
+    brand_style: Optional[str] = None
+    brand_style_other: Optional[str] = None
+    logo_files: Optional[List[int]] = None
+    brand_guidelines: Optional[str] = None
+    
+    # Online Presence and Resources
+    website_url: Optional[str] = None
+    github_url: Optional[str] = None
+    portfolio_url: Optional[str] = None
+    social_media: Optional[Dict[str, str]] = None
+    
+    # Unified Resources Array
+    resources: Optional[List[Dict[str, Any]]] = None
 
 class JobCreate(JobBase):
     pass
@@ -104,6 +128,30 @@ class JobUpdate(BaseModel):
     progress_percentage: Optional[int] = None
     milestones: Optional[List[Dict[str, Any]]] = None
     deliverables: Optional[List[Dict[str, Any]]] = None
+    
+    # Project Planning and Goals
+    project_goals: Optional[str] = None
+    target_audience: Optional[str] = None
+    timeline: Optional[str] = None
+    budget_range: Optional[str] = None
+    
+    # Branding and Design
+    brand_colors: Optional[List[str]] = None
+    brand_color_tags: Optional[Dict[str, str]] = None
+    brand_color_tag_others: Optional[Dict[str, str]] = None
+    brand_style: Optional[str] = None
+    brand_style_other: Optional[str] = None
+    logo_files: Optional[List[int]] = None
+    brand_guidelines: Optional[str] = None
+    
+    # Online Presence and Resources
+    website_url: Optional[str] = None
+    github_url: Optional[str] = None
+    portfolio_url: Optional[str] = None
+    social_media: Optional[Dict[str, str]] = None
+    
+    # Unified Resources Array
+    resources: Optional[List[Dict[str, Any]]] = None
 
 class Job(JobBase):
     id: int

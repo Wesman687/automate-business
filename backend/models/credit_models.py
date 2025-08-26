@@ -1,8 +1,10 @@
 from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, Float, JSON, Enum, Numeric
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from database import Base
 import enum
+
+# Import Base from database to avoid circular imports
+from database import Base
 
 class SubscriptionStatus(enum.Enum):
     ACTIVE = "active"

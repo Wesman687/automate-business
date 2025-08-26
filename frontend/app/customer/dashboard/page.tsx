@@ -150,7 +150,7 @@ export default function CustomerDashboard() {
   const fetchCustomerData = async () => {
     try {
       // Use the user endpoint instead of customers
-      const response = await api.get(`/api/users/${user?.user_id}`);
+      const response = await api.get(`/users/${user?.user_id}`);
       // Handle new standardized API response format
       const customerData = response?.data || response;
       setCustomerData(customerData);
@@ -191,7 +191,7 @@ export default function CustomerDashboard() {
         // Fallback: try to get jobs with customer_id filter
         try {
           console.log('🔄 Trying fallback: /jobs?customer_id=' + user?.user_id);
-          response = await api.get(`/api/jobs?customer_id=${user?.user_id}`);
+          response = await api.get(`/jobs?customer_id=${user?.user_id}`);
           console.log('✅ Fallback endpoint worked');
         } catch (fallbackError: any) {
           console.log('❌ Fallback endpoint also failed:', fallbackError?.message);
@@ -308,9 +308,9 @@ export default function CustomerDashboard() {
   const handleEditCustomer = async (customerData: Partial<Customer>, passwordData?: { password: string }) => {
     try {
       // Update customer data
-              await api.put(`/api/users/${user?.user_id}`, customerData);
+              await api.put(`/users/${user?.user_id}`, customerData);
       if (passwordData?.password) {
-                  await api.post(`/api/users/${user?.user_id}/password`, { password: passwordData.password });
+                  await api.post(`/users/${user?.user_id}/password`, { password: passwordData.password });
       }
       setShowEditCustomerModal(false);
       fetchCustomerData(); // Refresh customer data
@@ -1135,7 +1135,7 @@ export default function CustomerDashboard() {
                 <button
                   onClick={async () => {
                     try {
-                      await api.put(`/api/appointments/${editingAppointment.id}`, editingAppointment);
+                      await api.put(`/appointments/${editingAppointment.id}`, editingAppointment);
                       setShowEditAppointmentModal(false);
                       setEditingAppointment(null);
                       await fetchAppointments();

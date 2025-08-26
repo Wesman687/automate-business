@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { X, Link, Globe, Shield } from 'lucide-react';
+import { message } from 'antd';
+import { api } from '@/lib/https';
 
 interface CrossAppIntegrationModalProps {
   isOpen: boolean;
@@ -51,27 +53,18 @@ const CrossAppIntegrationModal: React.FC<CrossAppIntegrationModalProps> = ({ isO
     setLoading(true);
 
     try {
-      const response = await fetch('/api/admin/cross-app/integrations', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...formData,
-          app_url: `https://${formData.app_domain}`,
-          webhook_url: `https://${formData.app_domain}/apphook`
-        }),
+      const result = await api.post('/admin/cross-app/integrations', {
+        ...formData,
+        app_url: `https://${formData.app_domain}`,
+        webhook_url: `https://${formData.app_domain}/apphook`
       });
 
-      if (response.ok) {
-        const result = await response.json();
-        setStep(2);
-      } else {
-        const error = await response.json();
-        alert(`Error: ${error.detail || 'Failed to create integration'}`);
-      }
+      message.success('App integration created successfully!');
+      message.info(`API Key: ${result.api_key} - Save this securely!`);
+      setStep(2);
     } catch (error) {
-      alert('Error creating integration');
+      console.error('Error creating integration:', error);
+      message.error('Error creating integration. Please try again.');
     } finally {
       setLoading(false);
     }

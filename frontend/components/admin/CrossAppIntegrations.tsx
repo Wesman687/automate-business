@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Card, Table, Modal, Form, Input, Select, Switch, message, Tag, Space, Tooltip } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, KeyOutlined } from '@ant-design/icons';
+import { api } from '@/lib/https';
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -39,21 +40,33 @@ const CrossAppIntegrations: React.FC = () => {
   const [editForm] = Form.useForm();
 
   useEffect(() => {
-    fetchIntegrations();
+    // First check if the backend is healthy
+    checkBackendHealth();
   }, []);
+
+  const checkBackendHealth = async () => {
+    try {
+      const health = await api.get('/admin/cross-app/health');
+      console.log('Backend health:', health);
+      if (health.table_exists) {
+        fetchIntegrations();
+      } else {
+        message.error('Cross-app tables not found. Please check database setup.');
+      }
+    } catch (error) {
+      console.error('Health check error:', error);
+      message.error('Cannot connect to backend');
+    }
+  };
 
   const fetchIntegrations = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/admin/cross-app/integrations');
-      if (response.ok) {
-        const data = await response.json();
-        setIntegrations(data);
-      } else {
-        message.error('Failed to fetch integrations');
-      }
+      const data = await api.get('/admin/cross-app/integrations');
+      setIntegrations(data);
     } catch (error) {
-      message.error('Error fetching integrations');
+      console.error('Error fetching integrations:', error);
+      message.error('Error fetching integrations. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -61,39 +74,31 @@ const CrossAppIntegrations: React.FC = () => {
 
   const handleCreate = async (values: CreateAppForm) => {
     try {
-      const response = await fetch('/api/admin/cross-app/integrations', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...values,
-          app_url: `https://${values.app_domain}`,
-          webhook_url: `https://${values.app_domain}/apphook`,
-          permissions: [
-            'read_user_info',
-            'read_credits',
-            'purchase_credits',
-            'consume_credits',
-            'manage_subscriptions',
-            'read_analytics'
-          ]
-        }),
+      const result = await api.post('/admin/cross-app/integrations', {
+        app_name: values.app_name,
+        app_domain: values.app_domain,
+        description: values.description,
+        is_public: values.is_public,
+        app_url: `https://${values.app_domain}`,
+        webhook_url: `https://${values.app_domain}/apphook`,
+        permissions: [
+          'read_user_info',
+          'read_credits',
+          'purchase_credits',
+          'consume_credits',
+          'manage_subscriptions',
+          'read_analytics'
+        ]
       });
 
-      if (response.ok) {
-        const result = await response.json();
-        message.success('App integration created successfully!');
-        message.info(`API Key: ${result.api_key} - Save this securely!`);
-        setCreateModalVisible(false);
-        createForm.resetFields();
-        fetchIntegrations();
-      } else {
-        const error = await response.json();
-        message.error(error.detail || 'Failed to create integration');
-      }
+      message.success('App integration created successfully!');
+      message.info(`API Key: ${result.api_key} - Save this securely!`);
+      setCreateModalVisible(false);
+      createForm.resetFields();
+      fetchIntegrations();
     } catch (error) {
-      message.error('Error creating integration');
+      console.error('Error creating integration:', error);
+      message.error('Error creating integration. Please try again.');
     }
   };
 
@@ -101,26 +106,15 @@ const CrossAppIntegrations: React.FC = () => {
     if (!selectedIntegration) return;
     
     try {
-      const response = await fetch(`/api/admin/cross-app/integrations/${selectedIntegration.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(values),
-      });
-
-      if (response.ok) {
-        message.success('Integration updated successfully!');
-        setEditModalVisible(false);
-        setSelectedIntegration(null);
-        editForm.resetFields();
-        fetchIntegrations();
-      } else {
-        const error = await response.json();
-        message.error(error.detail || 'Failed to update integration');
-      }
+      await api.put(`/admin/cross-app/integrations/${selectedIntegration.app_id}`, values);
+      message.success('Integration updated successfully!');
+      setEditModalVisible(false);
+      setSelectedIntegration(null);
+      editForm.resetFields();
+      fetchIntegrations();
     } catch (error) {
-      message.error('Error updating integration');
+      console.error('Error updating integration:', error);
+      message.error('Error updating integration. Please try again.');
     }
   };
 
@@ -132,18 +126,12 @@ const CrossAppIntegrations: React.FC = () => {
 
   const handleDelete = async (id: number) => {
     try {
-      const response = await fetch(`/api/admin/cross-app/integrations/${id}`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        message.success('Integration deleted successfully!');
-        fetchIntegrations();
-      } else {
-        message.error('Failed to delete integration');
-      }
+      await api.del(`/admin/cross-app/integrations/${id}`);
+      message.success('Integration deleted successfully!');
+      fetchIntegrations();
     } catch (error) {
-      message.error('Error deleting integration');
+      console.error('Error deleting integration:', error);
+      message.error('Error deleting integration. Please try again.');
     }
   };
 

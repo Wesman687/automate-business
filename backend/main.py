@@ -197,13 +197,14 @@ app.add_middleware(
     max_age=86400,
 )
 
+# DONT INCLUDE /API PREFIX HERE
+app.include_router(contact_router)  # No prefix for contact form
+app.include_router(auth_router)
+app.include_router(google_auth_router)
 
-# Include routers
+# Include routers with /api prefix
 app.include_router(chat_router, prefix="/api")
 app.include_router(customers_router, prefix="/api")
-app.include_router(contact_router)  # No prefix for contact form
-app.include_router(auth_router)  # Add /api prefix for auth endpoints
-app.include_router(google_auth_router)
 app.include_router(email_router, prefix="/api")
 app.include_router(share_router, prefix="/api")
 app.include_router(api_router, prefix="/api")

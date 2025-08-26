@@ -53,6 +53,7 @@
 - Improve scanner accuracy and coverage
 - Add endpoint testing and validation
 - Create automated documentation checks
+- **NEW**: Admin functionality consolidation and enhancement (see `ADMIN-DASH-001` task)
 
 ## Benefits
 

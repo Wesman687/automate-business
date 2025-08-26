@@ -3,6 +3,10 @@
 import { useEffect, useState } from 'react';
 import { Plus, Edit, Trash2, Shield, User, Crown } from 'lucide-react';
 import { api } from '@/lib/https';
+import { useAuth } from '@/hooks/useAuth';
+import { useNotification } from '@/hooks/useNotification';
+import DeleteModal from '@/components/DeleteModal';
+import NotificationComponent from '@/components/NotificationComponent';
 
 interface Admin {
   id: number;
@@ -17,46 +21,29 @@ interface Admin {
 }
 
 export default function AdminUsers() {
+  const { user, loading: authLoading, isAdmin } = useAuth();
+  const { notification, showSuccess, showError, hideNotification } = useNotification();
   const [admins, setAdmins] = useState<Admin[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingAdmin, setEditingAdmin] = useState<Admin | null>(null);
-  const [showMessage, setShowMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
-  const [currentUser, setCurrentUser] = useState<{ email: string; is_super_admin: boolean; admin_id: number } | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingAdmin, setDeletingAdmin] = useState<Admin | null>(null);
+
 
   useEffect(() => {
-    fetchAdmins();
-    fetchCurrentUser();
-  }, []);
-
-  const fetchCurrentUser = async () => {
-    try {
-      const response = await api.get('/auth/me');
-      if (response.ok) {
-        const data = await response.json();
-        // Map the response to match our interface expectations
-        setCurrentUser({
-          email: data.user.email,
-          is_super_admin: data.user.is_super_admin,
-          admin_id: data.user.id
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching current user:', error);
+    if (!authLoading && user && isAdmin) {
+      fetchAdmins();
     }
-  };
+  }, [authLoading, user, isAdmin]);
+
+
 
   const fetchAdmins = async () => {
     try {
-      const response = await api.get('/auth/admins');
-
-      if (response.ok) {
-        const data = await response.json();
-        setAdmins(data.admins || []);
-      } else {
-        console.error('Failed to fetch admins');
-      }
+      const data = await api.get('/auth/admins');
+      setAdmins(data.admins || []);
     } catch (error) {
       console.error('Error fetching admins:', error);
     } finally {
@@ -64,25 +51,16 @@ export default function AdminUsers() {
     }
   };
 
-  const showMessageToUser = (text: string, type: 'success' | 'error') => {
-    setShowMessage({ text, type });
-    setTimeout(() => setShowMessage(null), 5000);
-  };
+
 
   const createAdmin = async (formData: { email: string; password: string; full_name: string; phone: string; address: string }) => {
     try {
-const response = await api.post('/auth/create-admin', formData);
-const result = await response.json();
-
-      if (response.ok) {
-        showMessageToUser('Admin created successfully!', 'success');
-        setShowAddModal(false);
-        fetchAdmins();
-      } else {
-        showMessageToUser(result.detail || 'Error creating admin', 'error');
-      }
+      const result = await api.post('/auth/create-admin', formData);
+      showSuccess('Admin Created', 'Admin user has been created successfully!');
+      setShowAddModal(false);
+      fetchAdmins();
     } catch (error) {
-      showMessageToUser('Network error: ' + (error as Error).message, 'error');
+      showError('Creation Failed', 'Network error: ' + (error as Error).message);
     }
   };
 
@@ -90,42 +68,35 @@ const result = await response.json();
     if (!editingAdmin) return;
 
     try {
-      const response = await api.put(`/auth/admins/${editingAdmin.id}`, formData)
-
-
-      const result = await response.json();
-
-      if (response.ok) {
-        showMessageToUser('Admin updated successfully!', 'success');
-        setShowEditModal(false);
-        setEditingAdmin(null);
-        fetchAdmins();
-      } else {
-        showMessageToUser(result.detail || 'Error updating admin', 'error');
-      }
+      const result = await api.put(`/auth/admins/${editingAdmin.id}`, formData);
+      showSuccess('Admin Updated', 'Admin user has been updated successfully!');
+      setShowEditModal(false);
+      setEditingAdmin(null);
+      fetchAdmins();
     } catch (error) {
-      showMessageToUser('Network error: ' + (error as Error).message, 'error');
+      showError('Update Failed', 'Network error: ' + (error as Error).message);
     }
   };
 
   const deleteAdmin = async (adminId: number) => {
-    if (!window.confirm('Are you sure you want to deactivate this admin?')) {
-      return;
+    const admin = admins.find(a => a.id === adminId);
+    if (admin) {
+      setDeletingAdmin(admin);
+      setShowDeleteModal(true);
     }
+  };
+
+  const confirmDeleteAdmin = async () => {
+    if (!deletingAdmin) return;
 
     try {
-      const response = await api.del(`/auth/admins/${adminId}`);
-
-      const result = await response.json();
-
-      if (response.ok) {
-        showMessageToUser('Admin deactivated successfully', 'success');
-        fetchAdmins();
-      } else {
-        showMessageToUser(result.detail || 'Error deactivating admin', 'error');
-      }
+      await api.del(`/auth/admins/${deletingAdmin.id}`);
+      showSuccess('Admin Deactivated', 'Admin user has been deactivated successfully!');
+      setShowDeleteModal(false);
+      setDeletingAdmin(null);
+      fetchAdmins();
     } catch (error) {
-      showMessageToUser('Network error: ' + (error as Error).message, 'error');
+      showError('Deactivation Failed', 'Network error: ' + (error as Error).message);
     }
   };
 
@@ -139,12 +110,12 @@ const removeSuperAdmin = async (adminId: number) => {
       // FORWARDS TO: https://server.stream-lineai.com/auth/admins/:id/remove-super-admin
              await api.post(`/auth/admins/${adminId}/remove-super-admin`);
 
-    showMessageToUser('Super admin status removed successfully!', 'success');
+    showSuccess('Super Admin Status Removed', 'Super admin status has been removed successfully!');
     fetchAdmins();
   } catch (err: any) {
     // http() in lib/https.ts throws with message like "401 Unauthorized" or "404 Not Found"
     const msg = err?.message || 'Error removing super admin status';
-    showMessageToUser(msg, 'error');
+    showError('Status Removal Failed', msg);
 
     // Optional: handle auth expiry
     if (msg.startsWith('401')) {
@@ -162,14 +133,12 @@ const makeSuperAdmin = async (adminId: number) => {
       // FORWARDS TO: https://server.stream-lineai.com/auth/admins/:id/make-super-admin
              await api.post(`/auth/admins/${adminId}/make-super-admin`);
 
-    showMessageToUser('Admin promoted to super admin successfully!', 'success');
+    showSuccess('Admin Promoted', 'Admin has been promoted to super admin successfully!');
     fetchAdmins();
   } catch (err: any) {
     // http() in lib/https.ts throws with message like "401 Unauthorized" or "404 Not Found"
     const msg = err?.message || 'Error promoting admin to super admin';
-    showMessageToUser(msg, 'error');
-
-
+    showError('Promotion Failed', msg);
   }
 }
 
@@ -190,6 +159,14 @@ const makeSuperAdmin = async (adminId: number) => {
     createAdmin(data);
   };
 
+  if (authLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400"></div>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -198,8 +175,8 @@ const makeSuperAdmin = async (adminId: number) => {
     );
   }
 
-  // Check if current user has any admin access
-  if (!currentUser) {
+  // Check if user is an admin
+  if (!user || !isAdmin) {
     return (
       <div className="text-center py-12">
         <Shield className="h-16 w-16 text-red-400 mx-auto mb-4" />
@@ -209,27 +186,29 @@ const makeSuperAdmin = async (adminId: number) => {
     );
   }
 
+
+
   // Filter admins based on user permissions
-  const visibleAdmins = currentUser?.is_super_admin 
+  const visibleAdmins = user?.is_super_admin 
     ? admins 
-    : admins.filter(admin => admin.id === currentUser?.admin_id);
+    : admins.filter(admin => admin.id === user?.user_id);
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-white">
-            {currentUser?.is_super_admin ? 'Admin Management' : 'My Profile'}
-          </h1>
-          <p className="text-gray-400 mt-1">
-            {currentUser?.is_super_admin 
-              ? 'Manage administrative users and permissions' 
-              : 'Manage your admin profile information'
-            }
-          </p>
-        </div>
-        {currentUser?.is_super_admin && (
+                 <div>
+           <h1 className="text-3xl font-bold text-white">
+             {user?.is_super_admin ? 'Admin Management' : 'My Profile'}
+           </h1>
+           <p className="text-gray-400 mt-1">
+             {user?.is_super_admin 
+               ? 'Manage administrative users and permissions' 
+               : 'Manage your admin profile information'
+             }
+           </p>
+         </div>
+         {user?.is_super_admin && (
           <button
             onClick={() => setShowAddModal(true)}
             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 transition-colors"
@@ -240,19 +219,10 @@ const makeSuperAdmin = async (adminId: number) => {
         )}
       </div>
 
-      {/* Message */}
-      {showMessage && (
-        <div className={`p-4 rounded-lg border ${
-          showMessage.type === 'success' 
-            ? 'bg-green-900/20 border-green-400/30 text-green-400' 
-            : 'bg-red-900/20 border-red-400/30 text-red-400'
-        }`}>
-          {showMessage.text}
-        </div>
-      )}
+      
 
-      {/* Stats Cards - Only show for super admins */}
-      {currentUser?.is_super_admin && (
+             {/* Stats Cards - Only show for super admins */}
+       {user?.is_super_admin && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="bg-white/5 backdrop-blur-sm rounded-lg p-6 border border-white/10">
             <h3 className="text-sm font-medium text-cyan-400">Total Admins</h3>
@@ -279,8 +249,8 @@ const makeSuperAdmin = async (adminId: number) => {
         </div>
       )}
 
-      {/* User Statistics - Enhanced with our new service */}
-      {currentUser?.is_super_admin && (
+             {/* User Statistics - Enhanced with our new service */}
+       {user?.is_super_admin && (
         <div className="bg-white/5 backdrop-blur-sm rounded-lg p-6 border border-white/10">
           <h3 className="text-lg font-medium text-cyan-400 mb-4">System Overview</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -393,8 +363,8 @@ const makeSuperAdmin = async (adminId: number) => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex space-x-2">
-                      {/* Edit button */}
-                      {(currentUser?.is_super_admin || currentUser?.admin_id === admin.id) && (
+                                             {/* Edit button */}
+                       {(user?.is_super_admin || user?.user_id === admin.id) && (
                         <button
                           onClick={() => {
                             setEditingAdmin(admin);
@@ -407,8 +377,8 @@ const makeSuperAdmin = async (adminId: number) => {
                         </button>
                       )}
 
-                      {/* Super admin actions - only super admins can promote/demote */}
-                      {currentUser?.is_super_admin && !admin.is_super_admin && admin.is_active && (
+                                             {/* Super admin actions - only super admins can promote/demote */}
+                       {user?.is_super_admin && !admin.is_super_admin && admin.is_active && (
                         <button
                           onClick={() => makeSuperAdmin(admin.id)}
                           className="text-yellow-400 hover:text-yellow-300 p-1 rounded"
@@ -418,10 +388,10 @@ const makeSuperAdmin = async (adminId: number) => {
                         </button>
                       )}
 
-                      {/* Remove super admin (only for owner) */}
-                      {currentUser?.is_super_admin && admin.is_super_admin && 
-                       currentUser?.email.toLowerCase() === 'wesman687@gmail.com' && 
-                       admin.email.toLowerCase() !== 'wesman687@gmail.com' && (
+                                             {/* Remove super admin (only for owner) */}
+                       {user?.is_super_admin && admin.is_super_admin && 
+                        user?.email.toLowerCase() === 'wesman687@gmail.com' && 
+                        admin.email.toLowerCase() !== 'wesman687@gmail.com' && (
                         <button
                           onClick={() => removeSuperAdmin(admin.id)}
                           className="text-orange-400 hover:text-orange-300 p-1 rounded"
@@ -431,8 +401,8 @@ const makeSuperAdmin = async (adminId: number) => {
                         </button>
                       )}
 
-                      {/* Delete button - only super admins can delete other admins (not super admins) */}
-                      {currentUser?.is_super_admin && !admin.is_super_admin && (
+                                             {/* Delete button - only super admins can delete other admins (not super admins) */}
+                       {user?.is_super_admin && !admin.is_super_admin && (
                         <button
                           onClick={() => deleteAdmin(admin.id)}
                           className="text-red-400 hover:text-red-300 p-1 rounded"
@@ -543,12 +513,36 @@ const makeSuperAdmin = async (adminId: number) => {
             setShowEditModal(false);
             setEditingAdmin(null);
           }}
-          canEditPassword={currentUser?.is_super_admin || false}
-        />
-      )}
-    </div>
-  );
-}
+                                canEditPassword={user?.is_super_admin || false}
+         />
+       )}
+
+       {/* Notification Component */}
+       <NotificationComponent
+         show={notification.show}
+         onClose={hideNotification}
+         type={notification.type}
+         title={notification.title}
+         message={notification.message}
+         icon={notification.icon}
+       />
+
+       {/* Delete Confirmation Modal */}
+       <DeleteModal
+         isOpen={showDeleteModal}
+         onClose={() => {
+           setShowDeleteModal(false);
+           setDeletingAdmin(null);
+         }}
+         onConfirm={confirmDeleteAdmin}
+         title="Deactivate Admin"
+         message="Are you sure you want to deactivate this admin user? This action will prevent them from accessing the admin panel."
+         itemName={deletingAdmin?.email || ''}
+         variant="warning"
+       />
+     </div>
+   );
+ }
 
 // Edit Admin Modal Component
 function EditAdminModal({ 

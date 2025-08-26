@@ -323,7 +323,7 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
 
     try {
       // Use api utility - automatically routes to production server
-      await api.del(`/api/email/${emailId}`);
+      await api.del(`/email/${emailId}`);
 
       // Remove from local state
       setEmails(prev => prev.filter(email => email.id !== emailId));

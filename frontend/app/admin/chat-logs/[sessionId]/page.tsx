@@ -42,6 +42,12 @@ interface ChatLogData {
 export default function ChatLogView() {
   const params = useParams();
   const router = useRouter();
+  
+  if (!params?.sessionId) {
+    router.replace('/admin/chat-logs');
+    return null;
+  }
+  
   const sessionId = params.sessionId as string;
   
   const [data, setData] = useState<ChatLogData | null>(null);

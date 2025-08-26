@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, Download, Trash2, Eye, FileText, Folder, Calendar, HardDrive, 
   Grid3X3, List, Search, ArrowLeft, ArrowRight, MoreHorizontal,
-  Upload, Copy, Cut, Paste, Rename, Share2, Info
+  Upload, Copy, Cut, Paste, Edit3, Share2, Info
 } from 'lucide-react';
 import { api } from '@/lib/https';
 import DeleteModal from './DeleteModal';
@@ -744,7 +744,7 @@ export default function FileManagementModal({
             onClick={handleRename}
             className="w-full px-4 py-2 text-left text-white hover:bg-gray-700 flex items-center space-x-2"
           >
-            <Rename className="h-4 w-4" />
+                            <Edit3 className="h-4 w-4" />
             <span>Rename</span>
           </button>
           <button

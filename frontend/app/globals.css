@@ -166,3 +166,182 @@ body.embedded-mode nav {
 .form-select-inline option {
   @apply bg-gray-800 text-white;
 }
+
+/* Dark theme for Ant Design components */
+.dark-input .ant-input {
+  background-color: #0A0A0B !important;
+  border-color: #2A2A2B !important;
+  color: #D1D5DB !important;
+}
+
+.dark-input .ant-input:focus,
+.dark-input .ant-input:hover {
+  border-color: #0088CC !important;
+  box-shadow: 0 0 0 2px rgba(0, 136, 204, 0.2) !important;
+}
+
+.dark-input .ant-input::placeholder {
+  color: #6B7280 !important;
+}
+
+.dark-textarea .ant-input {
+  background-color: #0A0A0B !important;
+  border-color: #2A2A2B !important;
+  color: #D1D5DB !important;
+  resize: none;
+}
+
+.dark-textarea .ant-input:focus,
+.dark-textarea .ant-input:hover {
+  border-color: #0088CC !important;
+  box-shadow: 0 0 0 2px rgba(0, 136, 204, 0.2) !important;
+}
+
+.dark-textarea .ant-input::placeholder {
+  color: #6B7280 !important;
+}
+
+.dark-switch .ant-switch {
+  background-color: #2A2A2B !important;
+}
+
+.dark-switch .ant-switch-checked {
+  background-color: #0088CC !important;
+}
+
+.dark-switch .ant-switch-handle {
+  background-color: white !important;
+}
+
+.dark-theme-modal .ant-modal-content {
+  background-color: #1A1A1B !important;
+  border: 1px solid #2A2A2B !important;
+}
+
+.dark-theme-modal .ant-modal-header {
+  background-color: #1A1A1B !important;
+  border-bottom: 1px solid #2A2A2B !important;
+}
+
+.dark-theme-modal .ant-modal-title {
+  color: #D1D5DB !important;
+}
+
+.dark-theme-modal .ant-modal-close {
+  color: #9CA3AF !important;
+}
+
+.dark-theme-modal .ant-modal-close:hover {
+  color: #D1D5DB !important;
+}
+
+.dark-theme-modal .ant-form-item-label > label {
+  color: #9CA3AF !important;
+}
+
+.dark-theme-modal .ant-form-item-label > label.ant-form-item-required::before {
+  color: #EF4444 !important;
+}
+
+/* Custom table styling - EXACT match to Customer Management page */
+.custom-table .ant-table {
+  background-color: transparent !important;
+}
+
+.custom-table .ant-table-thead > tr > th {
+  background-color: #0A0A0B !important;
+  border-bottom: 1px solid #2A2A2B !important;
+  color: #0088CC !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  font-size: 12px !important;
+  letter-spacing: 0.05em !important;
+  padding: 16px 12px !important;
+}
+
+.custom-table .ant-table-tbody > tr > td {
+  background-color: #1A1A1B !important;
+  border-bottom: 1px solid #2A2A2B !important;
+  color: #FFFFFF !important;
+  padding: 16px 12px !important;
+}
+
+.custom-table .ant-table-tbody > tr:hover > td {
+  background-color: rgba(0, 136, 204, 0.1) !important;
+}
+
+/* Fix the white blank table issue - EXACT match */
+.custom-table .ant-table-placeholder {
+  background-color: #1A1A1B !important;
+  border: none !important;
+}
+
+.custom-table .ant-table-placeholder .ant-table-cell {
+  background-color: #1A1A1B !important;
+  border: none !important;
+  color: #9CA3AF !important;
+  padding: 32px 16px !important;
+}
+
+.custom-table .ant-empty {
+  color: #9CA3AF !important;
+}
+
+.custom-table .ant-empty-description {
+  color: #9CA3AF !important;
+  font-size: 14px !important;
+}
+
+.custom-table .ant-empty-img-default {
+  filter: invert(1) brightness(0.7);
+  margin-bottom: 8px !important;
+}
+
+/* Table row backgrounds - EXACT match */
+.custom-table .ant-table-tbody > tr {
+  background-color: #1A1A1B !important;
+}
+
+.custom-table .ant-table-tbody > tr:nth-child(even) {
+  background-color: #1A1A1B !important;
+}
+
+.custom-table .ant-table-tbody > tr:nth-child(odd) {
+  background-color: #1A1A1B !important;
+}
+
+/* Pagination styling - EXACT match */
+.custom-table .ant-pagination .ant-pagination-item {
+  background-color: #1A1A1B !important;
+  border-color: #2A2A2B !important;
+}
+
+.custom-table .ant-pagination-item a {
+  color: #D1D5DB !important;
+}
+
+.custom-table .ant-pagination-item:hover {
+  border-color: #0088CC !important;
+}
+
+.custom-table .ant-pagination-item-active {
+  border-color: #0088CC !important;
+  background-color: #0088CC !important;
+}
+
+.custom-table .ant-pagination-item-active a {
+  color: black !important;
+}
+
+.custom-table .ant-pagination-prev button,
+.custom-table .ant-pagination-next button {
+  background-color: #1A1A1B !important;
+  border-color: #2A2A2B !important;
+  color: #D1D5DB !important;
+}
+
+.custom-table .ant-pagination-prev button:hover,
+.custom-table .ant-pagination-next button:hover {
+  border-color: #0088CC !important;
+  color: #0088CC !important;
+}

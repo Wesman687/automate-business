@@ -107,7 +107,7 @@ export default function CustomerDashboard() {
       console.log('Fetching customer data for user:', user);
       
       // Use user_id for customer lookup to match JWT token
-      const userData = await api.get(`/api/customers/${user.user_id}`);
+              const userData = await api.get(`/customers/${user.user_id}`);
 
       
       if (userData) {
@@ -216,7 +216,7 @@ export default function CustomerDashboard() {
     
     setIsDeleting(true);
     try {
-      await api.del(`/api/appointments/${deletingAppointment.id}`);
+              await api.del(`/appointments/${deletingAppointment.id}`);
       setSuccess('Appointment deleted successfully');
       
       await fetchAppointments(); // Refresh the list

@@ -90,6 +90,7 @@ export interface JobTool {
   api_key?: string;
   url?: string;
   description?: string;
+  type?: string;
 }
 
 export interface ServerDetail {

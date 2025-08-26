@@ -14,7 +14,7 @@ interface Customer {
 interface CreateJobModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (jobData: Partial<JobFormData>) => Promise<void>;
+  onSave: (jobData: any) => Promise<void>;
 }
 
 export default function CreateJobModal({ isOpen, onClose, onSave }: CreateJobModalProps) {
@@ -63,7 +63,7 @@ export default function CreateJobModal({ isOpen, onClose, onSave }: CreateJobMod
     try {
       const jobData = {
         ...formData,
-        customer_id: parseInt(formData.customer_id),
+        customer_id: parseInt(formData.customer_id || '0'),
         start_date: formData.start_date || null,
         deadline: formData.deadline || null,
         estimated_hours: formData.estimated_hours ? parseFloat(formData.estimated_hours) : null,
@@ -179,7 +179,7 @@ export default function CreateJobModal({ isOpen, onClose, onSave }: CreateJobMod
               </label>
               <select
                 value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
                 className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
               >
                 <option value="planning" className="bg-gray-800">Planning</option>
@@ -196,7 +196,7 @@ export default function CreateJobModal({ isOpen, onClose, onSave }: CreateJobMod
               </label>
               <select
                 value={formData.priority}
-                onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, priority: e.target.value as any })}
                 className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
               >
                 <option value="low" className="bg-gray-800">Low</option>

@@ -74,7 +74,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <div className="flex justify-center space-x-8">
             {navigation.map((item) => {
               const Icon = item.icon;
-              const isActive = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href));
+              const isActive = pathname === item.href || (item.href !== '/admin' && pathname?.startsWith(item.href));
               return (
                 <Link
                   key={item.name}

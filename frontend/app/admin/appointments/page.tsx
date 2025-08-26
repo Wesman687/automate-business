@@ -36,33 +36,39 @@ export default function AppointmentsPage() {
 
   const fetchAppointments = async () => {
     try {
-      const response = await api.get('/appointments');
-
-      if (response.ok) {
-        const data = await response.json();
-        setAppointments(data);
-      } else {
-        setError('Failed to fetch appointments');
-      }
+      console.log('🔍 Fetching appointments...');
+      const data = await api.get('/appointments');
+      console.log('📊 Appointments data:', data);
+      setAppointments(data);
     } catch (error) {
+      console.error('💥 Error fetching appointments:', error);
       setError('Failed to fetch appointments');
     } finally {
       setLoading(false);
     }
   };
 
+  const [deletingAppointment, setDeletingAppointment] = useState<Appointment | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+
   const deleteAppointment = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this appointment?')) return;
+    const appointment = appointments.find(apt => apt.id === id);
+    if (appointment) {
+      setDeletingAppointment(appointment);
+      setShowDeleteModal(true);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deletingAppointment) return;
 
     try {
-        const response = await api.del(`/appointments/${id}`);
-
-      if (response.ok) {
-        setAppointments(appointments.filter(apt => apt.id !== id));
-      } else {
-        alert('Failed to delete appointment');
-      }
+      await api.del(`/appointments/${deletingAppointment.id}`);
+      setAppointments(appointments.filter(apt => apt.id !== deletingAppointment.id));
+      setShowDeleteModal(false);
+      setDeletingAppointment(null);
     } catch (error) {
+      console.error('Failed to delete appointment:', error);
       alert('Failed to delete appointment');
     }
   };
@@ -351,16 +357,50 @@ export default function AppointmentsPage() {
         )}
       </div>
 
-      {/* Smart Appointment Modal */}
-      <SmartAppointmentModal
-        isOpen={showModal}
-        onClose={() => {
-          setShowModal(false);
-          setEditingAppointment(null);
-        }}
-        onSave={handleSave}
-        appointment={editingAppointment}
-      />
+             {/* Smart Appointment Modal */}
+       <SmartAppointmentModal
+         isOpen={showModal}
+         onClose={() => {
+           setShowModal(false);
+           setEditingAppointment(null);
+         }}
+         onSave={handleSave}
+         appointment={editingAppointment}
+         customerId={editingAppointment?.customer_id}
+         customerName={editingAppointment?.customer_name}
+         customerEmail={editingAppointment?.customer_email}
+       />
+
+       {/* Delete Confirmation Modal */}
+       {showDeleteModal && deletingAppointment && (
+         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+           <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4">
+             <h3 className="text-lg font-semibold text-white mb-4">Delete Appointment</h3>
+             <p className="text-gray-300 mb-6">
+               Are you sure you want to delete the appointment for{' '}
+               <span className="text-white font-medium">{deletingAppointment.customer_name}</span>?
+               This action cannot be undone.
+             </p>
+             <div className="flex gap-3">
+               <button
+                 onClick={confirmDelete}
+                 className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+               >
+                 Delete Appointment
+               </button>
+               <button
+                 onClick={() => {
+                   setShowDeleteModal(false);
+                   setDeletingAppointment(null);
+                 }}
+                 className="flex-1 px-4 py-2 text-gray-300 hover:text-white border border-gray-600 rounded-lg hover:bg-gray-700 transition-colors"
+               >
+                 Cancel
+               </button>
+             </div>
+           </div>
+         </div>
+       )}
     </div>
   );
 }

@@ -12,10 +12,7 @@ interface AppIntegration {
   app_domain: string;
   app_url?: string;
   description?: string;
-  logo_url?: string;
-  primary_color?: string;
   permissions: string[];
-  max_users?: number;
   is_public: boolean;
   status: 'pending_approval' | 'active' | 'inactive' | 'suspended';
   created_at: string;
@@ -28,15 +25,8 @@ interface AppIntegration {
 interface CreateAppForm {
   app_name: string;
   app_domain: string;
-  app_url?: string;
   description?: string;
-  logo_url?: string;
-  primary_color?: string;
-  permissions: string[];
-  max_users?: number;
   is_public: boolean;
-  webhook_url?: string;
-  allowed_origins?: string[];
 }
 
 const CrossAppIntegrations: React.FC = () => {
@@ -47,15 +37,6 @@ const CrossAppIntegrations: React.FC = () => {
   const [selectedIntegration, setSelectedIntegration] = useState<AppIntegration | null>(null);
   const [createForm] = Form.useForm();
   const [editForm] = Form.useForm();
-
-  const permissions = [
-    'read_user_info',
-    'read_credits',
-    'purchase_credits',
-    'consume_credits',
-    'manage_subscriptions',
-    'read_analytics'
-  ];
 
   useEffect(() => {
     fetchIntegrations();
@@ -85,7 +66,19 @@ const CrossAppIntegrations: React.FC = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(values),
+        body: JSON.stringify({
+          ...values,
+          app_url: `https://${values.app_domain}`,
+          webhook_url: `https://${values.app_domain}/apphook`,
+          permissions: [
+            'read_user_info',
+            'read_credits',
+            'purchase_credits',
+            'consume_credits',
+            'manage_subscriptions',
+            'read_analytics'
+          ]
+        }),
       });
 
       if (response.ok) {
@@ -106,9 +99,9 @@ const CrossAppIntegrations: React.FC = () => {
 
   const handleEdit = async (values: any) => {
     if (!selectedIntegration) return;
-
+    
     try {
-      const response = await fetch(`/api/admin/cross-app/integrations/${selectedIntegration.app_id}`, {
+      const response = await fetch(`/api/admin/cross-app/integrations/${selectedIntegration.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -117,7 +110,7 @@ const CrossAppIntegrations: React.FC = () => {
       });
 
       if (response.ok) {
-        message.success('App integration updated successfully!');
+        message.success('Integration updated successfully!');
         setEditModalVisible(false);
         setSelectedIntegration(null);
         editForm.resetFields();
@@ -131,88 +124,20 @@ const CrossAppIntegrations: React.FC = () => {
     }
   };
 
-  const handleApprove = async (appId: string) => {
-    try {
-      const response = await fetch(`/api/admin/cross-app/integrations/${appId}/approve`, {
-        method: 'POST',
-      });
-
-      if (response.ok) {
-        message.success('App integration approved!');
-        fetchIntegrations();
-      } else {
-        message.error('Failed to approve integration');
-      }
-    } catch (error) {
-      message.error('Error approving integration');
-    }
+  const handleView = (record: AppIntegration) => {
+    setSelectedIntegration(record);
+    setEditModalVisible(true);
+    editForm.setFieldsValue(record);
   };
 
-  const handleSuspend = async (appId: string) => {
+  const handleDelete = async (id: number) => {
     try {
-      const response = await fetch(`/api/admin/cross-app/integrations/${appId}/suspend`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ reason: 'Admin suspension' }),
-      });
-
-      if (response.ok) {
-        message.success('App integration suspended!');
-        fetchIntegrations();
-      } else {
-        message.error('Failed to suspend integration');
-      }
-    } catch (error) {
-      message.error('Error suspending integration');
-    }
-  };
-
-  const handleActivate = async (appId: string) => {
-    try {
-      const response = await fetch(`/api/admin/cross-app/integrations/${appId}/activate`, {
-        method: 'POST',
-      });
-
-      if (response.ok) {
-        message.success('App integration activated!');
-        fetchIntegrations();
-      } else {
-        message.error('Failed to activate integration');
-      }
-    } catch (error) {
-      message.error('Error activating integration');
-    }
-  };
-
-  const handleRegenerateApiKey = async (appId: string) => {
-    try {
-      const response = await fetch(`/api/admin/cross-app/integrations/${appId}/regenerate-api-key`, {
-        method: 'POST',
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        message.success('API key regenerated successfully!');
-        message.info(`New API Key: ${result.new_api_key} - Save this securely!`);
-        fetchIntegrations();
-      } else {
-        message.error('Failed to regenerate API key');
-      }
-    } catch (error) {
-      message.error('Error regenerating API key');
-    }
-  };
-
-  const handleDelete = async (appId: string) => {
-    try {
-      const response = await fetch(`/api/admin/cross-app/integrations/${appId}`, {
+      const response = await fetch(`/api/admin/cross-app/integrations/${id}`, {
         method: 'DELETE',
       });
 
       if (response.ok) {
-        message.success('App integration deleted!');
+        message.success('Integration deleted successfully!');
         fetchIntegrations();
       } else {
         message.error('Failed to delete integration');
@@ -234,137 +159,155 @@ const CrossAppIntegrations: React.FC = () => {
 
   const columns = [
     {
-      title: 'App ID',
-      dataIndex: 'app_id',
-      key: 'app_id',
-      render: (text: string) => <code>{text}</code>,
-    },
-    {
-      title: 'Name',
+      title: 'APP NAME',
       dataIndex: 'app_name',
       key: 'app_name',
+      render: (text: string) => <span className="font-semibold text-white">{text}</span>,
     },
     {
-      title: 'Domain',
+      title: 'DOMAIN',
       dataIndex: 'app_domain',
       key: 'app_domain',
+      render: (text: string) => (
+        <span className="text-gray-400">{text}</span>
+      ),
     },
     {
-      title: 'Status',
+      title: 'DESCRIPTION',
+      dataIndex: 'description',
+      key: 'description',
+      render: (text: string) => (
+        <span className="text-gray-400 max-w-xs truncate block">
+          {text || 'No description'}
+        </span>
+      ),
+    },
+    {
+      title: 'STATUS',
       dataIndex: 'status',
       key: 'status',
-      render: (status: string) => (
-        <Tag color={getStatusColor(status)}>
-          {status.replace('_', ' ').toUpperCase()}
-        </Tag>
+      render: (status: string) => {
+        const statusConfig = {
+          pending_approval: { color: 'bg-yellow-100 text-yellow-800 border-yellow-200', text: 'Pending' },
+          active: { color: 'bg-green-100 text-green-800 border-green-200', text: 'Active' },
+          inactive: { color: 'bg-gray-100 text-gray-800 border-gray-200', text: 'Inactive' },
+          suspended: { color: 'bg-red-100 text-red-800 border-red-200', text: 'Suspended' },
+        };
+        const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.inactive;
+        return (
+          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${config.color}`}>
+            {config.text}
+          </span>
+        );
+      },
+    },
+    {
+      title: 'PUBLIC',
+      dataIndex: 'is_public',
+      key: 'is_public',
+      render: (isPublic: boolean) => (
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+          isPublic ? 'bg-green-100 text-green-800 border-green-200' : 'bg-gray-100 text-gray-800 border-gray-200'
+        }`}>
+          {isPublic ? 'Yes' : 'No'}
+        </span>
       ),
     },
     {
-      title: 'Permissions',
-      dataIndex: 'permissions',
-      key: 'permissions',
-      render: (permissions: string[]) => (
-        <div>
-          {permissions.map(perm => (
-            <Tag key={perm} size="small">{perm}</Tag>
-          ))}
-        </div>
-      ),
-    },
-    {
-      title: 'Created',
+      title: 'CREATED',
       dataIndex: 'created_at',
       key: 'created_at',
-      render: (date: string) => new Date(date).toLocaleDateString(),
+      render: (date: string) => (
+        <span className="text-gray-400">
+          {new Date(date).toLocaleDateString()}
+        </span>
+      ),
     },
     {
-      title: 'Actions',
+      title: 'ACTIONS',
       key: 'actions',
-      render: (_, record: AppIntegration) => (
-        <Space>
-          <Tooltip title="View Details">
-            <Button
-              icon={<EyeOutlined />}
-              size="small"
-              onClick={() => {
-                setSelectedIntegration(record);
-                setEditModalVisible(true);
-                editForm.setFieldsValue(record);
-              }}
-            />
-          </Tooltip>
-          
-          {record.status === 'pending_approval' && (
-            <Button
-              type="primary"
-              size="small"
-              onClick={() => handleApprove(record.app_id)}
-            >
-              Approve
-            </Button>
-          )}
-          
-          {record.status === 'active' && (
-            <Button
-              danger
-              size="small"
-              onClick={() => handleSuspend(record.app_id)}
-            >
-              Suspend
-            </Button>
-          )}
-          
-          {record.status === 'suspended' && (
-            <Button
-              type="primary"
-              size="small"
-              onClick={() => handleActivate(record.app_id)}
-            >
-              Activate
-            </Button>
-          )}
-          
-          <Tooltip title="Regenerate API Key">
-            <Button
-              icon={<KeyOutlined />}
-              size="small"
-              onClick={() => handleRegenerateApiKey(record.app_id)}
-            />
-          </Tooltip>
-          
-          <Button
-            danger
-            icon={<DeleteOutlined />}
-            size="small"
-            onClick={() => handleDelete(record.app_id)}
-          />
-        </Space>
+      render: (_: any, record: AppIntegration) => (
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => handleView(record)}
+            className="p-1.5 text-electric-blue hover:text-electric-blue/80 hover:bg-electric-blue/10 rounded transition-colors"
+            title="View Details"
+          >
+            <EyeOutlined className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => handleEdit(record)}
+            className="p-1.5 text-electric-blue hover:text-electric-blue/80 hover:bg-electric-blue/10 rounded transition-colors"
+            title="Edit"
+          >
+            <EditOutlined className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => handleDelete(record.id)}
+            className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded transition-colors"
+            title="Delete"
+          >
+            <DeleteOutlined className="w-4 h-4" />
+          </button>
+        </div>
       ),
     },
   ];
 
   return (
     <div className="cross-app-integrations">
-      <Card
-        title="Cross-App Integrations"
-        extra={
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-gray-300 mb-2">App Integrations</h2>
+        <p className="text-gray-400">Manage your cross-app integrations and create new ones</p>
+      </div>
+
+      <div className="bg-dark-card border border-dark-border rounded-xl p-6 mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-300">Active Integrations</h3>
           <Button
             type="primary"
             icon={<PlusOutlined />}
             onClick={() => setCreateModalVisible(true)}
+            className="bg-electric-blue hover:bg-electric-blue/90 border-0 text-black font-medium hover:shadow-lg hover:shadow-electric-blue/30 transition-all duration-200"
           >
             Add New App
           </Button>
-        }
-      >
-        <Table
-          columns={columns}
-          dataSource={integrations}
-          loading={loading}
-          rowKey="id"
-          pagination={{ pageSize: 10 }}
-        />
-      </Card>
+        </div>
+        
+        <div className="bg-dark-bg border border-dark-border rounded-lg overflow-hidden">
+          <Table
+            columns={columns}
+            dataSource={integrations}
+            loading={loading}
+            rowKey="id"
+            pagination={{ 
+              pageSize: 10,
+              className: "text-gray-300",
+              itemRender: (page, type, originalElement) => {
+                if (type === 'page') {
+                  return (
+                    <span className="text-gray-300 hover:text-electric-blue transition-colors">
+                      {page}
+                    </span>
+                  );
+                }
+                return originalElement;
+              }
+            }}
+            className="custom-table"
+            locale={{
+              emptyText: (
+                <div className="py-8 text-center">
+                  <div className="text-gray-400 mb-2">No integrations found</div>
+                  <div className="text-gray-500 text-sm">Create your first app integration to get started</div>
+                </div>
+              )
+            }}
+            size="middle"
+            bordered={false}
+          />
+        </div>
+      </div>
 
       {/* Create Modal */}
       <Modal
@@ -372,108 +315,75 @@ const CrossAppIntegrations: React.FC = () => {
         open={createModalVisible}
         onCancel={() => setCreateModalVisible(false)}
         footer={null}
-        width={600}
+        width={500}
+        className="dark-theme-modal"
+        styles={{
+          header: { backgroundColor: '#1A1A1B', borderBottom: '1px solid #2A2A2B' },
+          body: { backgroundColor: '#1A1A1B' },
+          mask: { backgroundColor: 'rgba(0, 0, 0, 0.8)' }
+        }}
       >
         <Form
           form={createForm}
           layout="vertical"
           onFinish={handleCreate}
+          className="dark-form"
         >
           <Form.Item
             name="app_name"
-            label="App Name"
+            label={<span className="text-gray-400">App Name</span>}
             rules={[{ required: true, message: 'Please enter app name' }]}
           >
-            <Input placeholder="My Awesome App" />
+            <Input 
+              placeholder="e.g., Scraper, Videos, etc." 
+              className="dark-input"
+            />
           </Form.Item>
 
           <Form.Item
             name="app_domain"
-            label="App Domain"
+            label={<span className="text-gray-400">App Domain</span>}
             rules={[{ required: true, message: 'Please enter app domain' }]}
           >
-            <Input placeholder="myapp.com" />
-          </Form.Item>
-
-          <Form.Item
-            name="app_url"
-            label="App URL"
-          >
-            <Input placeholder="https://myapp.com" />
+            <Input 
+              placeholder="e.g., scraper.stream-lineai.com" 
+              className="dark-input"
+            />
           </Form.Item>
 
           <Form.Item
             name="description"
-            label="Description"
+            label={<span className="text-gray-400">Description</span>}
           >
-            <TextArea rows={3} placeholder="Brief description of the app" />
-          </Form.Item>
-
-          <Form.Item
-            name="logo_url"
-            label="Logo URL"
-          >
-            <Input placeholder="https://myapp.com/logo.png" />
-          </Form.Item>
-
-          <Form.Item
-            name="primary_color"
-            label="Primary Color"
-          >
-            <Input placeholder="#3B82F6" />
-          </Form.Item>
-
-          <Form.Item
-            name="permissions"
-            label="Permissions"
-            rules={[{ required: true, message: 'Please select permissions' }]}
-          >
-            <Select
-              mode="multiple"
-              placeholder="Select permissions"
-              options={permissions.map(perm => ({ label: perm, value: perm }))}
+            <TextArea 
+              rows={2} 
+              placeholder="Brief description of the app" 
+              className="dark-textarea"
             />
-          </Form.Item>
-
-          <Form.Item
-            name="max_users"
-            label="Max Users"
-          >
-            <Input type="number" placeholder="1000" />
           </Form.Item>
 
           <Form.Item
             name="is_public"
-            label="Public App"
+            label={<span className="text-gray-400">Public App</span>}
             valuePropName="checked"
+            initialValue={true}
           >
-            <Switch />
-          </Form.Item>
-
-          <Form.Item
-            name="webhook_url"
-            label="Webhook URL"
-          >
-            <Input placeholder="https://myapp.com/webhook" />
-          </Form.Item>
-
-          <Form.Item
-            name="allowed_origins"
-            label="Allowed Origins"
-          >
-            <Select
-              mode="tags"
-              placeholder="Add allowed origins"
-              style={{ width: '100%' }}
-            />
+            <Switch className="dark-switch" />
           </Form.Item>
 
           <Form.Item>
             <Space>
-              <Button type="primary" htmlType="submit">
+              <Button 
+                type="primary" 
+                htmlType="submit"
+                className="bg-electric-blue hover:bg-electric-blue/90 border-0 text-black font-medium hover:shadow-lg hover:shadow-electric-blue/30 transition-all duration-200"
+              >
                 Create Integration
               </Button>
-              <Button onClick={() => setCreateModalVisible(false)}>
+              <Button 
+                onClick={() => setCreateModalVisible(false)}
+                className="border-dark-border text-gray-400 hover:text-gray-300 hover:bg-white/5 transition-all duration-200"
+              >
                 Cancel
               </Button>
             </Space>
@@ -491,112 +401,78 @@ const CrossAppIntegrations: React.FC = () => {
           editForm.resetFields();
         }}
         footer={null}
-        width={600}
+        width={500}
+        className="dark-theme-modal"
+        styles={{
+          header: { backgroundColor: '#1A1A1B', borderBottom: '1px solid #2A2A2B' },
+          body: { backgroundColor: '#1A1A1B' },
+          mask: { backgroundColor: 'rgba(0, 0, 0, 0.8)' }
+        }}
       >
         <Form
           form={editForm}
           layout="vertical"
           onFinish={handleEdit}
+          className="dark-form"
         >
           <Form.Item
             name="app_name"
-            label="App Name"
+            label={<span className="text-gray-400">App Name</span>}
             rules={[{ required: true, message: 'Please enter app name' }]}
           >
-            <Input />
+            <Input 
+              placeholder="e.g., Scraper, Videos, etc." 
+              className="dark-input"
+            />
           </Form.Item>
 
           <Form.Item
             name="app_domain"
-            label="App Domain"
+            label={<span className="text-gray-400">App Domain</span>}
             rules={[{ required: true, message: 'Please enter app domain' }]}
           >
-            <Input />
-          </Form.Item>
-
-          <Form.Item
-            name="app_url"
-            label="App URL"
-          >
-            <Input />
+            <Input 
+              placeholder="e.g., scraper.stream-lineai.com" 
+              className="dark-input"
+            />
           </Form.Item>
 
           <Form.Item
             name="description"
-            label="Description"
+            label={<span className="text-gray-400">Description</span>}
           >
-            <TextArea rows={3} />
-          </Form.Item>
-
-          <Form.Item
-            name="logo_url"
-            label="Logo URL"
-          >
-            <Input />
-          </Form.Item>
-
-          <Form.Item
-            name="primary_color"
-            label="Primary Color"
-          >
-            <Input />
-          </Form.Item>
-
-          <Form.Item
-            name="permissions"
-            label="Permissions"
-            rules={[{ required: true, message: 'Please select permissions' }]}
-          >
-            <Select
-              mode="multiple"
-              placeholder="Select permissions"
-              options={permissions.map(perm => ({ label: perm, value: perm }))}
+            <TextArea 
+              rows={2} 
+              placeholder="Brief description of the app" 
+              className="dark-textarea"
             />
-          </Form.Item>
-
-          <Form.Item
-            name="max_users"
-            label="Max Users"
-          >
-            <Input type="number" />
           </Form.Item>
 
           <Form.Item
             name="is_public"
-            label="Public App"
+            label={<span className="text-gray-400">Public App</span>}
             valuePropName="checked"
           >
-            <Switch />
-          </Form.Item>
-
-          <Form.Item
-            name="webhook_url"
-            label="Webhook URL"
-          >
-            <Input />
-          </Form.Item>
-
-          <Form.Item
-            name="allowed_origins"
-            label="Allowed Origins"
-          >
-            <Select
-              mode="tags"
-              placeholder="Add allowed origins"
-              style={{ width: '100%' }}
-            />
+            <Switch className="dark-switch" />
           </Form.Item>
 
           <Form.Item>
             <Space>
-              <Button type="primary" htmlType="submit">
+              <Button 
+                type="primary" 
+                htmlType="submit"
+                className="bg-electric-blue hover:bg-electric-blue/90 border-0 text-black font-medium hover:shadow-lg hover:shadow-electric-blue/30 transition-all duration-200"
+              >
                 Update Integration
               </Button>
-              <Button onClick={() => {
-                setEditModalVisible(false);
-                setSelectedIntegration(null);
-                editForm.resetFields();
-              }}>
+              <Button 
+                onClick={() => {
+                  setEditModalVisible(false);
+                  setSelectedIntegration(null);
+                  editForm.resetFields();
+                }}
+                className="border-dark-border text-gray-400 hover:text-gray-300 hover:bg-white/5 transition-all duration-200"
+              >
                 Cancel
               </Button>
             </Space>

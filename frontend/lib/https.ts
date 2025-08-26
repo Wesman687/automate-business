@@ -32,7 +32,7 @@ export function buildProxyUrl(path: string) {
     return `https://server.stream-lineai.com/${clean}`;
   }
   
-  return `/api/${clean}`;  // Restore /api prefix for Next.js proxy routing
+  return `/api/${clean}`;  // All endpoints go through Next.js proxy routing
 }
 
 type Json = Record<string, any> | any[];
@@ -76,6 +76,7 @@ export async function http<T = any>(
     headers: h,
     credentials: 'include', // <-- send cookies
     cache: 'no-store',
+    redirect: 'follow', // Follow redirects
   });
 
   const data = await parse(res);

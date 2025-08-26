@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Link, Globe, Shield, CreditCard, Settings } from 'lucide-react';
+import { X, Link, Globe, Shield } from 'lucide-react';
 
 interface CrossAppIntegrationModalProps {
   isOpen: boolean;
@@ -9,30 +9,25 @@ interface CrossAppIntegrationModalProps {
 interface AppFormData {
   app_name: string;
   app_domain: string;
-  app_url?: string;
   description?: string;
-  logo_url?: string;
-  primary_color?: string;
   permissions: string[];
-  max_users?: number;
   is_public: boolean;
-  webhook_url?: string;
-  allowed_origins?: string[];
 }
 
 const CrossAppIntegrationModal: React.FC<CrossAppIntegrationModalProps> = ({ isOpen, onClose }) => {
   const [formData, setFormData] = useState<AppFormData>({
     app_name: '',
     app_domain: '',
-    app_url: '',
     description: '',
-    logo_url: '',
-    primary_color: '#3B82F6',
-    permissions: [],
-    max_users: 1000,
-    is_public: false,
-    webhook_url: '',
-    allowed_origins: []
+    permissions: [
+      'read_user_info',
+      'read_credits', 
+      'purchase_credits',
+      'consume_credits',
+      'manage_subscriptions',
+      'read_analytics'
+    ],
+    is_public: true
   });
 
   const [loading, setLoading] = useState(false);
@@ -40,24 +35,15 @@ const CrossAppIntegrationModal: React.FC<CrossAppIntegrationModalProps> = ({ isO
 
   const availablePermissions = [
     { id: 'read_user_info', label: 'Read User Info', description: 'Access basic user profile information', icon: Shield },
-    { id: 'read_credits', label: 'Read Credits', description: 'Check user credit balance', icon: CreditCard },
-    { id: 'purchase_credits', label: 'Purchase Credits', description: 'Allow users to buy credits', icon: CreditCard },
-    { id: 'consume_credits', label: 'Consume Credits', description: 'Use credits for services', icon: CreditCard },
-    { id: 'manage_subscriptions', label: 'Manage Subscriptions', description: 'Handle user subscriptions', icon: Settings },
-    { id: 'read_analytics', label: 'Read Analytics', description: 'Access usage analytics', icon: Settings }
+    { id: 'read_credits', label: 'Read Credits', description: 'Check user credit balance', icon: Shield },
+    { id: 'purchase_credits', label: 'Purchase Credits', description: 'Allow users to buy credits', icon: Shield },
+    { id: 'consume_credits', label: 'Consume Credits', description: 'Use credits for services', icon: Shield },
+    { id: 'manage_subscriptions', label: 'Manage Subscriptions', description: 'Handle user subscriptions', icon: Shield },
+    { id: 'read_analytics', label: 'Read Analytics', description: 'Access usage analytics', icon: Shield }
   ];
 
   const handleInputChange = (field: keyof AppFormData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handlePermissionToggle = (permissionId: string) => {
-    setFormData(prev => ({
-      ...prev,
-      permissions: prev.permissions.includes(permissionId)
-        ? prev.permissions.filter(p => p !== permissionId)
-        : [...prev.permissions, permissionId]
-    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -70,13 +56,16 @@ const CrossAppIntegrationModal: React.FC<CrossAppIntegrationModalProps> = ({ isO
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          app_url: `https://${formData.app_domain}`,
+          webhook_url: `https://${formData.app_domain}/apphook`
+        }),
       });
 
       if (response.ok) {
         const result = await response.json();
         setStep(2);
-        // You could show the API key here or redirect to the full admin panel
       } else {
         const error = await response.json();
         alert(`Error: ${error.detail || 'Failed to create integration'}`);
@@ -92,15 +81,16 @@ const CrossAppIntegrationModal: React.FC<CrossAppIntegrationModalProps> = ({ isO
     setFormData({
       app_name: '',
       app_domain: '',
-      app_url: '',
       description: '',
-      logo_url: '',
-      primary_color: '#3B82F6',
-      permissions: [],
-      max_users: 1000,
-      is_public: false,
-      webhook_url: '',
-      allowed_origins: []
+      permissions: [
+        'read_user_info',
+        'read_credits', 
+        'purchase_credits',
+        'consume_credits',
+        'manage_subscriptions',
+        'read_analytics'
+      ],
+      is_public: true
     });
     setStep(1);
   };
@@ -109,23 +99,23 @@ const CrossAppIntegrationModal: React.FC<CrossAppIntegrationModalProps> = ({ isO
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-gray-900/95 backdrop-blur-sm border border-white/10 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-dark-card border border-dark-border rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto hover:border-electric-blue/50 transition-all duration-300">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-white/10">
+        <div className="flex items-center justify-between p-6 border-b border-dark-border">
           <div className="flex items-center space-x-3">
-            <div className="p-2 bg-cyan-400/20 rounded-lg">
-              <Link className="h-6 w-6 text-cyan-400" />
+            <div className="p-2 bg-electric-blue/20 rounded-lg border border-electric-blue/30">
+              <Link className="h-6 w-6 text-electric-blue" />
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-white">Add New App Integration</h2>
-              <p className="text-sm text-gray-400">Connect external apps to Stream-line AI</p>
+              <h2 className="text-xl font-semibold text-gray-300">Create New App Integration</h2>
+              <p className="text-sm text-gray-500">Add a new app to your Stream-line AI ecosystem</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+            className="p-2 hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-gray-300"
           >
-            <X className="h-5 w-5 text-gray-400" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
@@ -135,171 +125,91 @@ const CrossAppIntegrationModal: React.FC<CrossAppIntegrationModalProps> = ({ isO
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Basic Information */}
               <div className="space-y-4">
-                <h3 className="text-lg font-medium text-white flex items-center">
-                  <Globe className="h-5 w-5 text-blue-400 mr-2" />
-                  Basic Information
+                <h3 className="text-lg font-medium text-gray-300 flex items-center">
+                  <Globe className="h-5 w-5 text-electric-blue mr-2" />
+                  App Details
                 </h3>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      App Name *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.app_name}
-                      onChange={(e) => handleInputChange('app_name', e.target.value)}
-                      className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-transparent"
-                      placeholder="My Awesome App"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      App Domain *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.app_domain}
-                      onChange={(e) => handleInputChange('app_domain', e.target.value)}
-                      className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-transparent"
-                      placeholder="myapp.com"
-                    />
-                  </div>
-                </div>
-
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    App URL
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    App Name *
                   </label>
                   <input
-                    type="url"
-                    value={formData.app_url}
-                    onChange={(e) => handleInputChange('app_url', e.target.value)}
-                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-transparent"
-                    placeholder="https://myapp.com"
+                    type="text"
+                    required
+                    value={formData.app_name}
+                    onChange={(e) => handleInputChange('app_name', e.target.value)}
+                    className="w-full px-3 py-2 bg-dark-bg border border-dark-border rounded-lg text-gray-300 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-electric-blue focus:border-transparent transition-all duration-200 hover:border-electric-blue/50"
+                    placeholder="e.g., Scraper, Videos, etc."
                   />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    App Domain *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.app_domain}
+                    onChange={(e) => handleInputChange('app_domain', e.target.value)}
+                    className="w-full px-3 py-2 bg-dark-bg border border-dark-border rounded-lg text-gray-300 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-electric-blue focus:border-transparent transition-all duration-200 hover:border-electric-blue/50"
+                    placeholder="e.g., scraper.stream-lineai.com"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    This will be used as: https://{formData.app_domain || 'app'}.stream-lineai.com
+                  </p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
                     Description
                   </label>
                   <textarea
                     value={formData.description}
                     onChange={(e) => handleInputChange('description', e.target.value)}
-                    rows={3}
-                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-transparent"
+                    rows={2}
+                    className="w-full px-3 py-2 bg-dark-bg border border-dark-border rounded-lg text-gray-300 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-electric-blue focus:border-transparent transition-all duration-200 hover:border-electric-blue/50 resize-none"
                     placeholder="Brief description of what your app does..."
                   />
                 </div>
               </div>
 
-              {/* Permissions */}
+              {/* Permissions Info */}
               <div className="space-y-4">
-                <h3 className="text-lg font-medium text-white flex items-center">
-                  <Shield className="h-5 w-5 text-green-400 mr-2" />
-                  Permissions *
+                <h3 className="text-lg font-medium text-gray-300 flex items-center">
+                  <Shield className="h-5 w-5 text-neon-green mr-2" />
+                  Permissions
                 </h3>
-                <p className="text-sm text-gray-400">
-                  Select what your app needs access to. Choose only what's necessary for security.
-                </p>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {availablePermissions.map((permission) => {
-                    const Icon = permission.icon;
-                    const isSelected = formData.permissions.includes(permission.id);
-                    
-                    return (
-                      <div
-                        key={permission.id}
-                        onClick={() => handlePermissionToggle(permission.id)}
-                        className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                          isSelected
-                            ? 'border-cyan-400 bg-cyan-400/10'
-                            : 'border-white/10 bg-white/5 hover:bg-white/10'
-                        }`}
-                      >
-                        <div className="flex items-start space-x-3">
-                          <Icon className={`h-5 w-5 mt-0.5 ${
-                            isSelected ? 'text-cyan-400' : 'text-gray-400'
-                          }`} />
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-2">
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={() => handlePermissionToggle(permission.id)}
-                                className="rounded border-white/20 bg-white/5 text-cyan-400 focus:ring-cyan-400"
-                              />
-                              <span className={`font-medium ${
-                                isSelected ? 'text-cyan-400' : 'text-white'
-                              }`}>
-                                {permission.label}
-                              </span>
-                            </div>
-                            <p className="text-xs text-gray-400 mt-1">
-                              {permission.description}
-                            </p>
-                          </div>
-                        </div>
+                <div className="bg-dark-bg border border-dark-border rounded-lg p-4 hover:border-electric-blue/50 transition-all duration-200">
+                  <p className="text-sm text-gray-400 mb-3">
+                    All permissions are automatically granted since these are your own apps.
+                  </p>
+                  <div className="grid grid-cols-1 gap-2">
+                    {availablePermissions.map((permission) => (
+                      <div key={permission.id} className="flex items-center space-x-2 text-sm">
+                        <div className="w-2 h-2 bg-neon-green rounded-full"></div>
+                        <span className="text-gray-300">{permission.label}</span>
+                        <span className="text-gray-500 text-xs">- {permission.description}</span>
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Advanced Settings */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium text-white flex items-center">
-                  <Settings className="h-5 w-5 text-purple-400 mr-2" />
-                  Advanced Settings
-                </h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Max Users
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.max_users}
-                      onChange={(e) => handleInputChange('max_users', parseInt(e.target.value) || 1000)}
-                      className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-transparent"
-                      placeholder="1000"
-                    />
-                  </div>
-                  
-                  <div className="flex items-center space-x-3">
-                    <input
-                      type="checkbox"
-                      id="is_public"
-                      checked={formData.is_public}
-                      onChange={(e) => handleInputChange('is_public', e.target.checked)}
-                      className="rounded border-white/20 bg-white/5 text-cyan-400 focus:ring-cyan-400"
-                    />
-                    <label htmlFor="is_public" className="text-sm font-medium text-gray-300">
-                      Public App (listed in directory)
-                    </label>
+                    ))}
                   </div>
                 </div>
               </div>
 
               {/* Submit Button */}
-              <div className="flex justify-end space-x-3 pt-4 border-t border-white/10">
+              <div className="flex justify-end space-x-3 pt-4 border-t border-dark-border">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2 text-gray-300 hover:text-white transition-colors"
+                  className="px-4 py-2 text-gray-400 hover:text-gray-300 transition-colors hover:bg-white/5 rounded-lg"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={loading || formData.permissions.length === 0}
-                  className="px-6 py-2 bg-cyan-400 hover:bg-cyan-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
+                  disabled={loading || !formData.app_name || !formData.app_domain}
+                  className="px-6 py-2 bg-electric-blue hover:bg-electric-blue/90 disabled:bg-gray-600 disabled:cursor-not-allowed text-black font-medium rounded-lg transition-all duration-200 hover:shadow-lg hover:shadow-electric-blue/30"
                 >
                   {loading ? 'Creating...' : 'Create Integration'}
                 </button>
@@ -308,17 +218,17 @@ const CrossAppIntegrationModal: React.FC<CrossAppIntegrationModalProps> = ({ isO
           ) : (
             /* Success Step */
             <div className="text-center py-8">
-              <div className="mx-auto w-16 h-16 bg-green-400/20 rounded-full flex items-center justify-center mb-4">
-                <div className="w-8 h-8 bg-green-400 rounded-full flex items-center justify-center">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="mx-auto w-16 h-16 bg-neon-green/20 rounded-full flex items-center justify-center mb-4 border border-neon-green/30">
+                <div className="w-8 h-8 bg-neon-green rounded-full flex items-center justify-center">
+                  <svg className="w-5 h-5 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
               </div>
               
-              <h3 className="text-xl font-semibold text-white mb-2">Integration Created Successfully!</h3>
-              <p className="text-gray-400 mb-6">
-                Your app integration has been created and is pending approval.
+              <h3 className="text-xl font-semibold text-gray-300 mb-2">Integration Created Successfully!</h3>
+              <p className="text-gray-500 mb-6">
+                Your app integration has been created and is ready to use.
               </p>
               
               <div className="space-y-3">
@@ -327,16 +237,16 @@ const CrossAppIntegrationModal: React.FC<CrossAppIntegrationModalProps> = ({ isO
                     onClose();
                     resetForm();
                   }}
-                  className="px-6 py-2 bg-cyan-400 hover:bg-cyan-500 text-white font-medium rounded-lg transition-colors"
+                  className="px-6 py-2 bg-electric-blue hover:bg-electric-blue/90 text-black font-medium rounded-lg transition-all duration-200 hover:shadow-lg hover:shadow-electric-blue/30"
                 >
                   Close
                 </button>
                 
-                <div className="text-sm text-gray-400">
+                <div className="text-sm text-gray-500">
                   <p>Need to manage integrations?</p>
                   <a
                     href="/admin/cross-app"
-                    className="text-cyan-400 hover:text-cyan-300 underline"
+                    className="text-electric-blue hover:text-electric-blue/80 underline transition-colors"
                   >
                     Go to Cross-App Admin Panel
                   </a>

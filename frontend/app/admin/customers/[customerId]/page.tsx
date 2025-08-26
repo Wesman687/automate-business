@@ -59,6 +59,12 @@ interface Job {
 export default function CustomerDetail() {
   const params = useParams();
   const router = useRouter();
+  
+  if (!params?.customerId) {
+    router.replace('/admin/customers');
+    return null;
+  }
+  
   const customerId = params.customerId as string;
   
   const [customer, setCustomer] = useState<Customer | null>(null);

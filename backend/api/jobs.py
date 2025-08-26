@@ -16,17 +16,19 @@ from api.common import (
     ERROR_MESSAGES, 
     ERROR_CODES,
     SUCCESS_MESSAGES,
-    JobFilterParams,
-    PaginationParams,
     validate_pagination,
-    validate_sort_params,
-    apply_pagination,
-    apply_sorting,
-    apply_filters,
-    get_standard_headers
+    get_standard_headers,
+    serialize_job,
+    serialize_time_entry
 )
 
 router = APIRouter()
+
+# Test endpoint for debugging
+@router.get("/jobs/test")
+def test_jobs_endpoint():
+    """Simple test endpoint to verify jobs API is working"""
+    return {"message": "Jobs API is working", "status": "success"}
 
 # Job Endpoints
 
@@ -44,8 +46,6 @@ def get_jobs(
     sort_order: Optional[str] = Query("desc", description="Sort order (asc/desc)"),
     start_date: Optional[datetime] = Query(None, description="Filter by start date"),
     end_date: Optional[datetime] = Query(None, description="Filter by end date"),
-    business_type: Optional[str] = Query(None, description="Filter by business type"),
-    industry: Optional[str] = Query(None, description="Filter by industry"),
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_admin)
 ):
@@ -55,21 +55,21 @@ def get_jobs(
         page, page_size = validate_pagination(page, page_size)
         
         # Validate sort parameters
-        allowed_sort_fields = ["id", "title", "status", "priority", "created_at", "start_date", "deadline"]
-        sort_by, sort_order = validate_sort_params(sort_by, allowed_sort_fields)
+        if sort_by not in ["id", "title", "status", "priority", "created_at", "start_date", "deadline"]:
+            sort_by = "created_at"
+        if sort_order.lower() not in ["asc", "desc"]:
+            sort_order = "desc"
         
         # Build base query
         query = db.query(Job)
         
-        # Apply filters
-        filters = {
-            "customer_id": customer_id,
-            "status": status,
-            "priority": priority,
-            "business_type": business_type,
-            "industry": industry
-        }
-        query = apply_filters(query, filters)
+        # Apply filters directly
+        if customer_id:
+            query = query.filter(Job.customer_id == customer_id)
+        if status:
+            query = query.filter(Job.status == status)
+        if priority:
+            query = query.filter(Job.priority == priority)
         
         # Apply date filters
         if start_date:
@@ -81,29 +81,74 @@ def get_jobs(
         if search:
             search_filter = or_(
                 Job.title.ilike(f"%{search}%"),
-                Job.description.ilike(f"%{search}%"),
-                Job.business_name.ilike(f"%{search}%")
+                Job.description.ilike(f"%{search}%")
             )
             query = query.filter(search_filter)
         
         # Get total count for pagination
         total = query.count()
         
-        # Apply sorting
-        query = apply_sorting(query, sort_by, sort_order, allowed_sort_fields)
+        # Apply sorting directly
+        if sort_by == "id":
+            if sort_order.lower() == "desc":
+                query = query.order_by(Job.id.desc())
+            else:
+                query = query.order_by(Job.id.asc())
+        elif sort_by == "title":
+            if sort_order.lower() == "desc":
+                query = query.order_by(Job.title.desc())
+            else:
+                query = query.order_by(Job.title.asc())
+        elif sort_by == "status":
+            if sort_order.lower() == "desc":
+                query = query.order_by(Job.status.desc())
+            else:
+                query = query.order_by(Job.status.asc())
+        elif sort_by == "priority":
+            if sort_order.lower() == "desc":
+                query = query.order_by(Job.priority.desc())
+            else:
+                query = query.order_by(Job.priority.asc())
+        elif sort_by == "start_date":
+            if sort_order.lower() == "desc":
+                query = query.order_by(Job.start_date.desc())
+            else:
+                query = query.order_by(Job.start_date.asc())
+        elif sort_by == "deadline":
+            if sort_order.lower() == "desc":
+                query = query.order_by(Job.deadline.desc())
+            else:
+                query = query.order_by(Job.deadline.asc())
+        else:  # default to created_at
+            if sort_order.lower() == "desc":
+                query = query.order_by(Job.created_at.desc())
+            else:
+                query = query.order_by(Job.created_at.asc())
         
-        # Apply pagination
-        query = apply_pagination(query, page, page_size)
+        # Apply pagination directly
+        offset = (page - 1) * page_size
+        query = query.offset(offset).limit(page_size)
         
         # Execute query
         jobs = query.all()
+        print(f"Found {len(jobs)} jobs")
+        
+        # Convert SQLAlchemy models to dictionaries
+        try:
+            jobs_data = [serialize_job(job) for job in jobs]
+            print(f"Successfully serialized {len(jobs_data)} jobs")
+        except Exception as serialize_error:
+            print(f"Error serializing jobs: {str(serialize_error)}")
+            import traceback
+            traceback.print_exc()
+            raise serialize_error
         
         # Add standard headers
         response.headers.update(get_standard_headers())
         
         # Return paginated response
         return paginated_response(
-            data=jobs,
+            data=jobs_data,
             page=page,
             page_size=page_size,
             total=total,
@@ -111,9 +156,13 @@ def get_jobs(
         )
         
     except Exception as e:
+        print(f"Error in get_jobs: {str(e)}")
+        print(f"Error type: {type(e)}")
+        import traceback
+        traceback.print_exc()
         raise APIError(
             status_code=500,
-            error=ERROR_MESSAGES["internal_error"],
+            error=f"Internal error: {str(e)}",
             error_code=ERROR_CODES["INTERNAL_ERROR"]
         )
 
@@ -143,13 +192,15 @@ def get_customer_jobs(
         page, page_size = validate_pagination(page, page_size)
         
         # Validate sort parameters
-        allowed_sort_fields = ["id", "title", "status", "priority", "created_at", "start_date", "deadline"]
-        sort_by, sort_order = validate_sort_params(sort_by, allowed_sort_fields)
+        if sort_by not in ["id", "title", "status", "priority", "created_at", "start_date", "deadline"]:
+            sort_by = "created_at"
+        if sort_order.lower() not in ["asc", "desc"]:
+            sort_order = "desc"
         
         # Build base query for current customer
         query = db.query(Job).filter(Job.customer_id == current_user.get('user_id'))
         
-        # Apply filters
+        # Apply filters directly
         if status:
             query = query.filter(Job.status == status)
         if priority:
@@ -166,21 +217,59 @@ def get_customer_jobs(
         # Get total count for pagination
         total = query.count()
         
-        # Apply sorting
-        query = apply_sorting(query, sort_by, sort_order, allowed_sort_fields)
+        # Apply sorting directly
+        if sort_by == "id":
+            if sort_order.lower() == "desc":
+                query = query.order_by(Job.id.desc())
+            else:
+                query = query.order_by(Job.id.asc())
+        elif sort_by == "title":
+            if sort_order.lower() == "desc":
+                query = query.order_by(Job.title.desc())
+            else:
+                query = query.order_by(Job.title.asc())
+        elif sort_by == "status":
+            if sort_order.lower() == "desc":
+                query = query.order_by(Job.status.desc())
+            else:
+                query = query.order_by(Job.status.asc())
+        elif sort_by == "priority":
+            if sort_order.lower() == "desc":
+                query = query.order_by(Job.priority.desc())
+            else:
+                query = query.order_by(Job.priority.asc())
+        elif sort_by == "start_date":
+            if sort_order.lower() == "desc":
+                query = query.order_by(Job.start_date.desc())
+            else:
+                query = query.order_by(Job.start_date.asc())
+        elif sort_by == "deadline":
+            if sort_order.lower() == "desc":
+                query = query.order_by(Job.deadline.desc())
+            else:
+                query = query.order_by(Job.deadline.asc())
+        else:  # default to created_at
+            if sort_order.lower() == "desc":
+                query = query.order_by(Job.created_at.desc())
+            else:
+                query = query.order_by(Job.created_at.asc())
         
-        # Apply pagination
-        query = apply_pagination(query, page, page_size)
+        # Apply pagination directly
+        offset = (page - 1) * page_size
+        query = query.offset(offset).limit(page_size)
         
         # Execute query
         jobs = query.all()
+        
+        # Convert SQLAlchemy models to dictionaries
+        jobs_data = [serialize_job(job) for job in jobs]
         
         # Add standard headers
         response.headers.update(get_standard_headers())
         
         # Return paginated response
         return paginated_response(
-            data=jobs,
+            data=jobs_data,
             page=page,
             page_size=page_size,
             total=total,
@@ -214,11 +303,14 @@ def get_job(
                 error_code=ERROR_CODES["NOT_FOUND"]
             )
         
+        # Convert SQLAlchemy model to dictionary
+        job_dict = serialize_job(job)
+        
         # Add standard headers
         response.headers.update(get_standard_headers())
         
         return success_response(
-            data=job,
+            data=job_dict,
             message=SUCCESS_MESSAGES["job_retrieved"]
         )
         
@@ -266,11 +358,14 @@ def create_job(
         db.commit()
         db.refresh(db_job)
         
+        # Convert SQLAlchemy model to dictionary
+        job_dict = serialize_job(db_job)
+        
         # Add standard headers
         response.headers.update(get_standard_headers())
         
         return success_response(
-            data=db_job,
+            data=job_dict,
             message=SUCCESS_MESSAGES["job_created"]
         )
         
@@ -322,11 +417,14 @@ def update_job(
         db.commit()
         db.refresh(job)
         
+        # Convert SQLAlchemy model to dictionary
+        job_dict = serialize_job(job)
+        
         # Add standard headers
         response.headers.update(get_standard_headers())
         
         return success_response(
-            data=job,
+            data=job_dict,
             message=SUCCESS_MESSAGES["job_updated"]
         )
         
@@ -410,17 +508,21 @@ def get_job_time_entries(
         # Get total count for pagination
         total = query.count()
         
-        # Apply pagination
-        query = apply_pagination(query, page, page_size)
+        # Apply pagination directly
+        offset = (page - 1) * page_size
+        query = query.offset(offset).limit(page_size)
         
         # Execute query
         time_entries = query.all()
+        
+        # Convert SQLAlchemy models to dictionaries
+        time_entries_data = [serialize_time_entry(entry) for entry in time_entries]
         
         # Add standard headers
         response.headers.update(get_standard_headers())
         
         return paginated_response(
-            data=time_entries,
+            data=time_entries_data,
             page=page,
             page_size=page_size,
             total=total,

@@ -8,35 +8,7 @@ import EditJobModal from '../../../../components/EditJobModal';
 import ChangeRequestCard from '../../../../components/ChangeRequestCard';
 import ChangeRequestModal from '../../../../components/ChangeRequestModal';
 import { api } from '@/lib/https';
-
-interface Job {
-  id: number;
-  customer_id: number;
-  title: string;
-  description?: string;
-  status: string;
-  priority: string;
-  start_date?: string;
-  deadline?: string;
-  completion_date?: string;
-  estimated_hours?: number;
-  actual_hours?: number;
-  hourly_rate?: number;
-  fixed_price?: number;
-  google_drive_links?: Array<{ name: string; url: string; type?: string }>;
-  github_repositories?: Array<{ name: string; url: string; type?: string }>;
-  workspace_links?: Array<{ name: string; url: string; type?: string }>;
-  server_details?: Array<{ name: string; url: string; type?: string }>;
-  calendar_links?: Array<{ name: string; url: string; type?: string }>;
-  meeting_links?: Array<{ name: string; url: string; type?: string }>;
-  additional_tools?: Array<{ name: string; url: string; type?: string }>;
-  notes?: string;
-  progress_percentage: number;
-  milestones?: Array<{ name: string; description?: string; due_date?: string; completed: boolean }>;
-  deliverables?: Array<{ name: string; description?: string; delivered: boolean; date?: string }>;
-  created_at: string;
-  updated_at?: string;
-}
+import { Job, JobStatus, JobPriority } from '@/components/interfaces/job';
 
 interface Customer {
   id: number;
@@ -62,13 +34,19 @@ interface ResourceCategory {
   id: string;
   name: string;
   icon: any;
-  items: Array<{ name: string; url: string; type?: string }>;
+  items: Array<{ name: string; url?: string; type?: string }>;
   fieldName: string;
 }
 
 export default function JobDetail() {
   const params = useParams();
   const router = useRouter();
+  
+  if (!params?.jobId) {
+    router.replace('/admin/jobs');
+    return null;
+  }
+  
   const jobId = params.jobId as string;
   
   const [job, setJob] = useState<Job | null>(null);
@@ -98,10 +76,15 @@ export default function JobDetail() {
 
       if (response.ok) {
         const jobData = await response.json();
-        setJob(jobData);
+        // Ensure the status is properly typed
+        const typedJobData: Job = {
+          ...jobData,
+          status: jobData.status as JobStatus
+        };
+        setJob(typedJobData);
         
         // Fetch customer data
-        const customerResponse = await api.get(`/api/customers`);
+        const customerResponse = await api.get(`/customers`);
         
         if (customerResponse.ok) {
           const customerData = await customerResponse.json();
@@ -404,7 +387,7 @@ export default function JobDetail() {
             <select
               value={job.status}
               onChange={async (e) => {
-                await updateJob({ status: e.target.value });
+                await updateJob({ status: e.target.value as JobStatus });
                 setEditingStatus(false);
               }}
               onBlur={() => setEditingStatus(false)}
@@ -433,7 +416,7 @@ export default function JobDetail() {
             <select
               value={job.priority}
               onChange={async (e) => {
-                await updateJob({ priority: e.target.value });
+                await updateJob({ priority: e.target.value as JobPriority });
                 setEditingPriority(false);
               }}
               onBlur={() => setEditingPriority(false)}

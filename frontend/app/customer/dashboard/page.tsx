@@ -150,8 +150,10 @@ export default function CustomerDashboard() {
   const fetchCustomerData = async () => {
     try {
       // Use the user endpoint instead of customers
-              const response = await api.get(`/api/users/${user?.user_id}`);
-      setCustomerData(response);
+      const response = await api.get(`/api/users/${user?.user_id}`);
+      // Handle new standardized API response format
+      const customerData = response?.data || response;
+      setCustomerData(customerData);
     } catch (error) {
       console.error('Error fetching customer data:', error);
     }
@@ -159,8 +161,10 @@ export default function CustomerDashboard() {
 
   const fetchRecentFiles = async () => {
     try {
-              const response = await api.get('/file-upload/files');
-      setRecentFiles(response.files?.slice(0, 5) || []);
+      const response = await api.get('/file-upload/files');
+      // Handle new standardized API response format
+      const files = response?.data || response;
+      setRecentFiles(files?.files?.slice(0, 5) || []);
     } catch (error) {
       console.error('Error fetching recent files:', error);
     }
@@ -196,8 +200,8 @@ export default function CustomerDashboard() {
       }
       console.log('📋 Jobs response:', response);
       
-      // Check if response has jobs property or if it's directly an array
-      const jobsData = response.jobs || response || [];
+      // Handle new standardized API response format
+      const jobsData = response?.data || response || [];
       console.log('📊 Jobs data:', jobsData);
       
       setJobs(jobsData);
@@ -224,8 +228,10 @@ export default function CustomerDashboard() {
 
   const fetchAppointments = async () => {
     try {
-              const response = await api.get('/appointments/customer');
-      setAppointments(response.appointments || []);
+      const response = await api.get('/appointments/customer');
+      // Handle new standardized API response format
+      const appointments = response?.data || response;
+      setAppointments(appointments?.appointments || appointments || []);
     } catch (error) {
       console.error('Error fetching appointments:', error);
     }
@@ -234,10 +240,12 @@ export default function CustomerDashboard() {
   const fetchStats = async () => {
     try {
       // Fetch files count and use current jobs data from state
-              const filesResponse = await api.get('/file-upload/files');
+      const filesResponse = await api.get('/file-upload/files');
+      // Handle new standardized API response format
+      const files = filesResponse?.data || filesResponse;
       
       setStats({
-        totalFiles: filesResponse.files?.length || 0,
+        totalFiles: files?.files?.length || 0,
         totalJobs: jobs.length, // Use the jobs from state instead of re-fetching
         activeProjects: jobs.filter((j: any) => j.status === 'active').length || 0
       });
@@ -249,9 +257,11 @@ export default function CustomerDashboard() {
   const handleJobSetupComplete = async (data: JobSetupData) => {
     try {
       // Submit job setup data
-              const response = await api.post('/jobs/setup-request', data);
+      const response = await api.post('/jobs/setup-request', data);
+      // Handle new standardized API response format
+      const result = response?.data || response;
       
-      if (response.success) {
+      if (result?.success || response?.success) {
         setSuccessMessage('Job setup request submitted successfully! Our team will review and contact you soon.');
         setShowSuccessModal(true);
         setShowJobSetup(false);

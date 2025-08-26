@@ -63,10 +63,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Verify current session (via Next proxy -> FastAPI)
 const refresh = useCallback(async () => {
   try {
+    console.log('🔍 useAuth: Calling verifySvc...');
     const data = await verifySvc();          // <— use the service
+    console.log('🔍 useAuth: verifySvc response:', data);
     const u = data?.user ?? data;
+    console.log('🔍 useAuth: Setting user to:', u);
     setUser(u ?? null);
-  } catch {
+  } catch (error) {
+    console.error('❌ useAuth: Error in refresh:', error);
     setUser(null);
   }
 }, []);

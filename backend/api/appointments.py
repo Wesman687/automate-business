@@ -1200,7 +1200,7 @@ async def delete_appointment(
         
         # Delete Google Calendar event
         try:
-            calendar_message = google_calendar_service.delete_calendar_event(appointment_id)
+            calendar_message = await google_calendar_service.delete_calendar_event(appointment_id)
             logger.info(f"Google Calendar event deleted for appointment {appointment_id}: {calendar_message}")
         except Exception as e:
             logger.error(f"Failed to delete Google Calendar event for appointment {appointment_id}: {str(e)}")

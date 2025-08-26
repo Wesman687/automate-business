@@ -53,15 +53,20 @@ export default function JobManagementPage({ onCreateNewJob, isCustomer = false }
     try {
       // Fetch jobs, customers, and time entries
       console.log('Fetching jobs...');
-      const [jobs, customers, timeEntries] = await Promise.all([
+      const [jobsResponse, customersResponse, timeEntriesResponse] = await Promise.all([
         api.get(isCustomer ? '/jobs/customer' : '/jobs'),
         api.get('/customers'),
         api.get(isCustomer ? '/time-entries/customer' : '/time-entries')
       ]);
       
-      setJobs(jobs || []);
-      setCustomers(customers || []);
-      setTimeEntries(timeEntries || []);
+      // Handle new standardized API response format
+      const jobs = jobsResponse?.data || jobsResponse || [];
+      const customers = customersResponse?.data || customersResponse || [];
+      const timeEntries = timeEntriesResponse?.data || timeEntriesResponse || [];
+      
+      setJobs(jobs);
+      setCustomers(customers);
+      setTimeEntries(timeEntries);
     } catch (error) {
       console.error('Error fetching job data:', error);
     } finally {

@@ -54,7 +54,7 @@ const deleteCustomer = async (customerId: number) => {
   }
 
   try {
-          await api.del(`/api/customers/${customerId}`); // throws on error
+          await api.del(`/customers/${customerId}`); // throws on error
     setCustomers(prev => prev.filter(c => c.id !== customerId));
   } catch (error) {
     console.error('Error deleting customer:', error);

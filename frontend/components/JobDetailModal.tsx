@@ -70,8 +70,8 @@ export default function JobDetailModal({ isOpen, onClose, jobId, isCustomer = fa
       console.log('🔍 Response type:', typeof response);
       console.log('🔍 Response keys:', Object.keys(response));
       
-      // The API helper returns the data directly, not wrapped in a data property
-      const jobData = response;
+      // Handle new standardized API response format
+      const jobData = response?.data || response;
       console.log('💾 Setting job state with:', jobData);
       setJob(jobData);
       setEditData(jobData);
@@ -328,7 +328,7 @@ export default function JobDetailModal({ isOpen, onClose, jobId, isCustomer = fa
 
   const deleteFile = async (fileId: number) => {
     try {
-              await api.del(`/api/file-upload/files/${fileId}`);
+              await api.del(`/file-upload/files/${fileId}`);
       await fetchJobFiles();
     } catch (error) {
       console.error('Error deleting file:', error);

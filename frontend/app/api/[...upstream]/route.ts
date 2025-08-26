@@ -9,7 +9,14 @@ function buildTargetUrl(req: NextRequest, upstreamParts: string[]) {
   const search = req.nextUrl.search; // includes leading '?', '' if none
   const base = API_BASE.replace(/\/+$/, '');
   const prefix = BACKEND_PREFIX ? BACKEND_PREFIX.replace(/^\/?/, '') + '/' : '';
-  // Add /api prefix to match backend router structure
+  
+  // Auth endpoints should NOT have /api prefix
+  if (upstream.startsWith('auth/')) {
+    const url = `${base}/${prefix}${upstream}`.replace(/\/+/g, '/');
+    return `${url}${search}`;
+  }
+  
+  // Add /api prefix to match backend router structure for other endpoints
   const url = `${base}/${prefix}api/${upstream}`.replace(/\/+/g, '/');
   return `${url}${search}`;
 }
@@ -27,6 +34,13 @@ function forwardHeaders(req: NextRequest) {
 }
 
 async function handler(req: NextRequest, ctx: { params: { upstream: string[] } }) {
+  // Skip this handler for navigation requests (GET requests with Accept: text/html)
+  const acceptHeader = req.headers.get('accept') || '';
+  if (req.method === 'GET' && acceptHeader.includes('text/html')) {
+    // This is a navigation request, let Next.js handle it normally
+    return NextResponse.next();
+  }
+  
   console.log('Upstream parts:', ctx.params.upstream);
   const target = buildTargetUrl(req, ctx.params.upstream || []);
   console.log('Target URL:', target);

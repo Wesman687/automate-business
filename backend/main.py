@@ -203,12 +203,12 @@ app.include_router(chat_router, prefix="/api")
 app.include_router(customers_router, prefix="/api")
 app.include_router(contact_router)  # No prefix for contact form
 app.include_router(auth_router)  # Add /api prefix for auth endpoints
+app.include_router(google_auth_router)
 app.include_router(email_router, prefix="/api")
 app.include_router(share_router, prefix="/api")
 app.include_router(api_router, prefix="/api")
 app.include_router(financial_router, prefix="/api")
 app.include_router(appointments_router, prefix="/api")
-app.include_router(google_auth_router)
 app.include_router(voice_agent_router, prefix="/api")
 app.include_router(jobs_router, prefix="/api")
 app.include_router(time_entries_router, prefix="/api")

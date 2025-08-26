@@ -178,19 +178,25 @@ def apply_pagination(query, page: int, page_size: int):
 def apply_sorting(query, sort_by: str, sort_order: str, allowed_fields: List[str]):
     """Apply sorting to a database query"""
     if sort_by in allowed_fields:
-        sort_column = getattr(query.column_descriptions[0]['type'], sort_by)
-        if sort_order.lower() == "desc":
-            query = query.order_by(sort_column.desc())
-        else:
-            query = query.order_by(sort_column.asc())
+        # Get the model class from the query
+        model_class = query.column_descriptions[0]['type']
+        if hasattr(model_class, sort_by):
+            sort_column = getattr(model_class, sort_by)
+            if sort_order.lower() == "desc":
+                query = query.order_by(sort_column.desc())
+            else:
+                query = query.order_by(sort_column.asc())
     return query
 
 def apply_filters(query, filters: Dict[str, Any]):
     """Apply filters to a database query"""
+    # Get the model class from the query
+    model_class = query.column_descriptions[0]['type']
+    
     for field, value in filters.items():
-        if value is not None:
-            if hasattr(query.column_descriptions[0]['type'], field):
-                query = query.filter(getattr(query.column_descriptions[0]['type'], field) == value)
+        if value is not None and hasattr(model_class, field):
+            filter_column = getattr(model_class, field)
+            query = query.filter(filter_column == value)
     return query
 
 # Standard Response Headers
@@ -237,3 +243,53 @@ ERROR_CODES = {
     "INTERNAL_ERROR": "INTERNAL_ERROR",
     "DATABASE_ERROR": "DATABASE_ERROR"
 }
+
+# Model Serialization Helpers
+def serialize_job(job) -> dict:
+    """Convert SQLAlchemy Job model to dictionary"""
+    return {
+        "id": job.id,
+        "title": job.title,
+        "description": job.description,
+        "status": job.status,
+        "priority": job.priority,
+        "customer_id": job.customer_id,
+        "start_date": job.start_date,
+        "deadline": job.deadline,
+        "completion_date": job.completion_date,
+        "estimated_hours": job.estimated_hours,
+        "actual_hours": job.actual_hours,
+        "hourly_rate": job.hourly_rate,
+        "fixed_price": job.fixed_price,
+        "progress_percentage": job.progress_percentage,
+        "google_drive_links": job.google_drive_links,
+        "github_repositories": job.github_repositories,
+        "workspace_links": job.workspace_links,
+        "server_details": job.server_details,
+        "calendar_links": job.calendar_links,
+        "meeting_links": job.meeting_links,
+        "additional_tools": job.additional_tools,
+        "notes": job.notes,
+        "additional_resource_info": job.additional_resource_info,
+        "milestones": job.milestones,
+        "deliverables": job.deliverables,
+        "created_at": job.created_at,
+        "updated_at": job.updated_at
+    }
+
+def serialize_time_entry(entry) -> dict:
+    """Convert SQLAlchemy TimeEntry model to dictionary"""
+    return {
+        "id": entry.id,
+        "job_id": entry.job_id,
+        "admin_id": entry.admin_id,
+        "start_time": entry.start_time,
+        "end_time": entry.end_time,
+        "duration_hours": entry.duration_hours,
+        "description": entry.description,
+        "billable": entry.billable,
+        "hourly_rate": entry.hourly_rate,
+        "amount": entry.amount,
+        "created_at": entry.created_at,
+        "updated_at": entry.updated_at
+    }

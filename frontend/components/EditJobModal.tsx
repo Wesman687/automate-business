@@ -3,110 +3,12 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Calendar, Globe, Github, FolderOpen, Target, CheckCircle, ExternalLink, DollarSign } from 'lucide-react';
 import { api } from '@/lib/https';
+import { Job } from './interfaces/job';
 
 interface Customer {
   id: number;
   name: string;
   email: string;
-}
-
-interface Job {
-  // Basic Job Info
-  id: number;
-  customer_id: number;
-  title: string;
-  description?: string;
-  status: string;
-  priority: string;
-  start_date?: string;
-  deadline?: string;
-  completion_date?: string;
-  progress_percentage: number;
-  
-  // Business Information
-  business_name?: string;
-  business_type?: string;
-  industry?: string;
-  industry_other?: string;
-  
-  // Project Details
-  project_goals?: string;
-  target_audience?: string;
-  timeline?: string;
-  budget_range?: string;
-  
-  // Branding & Design
-  brand_colors?: string[];
-  brand_color_tags?: { [key: number]: string };
-  brand_color_tag_others?: { [key: number]: string };
-  brand_style?: string;
-  brand_style_other?: string;
-  logo_files?: number[];
-  brand_guidelines?: string;
-  
-  // Resources & Links
-  website_url?: string;
-  github_url?: string;
-  portfolio_url?: string;
-  social_media?: {
-    facebook?: string;
-    linkedin?: string;
-    instagram?: string;
-    twitter?: string;
-    youtube?: string;
-    tiktok?: string;
-    pinterest?: string;
-    snapchat?: string;
-  };
-  
-  // Unified Resources Array
-  resources?: Array<{
-    type: 'website' | 'github' | 'drive' | 'workspace' | 'service';
-    name: string;
-    url?: string;
-    description?: string;
-  }>;
-  
-  // Additional Tools (separate from resources)
-  additional_tools?: Array<{
-    name: string;
-    api_key?: string;
-    url?: string;
-    description?: string;
-  }>;
-
-  // Server Details (separate from resources)
-  server_details?: Array<{
-    name: string;
-    url?: string;
-    type?: string;
-    description?: string;
-  }>;
-  
-  // Additional Information
-  notes?: string;
-  additional_resource_info?: string[];
-  
-  meeting_links?: Array<{ name: string; url: string; type?: string }>;
-  
-  // Project Planning
-  milestones?: Array<{ name: string; description?: string; due_date?: string; completed: boolean }>;
-  deliverables?: Array<{ name: string; description?: string; delivered: boolean; date?: string }>;
-  
-  // Financial Data
-  estimated_hours?: number;
-  actual_hours?: number;
-  hourly_rate?: number;
-  fixed_price?: number;
-  
-  // Additional Files
-  project_files?: number[];
-  reference_files?: number[];
-  requirements_doc?: string;
-  
-  // Timestamps
-  created_at: string;
-  updated_at?: string;
 }
 
 interface EditJobModalProps {
@@ -846,7 +748,7 @@ Additional Context: ${aiPrompt}
 
 Please create specific milestones with due dates and deliverables that would help complete this project successfully.`;
 
-                          const response = await fetch('/ai/generate-plan', {
+                          const response = await fetch('/api/ai/generate-plan', {
                             method: 'POST',
                             headers: {
                               'Authorization': `Bearer ${token}`,
@@ -1073,7 +975,7 @@ Please analyze the project complexity and provide realistic estimates for:
 
 Return only a JSON object with these fields: estimated_hours, recommended_hourly_rate, fixed_price_estimate, breakdown_notes`;
 
-                        const response = await fetch('/ai/generate-plan', {
+                        const response = await fetch('/api/ai/generate-plan', {
                           method: 'POST',
                           headers: {
                             'Authorization': `Bearer ${token}`,

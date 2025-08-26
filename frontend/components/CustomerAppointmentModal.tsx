@@ -90,7 +90,7 @@ export default function CustomerAppointmentModal({ isOpen, onClose, onSave, cust
         days_ahead: '14'
       });
 
-      const data: SmartSlotsResponse = await api.get(`/appointments/smart-slots?${params}`);
+      const data: SmartSlotsResponse = await api.get(`/api/appointments/smart-slots?${params}`);
       setSmartSlots(data);
       
       // Auto-select the next available slot

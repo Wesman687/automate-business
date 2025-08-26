@@ -1,16 +1,21 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from database import get_db
 from database.models import User
 from api.auth import get_current_user, get_current_admin
-from services.auth_service import AuthService
+from services.user_service import UserService
+from schemas.user import (
+    UserCreate, UserUpdate, UserResponse, CustomerResponse, AdminResponse,
+    UserListResponse, UserFilter, UserStats, BulkUserUpdate, BulkUserStatusUpdate,
+    PasswordUpdate
+)
 import logging
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-@router.get("/users/{user_id}")
+@router.get("/users/{user_id}", response_model=UserResponse)
 async def get_user(
     user_id: int,
     db: Session = Depends(get_db),
@@ -18,185 +23,200 @@ async def get_user(
 ):
     """Get a specific user - Users can only see themselves, admins can see any"""
     try:
-        print('hitting here')
-        # Check authorization
-        is_admin = current_user.get('is_admin', False)
-        current_user_id = current_user.get('user_id')
+        user_service = UserService(db)
+        user = user_service.get_user_by_id(user_id, current_user)
+        return user
         
-        if not is_admin and current_user_id != user_id:
-            raise HTTPException(status_code=403, detail="Access denied - can only view your own data")
-        
-        # Get user from database
-        user = db.query(User).filter(User.id == user_id).first()
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        
-        # Return user data (excluding sensitive information)
-        return {
-            "id": user.id,
-            "user_id": user.id,
-            "email": user.email,
-            "name": user.name,
-            "phone": user.phone,
-            "address": user.address,
-            "city": user.city,
-            "state": user.state,
-            "zip_code": user.zip_code,
-            "country": user.country,
-            "business_name": user.business_name,
-            "business_site": user.business_site,
-            "additional_websites": user.additional_websites,
-            "business_type": user.business_type,
-            "pain_points": user.pain_points,
-            "current_tools": user.current_tools,
-            "budget": user.budget,
-            "lead_status": user.lead_status,
-            "notes": user.notes,
-            "status": user.status,
-            "user_type": user.user_type,
-            "created_at": user.created_at.isoformat() if user.created_at else None,
-            "updated_at": user.updated_at.isoformat() if user.updated_at else None,
-            "last_login": user.last_login.isoformat() if user.last_login else None
-        }
-        
-    except HTTPException:
-        raise
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         logger.error(f"Error getting user {user_id}: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.put("/users/{user_id}")
+@router.put("/users/{user_id}", response_model=UserResponse)
 async def update_user(
     user_id: int,
-    user_data: dict,
+    user_data: UserUpdate,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Update a user - Users can only update themselves, admins can update any"""
+    """Update user - Users can only update themselves, admins can update any"""
     try:
-        # Check authorization
-        is_admin = current_user.get('is_admin', False)
-        current_user_id = current_user.get('user_id')
+        user_service = UserService(db)
+        user = user_service.update_user(user_id, user_data, current_user)
+        return user
         
-        if not is_admin and current_user_id != user_id:
-            raise HTTPException(status_code=403, detail="Access denied - can only update your own data")
-        
-        # Get user from database
-        user = db.query(User).filter(User.id == user_id).first()
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        
-        # Update allowed fields
-        allowed_fields = [
-            'name', 'phone', 'address', 'city', 'state', 'zip_code', 'country',
-            'business_name', 'business_site', 'additional_websites', 'business_type',
-            'pain_points', 'current_tools', 'budget', 'lead_status', 'notes'
-        ]
-        
-        for field in allowed_fields:
-            if field in user_data:
-                setattr(user, field, user_data[field])
-        
-        db.commit()
-        db.refresh(user)
-        
-        return {
-            "message": "User updated successfully",
-            "user_id": user.id
-        }
-        
-    except HTTPException:
-        raise
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         logger.error(f"Error updating user {user_id}: {str(e)}")
-        db.rollback()
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.post("/users/{user_id}/password")
 async def update_user_password(
     user_id: int,
-    password_data: dict,
+    password_data: PasswordUpdate,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Update a user's password - Users can only update their own password"""
+    """Update user password - Users can only update their own password"""
     try:
-        # Check authorization
-        current_user_id = current_user.get('user_id')
+        user_service = UserService(db)
+        success = user_service.update_password(
+            user_id, 
+            password_data.current_password, 
+            password_data.new_password, 
+            current_user
+        )
         
-        if current_user_id != user_id:
-            raise HTTPException(status_code=403, detail="Access denied - can only update your own password")
+        if success:
+            return {"message": "Password updated successfully"}
+        else:
+            raise HTTPException(status_code=400, detail="Failed to update password")
         
-        # Get user from database
-        user = db.query(User).filter(User.id == user_id).first()
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        
-        # Validate password
-        new_password = password_data.get('password')
-        if not new_password or len(new_password) < 8:
-            raise HTTPException(status_code=400, detail="Password must be at least 8 characters long")
-        
-        # Hash and update password
-        auth_service = AuthService(db)
-        password_hash = auth_service.hash_password(new_password)
-        user.password_hash = password_hash
-        
-        db.commit()
-        
-        return {
-            "message": "Password updated successfully"
-        }
-        
-    except HTTPException:
-        raise
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Error updating password for user {user_id}: {str(e)}")
-        db.rollback()
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.get("/users")
+@router.get("/users", response_model=List[UserListResponse])
 async def get_users(
-    skip: int = 0,
-    limit: int = 100,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
+    user_type: Optional[str] = Query(None, description="Filter by user type"),
+    status: Optional[str] = Query(None, description="Filter by status"),
+    search: Optional[str] = Query(None, description="Search in name, email, business_name"),
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_admin)
 ):
-    """Get all users - Admin only"""
+    """Get all users with filtering - Admin only"""
     try:
-        users = db.query(User).offset(skip).limit(limit).all()
+        user_service = UserService(db)
         
-        user_list = []
-        for user in users:
-            user_list.append({
-                "id": user.id,
-                "user_id": user.id,
-                "email": user.email,
-                "name": user.name,
-                "phone": user.phone,
-                "address": user.address,
-                "city": user.city,
-                "state": user.state,
-                "zip_code": user.zip_code,
-                "country": user.country,
-                "business_name": user.business_name,
-                "business_site": user.business_site,
-                "additional_websites": user.additional_websites,
-                "business_type": user.business_type,
-                "pain_points": user.pain_points,
-                "current_tools": user.current_tools,
-                "budget": user.budget,
-                "lead_status": user.lead_status,
-                "notes": user.notes,
-                "status": user.status,
-                "user_type": user.user_type,
-                "created_at": user.created_at.isoformat() if user.created_at else None,
-                "updated_at": user.updated_at.isoformat() if user.updated_at else None,
-                "last_login": user.last_login.isoformat() if user.last_login else None
-            })
+        # Build filters
+        filters = None
+        if any([user_type, status, search]):
+            filters = UserFilter(
+                user_type=user_type,
+                status=status,
+                search=search
+            )
         
-        return user_list
+        users = user_service.get_users(current_user, filters, skip, limit)
+        return users
         
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
     except Exception as e:
         logger.error(f"Error getting users: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.get("/users/stats", response_model=UserStats)
+async def get_user_stats(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_admin)
+):
+    """Get user statistics - Admin only"""
+    try:
+        user_service = UserService(db)
+        stats = user_service.get_user_stats(current_user)
+        return stats
+        
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error getting user stats: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.post("/users/bulk-update")
+async def bulk_update_users(
+    bulk_update: BulkUserUpdate,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_admin)
+):
+    """Bulk update users - Admin only"""
+    try:
+        user_service = UserService(db)
+        updated_count = user_service.bulk_update_users(bulk_update, current_user)
+        return {"message": f"Successfully updated {updated_count} users"}
+        
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error bulk updating users: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.post("/users/bulk-status-update")
+async def bulk_update_user_status(
+    bulk_status_update: BulkUserStatusUpdate,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_admin)
+):
+    """Bulk update user status - Admin only"""
+    try:
+        user_service = UserService(db)
+        updated_count = user_service.bulk_update_user_status(bulk_status_update, current_user)
+        return {"message": f"Successfully updated status for {updated_count} users"}
+        
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error bulk updating user status: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.delete("/users/{user_id}")
+async def delete_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_admin)
+):
+    """Delete user (soft delete) - Admin only"""
+    try:
+        user_service = UserService(db)
+        success = user_service.delete_user(user_id, current_user)
+        
+        if success:
+            return {"message": "User deleted successfully"}
+        else:
+            raise HTTPException(status_code=400, detail="Failed to delete user")
+        
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error deleting user {user_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.post("/users/{user_id}/credits")
+async def update_user_credits(
+    user_id: int,
+    credit_change: int,
+    reason: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_admin)
+):
+    """Update user credits - Admin only"""
+    try:
+        user_service = UserService(db)
+        success = user_service.update_user_credits(user_id, credit_change, reason or "Manual adjustment")
+        
+        if success:
+            return {"message": f"Credits updated successfully. Change: {credit_change}"}
+        else:
+            raise HTTPException(status_code=400, detail="Failed to update credits")
+        
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error updating credits for user {user_id}: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")

@@ -1,16 +1,16 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { FileText, FolderOpen, Upload, Download, Trash2, Eye } from 'lucide-react';
 import FileManagementModal from '../FileManagementModal';
 
-import { JobDetailData, JobFile } from '../interfaces/job';
+import { Job, JobFile } from '../interfaces/job';
 
 interface JobFilesAssetsProps {
-  data: JobDetailData;
+  data: Job;
   isEditing: boolean;
-  editData: JobDetailData;
-  setEditData: (data: JobDetailData) => void;
+  editData: Job;
+  setEditData: (data: Job) => void;
   jobId: number;
   jobFiles: JobFile[];
 }
@@ -19,10 +19,10 @@ export default function JobFilesAssets({ data, isEditing, editData, setEditData,
   const [showFileManagementModal, setShowFileManagementModal] = useState(false);
   const [selectedFileType, setSelectedFileType] = useState<string>('');
 
-  const openFileManagement = (fileType: string) => {
+  const openFileManagement = useCallback((fileType: string) => {
     setSelectedFileType(fileType);
     setShowFileManagementModal(true);
-  };
+  }, []);
 
   const getFileCount = (type: string) => {
     return jobFiles.filter(file => file.folder === type).length;

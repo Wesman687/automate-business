@@ -10,12 +10,16 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@ant-design/icons": "^6.0.0",
+    "@stripe/react-stripe-js": "^3.9.2",
+    "@stripe/stripe-js": "^7.9.0",
     "@tsparticles/engine": "^3.0.0",
     "@tsparticles/react": "^3.0.0",
     "@tsparticles/slim": "^3.0.0",
-    "@types/node": "^20.0.0",
+    "@types/node": "^20.19.11",
     "@types/react": "^18.0.0",
     "@types/react-dom": "^18.0.0",
+    "antd": "^5.27.1",
     "autoprefixer": "^10.0.0",
     "canvas": "^3.1.2",
     "framer-motion": "^10.16.0",
@@ -37,5 +41,13 @@
   },
   "engines": {
     "node": ">=18.17.0"
-  }
+  },
+  "main": "next.config.admin.js",
+  "directories": {
+    "lib": "lib"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
 }

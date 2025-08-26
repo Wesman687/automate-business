@@ -254,7 +254,7 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
 
       // If not cached at all, fetch and cache it
       console.log(`📧 Fetching email body for ${email.id} (not cached)`);
-      const emailDetails = await api.get(`/email/${email.id}`);
+              const emailDetails = await api.get(`/email/${email.id}`);
       
       // Cache both the email body and full email object
       setEmailBodies(prev => new Map(prev).set(email.id, emailDetails.body || ''));
@@ -299,7 +299,7 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
   const markAsUnread = async (emailId: string) => {
     try {
       // Use api utility - automatically routes to production server
-      await api.post(`/email/${emailId}/mark-unread`, {});
+      await api.post(`/api/email/${emailId}/mark-unread`, {});
 
       // Update local state immediately for better UX
       setEmails(prev => prev.map(email => 
@@ -323,7 +323,7 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
 
     try {
       // Use api utility - automatically routes to production server
-      await api.del(`/email/${emailId}`);
+      await api.del(`/api/email/${emailId}`);
 
       // Remove from local state
       setEmails(prev => prev.filter(email => email.id !== emailId));

@@ -73,7 +73,7 @@ export default function ChatLogView() {
         : 'https://server.stream-lineai.com';
       
       // Fetch session data directly from backend
-      const sessionResponse = await api.get (`/sessions/${sessionId}`);
+      const sessionResponse = await api.get (`/api/sessions/${sessionId}`);
       
       if (!sessionResponse.ok) {
         throw new Error(`Failed to fetch session: ${sessionResponse.status}`);
@@ -86,7 +86,7 @@ export default function ChatLogView() {
       let customer = null;
       if (sessionData.customer_id) {
         try {
-          const customerResponse = await api.get(`/customers/${sessionData.customer_id}`);
+          const customerResponse = await api.get(`/api/customers/${sessionData.customer_id}`);
           
           if (customerResponse.ok) {
             customer = await customerResponse.json();
@@ -133,7 +133,7 @@ export default function ChatLogView() {
         ? 'http://localhost:8005' 
         : 'https://server.stream-lineai.com';
       
-      const response = await api.patch(`/sessions/${sessionId}/seen`, { is_seen: newSeenStatus });
+      const response = await api.patch(`/api/sessions/${sessionId}/seen`, { is_seen: newSeenStatus });
 
       if (!response.ok) {
         throw new Error(`Failed to update seen status: ${response.status}`);

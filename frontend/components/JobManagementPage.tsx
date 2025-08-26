@@ -7,72 +7,7 @@ import Link from 'next/link';
 import CreateJobModal from './CreateJobModal';
 // EditJobModal import removed - using JobDetailModal instead
 import JobDetailModal from './JobDetailModal';
-
-interface Job {
-  id: number;
-  customer_id: number;
-  title: string;
-  description?: string;
-  status: string;
-  priority: string;
-  start_date?: string;
-  deadline?: string;
-  completion_date?: string;
-  estimated_hours?: number;
-  actual_hours?: number;
-  hourly_rate?: number;
-  fixed_price?: number;
-  
-  // Business Information
-  business_name?: string;
-  business_type?: string;
-  industry?: string;
-  
-  // Project Details
-  project_goals?: string;
-  target_audience?: string;
-  timeline?: string;
-  budget_range?: string;
-  
-  // Branding & Design
-  brand_colors?: string[];
-  brand_style?: string;
-  logo_files?: number[];
-  brand_guidelines?: string;
-  
-  // Resources & Links
-  website_url?: string;
-  github_url?: string;
-  social_media?: {
-    facebook?: string;
-    linkedin?: string;
-    instagram?: string;
-    twitter?: string;
-  };
-  
-  // Project Resources
-  google_drive_links?: Array<{ name: string; url: string; type?: string }>;
-  github_repositories?: Array<{ name: string; url: string; type?: string }>;
-  workspace_links?: Array<{ name: string; url: string; type?: string }>;
-  server_details?: Array<{ name: string; url: string; type?: string }>;
-  calendar_links?: Array<{ name: string; url: string; type?: string }>;
-  meeting_links?: Array<{ name: string; url: string; type?: string }>;
-  additional_tools?: Array<{ name: string; url: string; type?: string }>;
-  
-  // Project Planning
-  milestones?: Array<{ name: string; description?: string; due_date?: string; completed: boolean }>;
-  deliverables?: Array<{ name: string; description?: string; delivered: boolean; date?: string }>;
-  
-  // Additional Files
-  project_files?: number[];
-  reference_files?: number[];
-  requirements_doc?: string;
-  
-  notes?: string;
-  progress_percentage: number;
-  created_at: string;
-  updated_at?: string;
-}
+import { Job } from './interfaces/job';
 
 interface Customer {
   id: number;

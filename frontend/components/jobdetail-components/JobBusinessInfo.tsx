@@ -1,44 +1,44 @@
 'use client';
 
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Building2, Globe, Target } from 'lucide-react';
-
-import { JobDetailData } from '../interfaces/job';
+import { Job } from '../interfaces/job';
+import { FormField, FormInput, FormSelect } from '../ui';
 
 interface JobBusinessInfoProps {
-  data: JobDetailData;
+  data: Job;
   isEditing: boolean;
-  editData: JobDetailData;
-  setEditData: (data: JobDetailData) => void;
+  editData: Job;
+  setEditData: (data: Job) => void;
 }
 
 export default function JobBusinessInfo({ data, isEditing, editData, setEditData }: JobBusinessInfoProps) {
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = useCallback((field: string, value: any) => {
     setEditData({ ...editData, [field]: value });
-  };
+  }, [editData, setEditData]);
 
   const industries = [
-    'Technology',
-    'Healthcare',
-    'Finance',
-    'Education',
-    'Retail',
-    'Manufacturing',
-    'Real Estate',
-    'Entertainment',
-    'Food & Beverage',
-    'Automotive',
-    'Other'
+    { value: 'Technology', label: 'Technology' },
+    { value: 'Healthcare', label: 'Healthcare' },
+    { value: 'Finance', label: 'Finance' },
+    { value: 'Education', label: 'Education' },
+    { value: 'Retail', label: 'Retail' },
+    { value: 'Manufacturing', label: 'Manufacturing' },
+    { value: 'Real Estate', label: 'Real Estate' },
+    { value: 'Entertainment', label: 'Entertainment' },
+    { value: 'Food & Beverage', label: 'Food & Beverage' },
+    { value: 'Automotive', label: 'Automotive' },
+    { value: 'Other', label: 'Other' }
   ];
 
   const businessTypes = [
-    'Startup',
-    'Small Business',
-    'Medium Business',
-    'Enterprise',
-    'Non-profit',
-    'Government',
-    'Other'
+    { value: 'Startup', label: 'Startup' },
+    { value: 'Small Business', label: 'Small Business' },
+    { value: 'Medium Business', label: 'Medium Business' },
+    { value: 'Enterprise', label: 'Enterprise' },
+    { value: 'Non-profit', label: 'Non-profit' },
+    { value: 'Government', label: 'Government' },
+    { value: 'Other', label: 'Other' }
   ];
 
   return (
@@ -50,67 +50,48 @@ export default function JobBusinessInfo({ data, isEditing, editData, setEditData
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Business Name */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Business Name
-          </label>
+        <FormField label="Business Name" name="business_name" icon={Building2}>
           {isEditing ? (
-            <input
+            <FormInput
               type="text"
               value={editData.business_name || ''}
-              onChange={(e) => handleInputChange('business_name', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+              onChange={(value) => handleInputChange('business_name', value)}
               placeholder="Enter business name"
             />
           ) : (
             <p className="text-gray-900">{data.business_name || 'Not specified'}</p>
           )}
-        </div>
+        </FormField>
 
         {/* Business Type */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Business Type
-          </label>
+        <FormField label="Business Type" name="business_type" icon={Building2}>
           {isEditing ? (
-            <select
+            <FormSelect
               value={editData.business_type || ''}
-              onChange={(e) => handleInputChange('business_type', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-            >
-              <option value="">Select business type</option>
-              {businessTypes.map((type) => (
-                <option key={type} value={type}>{type}</option>
-              ))}
-            </select>
+              onChange={(value) => handleInputChange('business_type', value)}
+              options={businessTypes}
+              placeholder="Select business type"
+            />
           ) : (
             <p className="text-gray-900">{data.business_type || 'Not specified'}</p>
           )}
-        </div>
+        </FormField>
 
         {/* Industry */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Industry
-          </label>
+        <FormField label="Industry" name="industry" icon={Globe}>
           {isEditing ? (
-            <div className="space-y-2">
-              <select
+            <div className="space-y-3">
+              <FormSelect
                 value={editData.industry || ''}
-                onChange={(e) => handleInputChange('industry', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-              >
-                <option value="">Select industry</option>
-                {industries.map((industry) => (
-                  <option key={industry} value={industry}>{industry}</option>
-                ))}
-              </select>
+                onChange={(value) => handleInputChange('industry', value)}
+                options={industries}
+                placeholder="Select industry"
+              />
               {editData.industry === 'Other' && (
-                <input
+                <FormInput
                   type="text"
                   value={editData.industry_other || ''}
-                  onChange={(e) => handleInputChange('industry_other', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                  onChange={(value) => handleInputChange('industry_other', value)}
                   placeholder="Specify industry"
                 />
               )}
@@ -123,7 +104,7 @@ export default function JobBusinessInfo({ data, isEditing, editData, setEditData
               }
             </p>
           )}
-        </div>
+        </FormField>
 
         {/* Additional Business Info Placeholder */}
         <div className="md:col-span-2">

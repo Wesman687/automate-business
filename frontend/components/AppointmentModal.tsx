@@ -157,7 +157,7 @@ export default function AppointmentModal({ isOpen, onClose, onSave, appointment 
         params.append('preferred_date', preferredDate);
       }
 
-      const response = await fetch(`/appointments/smart-slots?${params}`, {
+      const response = await fetch(`/api/appointments/smart-slots?${params}`, {
         credentials: 'include'
       });
 

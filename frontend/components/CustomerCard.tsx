@@ -68,7 +68,7 @@ export default function CustomerCard({
   const handleDownloadFiles = async () => {
     setDownloading(true);
     try {
-      const response = await api.get(`/file-upload/files?customer_id=${customer.user_id}`);
+      const response = await api.get(`/api/file-upload/files?customer_id=${customer.user_id}`);
       if (response.files && response.files.length > 0) {
         // Create a zip file or download individual files
         console.log('Files to download:', response.files);

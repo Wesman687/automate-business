@@ -20,7 +20,16 @@ if DATABASE_URL.startswith("sqlite"):
 engine = create_engine(DATABASE_URL)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# Create Base and import all models to ensure they are registered
 Base = declarative_base()
+
+# Import all models to ensure they are registered with SQLAlchemy
+from .models import *
+from models.credit_models import *
+from models.cross_app_models import *
+from models.email_account import *
+from .scraper_models import *
 
 def get_db():
     """Dependency to get database session"""

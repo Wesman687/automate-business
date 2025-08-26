@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { AlertCircle, Calendar, Clock, MessageSquare, Mail } from 'lucide-react';
+import { AlertCircle, Calendar, Clock, MessageSquare, Mail, Link } from 'lucide-react';
 import ChangeRequestCard from './ChangeRequestCard';
 import ChangeRequestModal from './ChangeRequestModal';
 import SmartAppointmentModal from './SmartAppointmentModal';
 import EmailManager from './EmailManager';
+import CrossAppIntegrationModal from './CrossAppIntegrationModal';
 import { api } from '@/lib/https'; // ⬅️ use the shared API helper
 
 interface ChangeRequest {
@@ -77,6 +78,7 @@ export default function Dashboard() {
   const [unreadEmails, setUnreadEmails] = useState<any[]>([]);
   const [showEmailManager, setShowEmailManager] = useState(false);
   const [selectedEmailId, setSelectedEmailId] = useState<string | undefined>();
+  const [showCrossAppModal, setShowCrossAppModal] = useState(false);
 
   const [stats, setStats] = useState<DashboardStats>({
     pending_change_requests: 0,
@@ -101,7 +103,7 @@ export default function Dashboard() {
     try {
       const [overviewR, requestsR, appointmentsR, sessionsR, emailsR] =
         await Promise.allSettled([
-          api.get<any>('/overview'),
+          api.get<any>('/admin/overview'),
           api.get<{ change_requests: ChangeRequest[] }>('/change-requests'),
           api.get<Appointment[]>('/appointments?upcoming=true'),
           api.get<ChatLog[]>('/sessions'),
@@ -254,7 +256,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
         <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-6">
           <div className="flex items-center">
             <AlertCircle className="h-8 w-8 text-red-400" />
@@ -294,6 +296,19 @@ export default function Dashboard() {
             <div className="ml-4">
               <p className="text-2xl font-semibold text-white">{stats.unread_emails}</p>
               <p className="text-sm text-gray-300">Unread Emails</p>
+            </div>
+          </div>
+        </div>
+
+        <div
+          onClick={() => setShowCrossAppModal(true)}
+          className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-6 cursor-pointer hover:bg-white/10 transition-colors"
+        >
+          <div className="flex items-center">
+            <Link className="h-8 w-8 text-cyan-400" />
+            <div className="ml-4">
+              <p className="text-2xl font-semibold text-white">+</p>
+              <p className="text-sm text-gray-300">Add New App</p>
             </div>
           </div>
         </div>
@@ -540,6 +555,25 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Quick Actions */}
+      <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-6">
+        <h2 className="text-lg font-semibold text-white mb-4 flex items-center">
+          <Link className="h-5 w-5 text-cyan-400 mr-2" />
+          Cross-App Integrations
+        </h2>
+        <div className="flex items-center justify-between">
+          <p className="text-gray-400">
+            Manage external app integrations and monitor usage
+          </p>
+          <a
+            href="/admin/cross-app"
+            className="px-4 py-2 bg-cyan-400 hover:bg-cyan-500 text-white font-medium rounded-lg transition-colors"
+          >
+            Manage Integrations
+          </a>
+        </div>
+      </div>
+
       {/* In Progress */}
       {inProgressRequests.length > 0 && (
         <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-6">
@@ -596,6 +630,14 @@ export default function Dashboard() {
             setShowEmailManager(false);
             setSelectedEmailId(undefined);
           }}
+        />
+      )}
+
+      {/* Cross-App Integration Modal */}
+      {showCrossAppModal && (
+        <CrossAppIntegrationModal
+          isOpen={showCrossAppModal}
+          onClose={() => setShowCrossAppModal(false)}
         />
       )}
     </div>

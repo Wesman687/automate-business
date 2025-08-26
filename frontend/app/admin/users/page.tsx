@@ -135,9 +135,9 @@ const removeSuperAdmin = async (adminId: number) => {
   }
 
   try {
-    // HITS: /api/auth/admins/:id/remove-super-admin (Next proxy)
-    // FORWARDS TO: https://server.stream-lineai.com/auth/admins/:id/remove-super-admin
-    await api.post(`/auth/admins/${adminId}/remove-super-admin`);
+          // HITS: /api/auth/admins/:id/remove-super-admin (Next proxy)
+      // FORWARDS TO: https://server.stream-lineai.com/auth/admins/:id/remove-super-admin
+             await api.post(`/auth/admins/${adminId}/remove-super-admin`);
 
     showMessageToUser('Super admin status removed successfully!', 'success');
     fetchAdmins();
@@ -158,9 +158,9 @@ const makeSuperAdmin = async (adminId: number) => {
     return;
   }
   try {
-    // HITS: /api/auth/admins/:id/make-super-admin (Next proxy)
-    // FORWARDS TO: https://server.stream-lineai.com/auth/admins/:id/make-super-admin
-    await api.post(`/auth/admins/${adminId}/make-super-admin`);
+          // HITS: /api/auth/admins/:id/make-super-admin (Next proxy)
+      // FORWARDS TO: https://server.stream-lineai.com/auth/admins/:id/make-super-admin
+             await api.post(`/auth/admins/${adminId}/make-super-admin`);
 
     showMessageToUser('Admin promoted to super admin successfully!', 'success');
     fetchAdmins();
@@ -275,6 +275,39 @@ const makeSuperAdmin = async (adminId: number) => {
             <div className="text-2xl font-bold text-white">
               {admins.filter(admin => !admin.is_super_admin && admin.is_active).length}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* User Statistics - Enhanced with our new service */}
+      {currentUser?.is_super_admin && (
+        <div className="bg-white/5 backdrop-blur-sm rounded-lg p-6 border border-white/10">
+          <h3 className="text-lg font-medium text-cyan-400 mb-4">System Overview</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="text-center">
+              <div className="text-xl font-bold text-white">-</div>
+              <div className="text-sm text-gray-300">Total Users</div>
+            </div>
+            <div className="text-center">
+              <div className="text-xl font-bold text-green-400">-</div>
+              <div className="text-sm text-gray-300">Customers</div>
+            </div>
+            <div className="text-center">
+              <div className="text-xl font-bold text-blue-400">-</div>
+              <div className="text-sm text-gray-300">Active Users</div>
+            </div>
+            <div className="text-center">
+              <div className="text-xl font-bold text-orange-400">-</div>
+              <div className="text-sm text-gray-300">Total Credits</div>
+            </div>
+          </div>
+          <div className="mt-4 text-center">
+            <button 
+              onClick={() => window.location.href = '/admin/dashboard'}
+              className="text-cyan-400 hover:text-cyan-300 text-sm font-medium transition-colors"
+            >
+              View Full Dashboard →
+            </button>
           </div>
         </div>
       )}

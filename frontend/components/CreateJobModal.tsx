@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2 } from 'lucide-react';
 import { api } from '@/lib/https';
+import { JobFormData } from './interfaces/job';
 
 interface Customer {
   id: number;
@@ -13,13 +14,13 @@ interface Customer {
 interface CreateJobModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (jobData: any) => Promise<void>;
+  onSave: (jobData: Partial<JobFormData>) => Promise<void>;
 }
 
 export default function CreateJobModal({ isOpen, onClose, onSave }: CreateJobModalProps) {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [hasDeadline, setHasDeadline] = useState(false);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<Partial<JobFormData>>({
     customer_id: '',
     title: '',
     description: '',
@@ -32,7 +33,7 @@ export default function CreateJobModal({ isOpen, onClose, onSave }: CreateJobMod
     fixed_price: '',
     website_url: '',
     notes: '',
-    milestones: [] as Array<{ name: string; description: string; due_date: string; completed: boolean }>
+    milestones: []
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

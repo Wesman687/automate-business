@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import {
-  MessageSquare, Users, Calendar, UserCog, LogOut, BarChart3, DollarSign, Briefcase
+  MessageSquare, Users, Calendar, UserCog, LogOut, BarChart3, DollarSign, Briefcase, Link as LinkIcon
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -35,6 +35,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { name: 'Financial', href: '/admin/financial', icon: DollarSign },
     { name: 'Jobs', href: '/admin/jobs', icon: Briefcase },
     { name: 'Appointments', href: '/admin/appointments', icon: Calendar },
+    { name: 'Cross-App Integrations', href: '/admin/cross-app', icon: LinkIcon },
     ...(user?.is_super_admin ? [{ name: 'Admin Users', href: '/admin/users', icon: UserCog }] : []),
   ];
 

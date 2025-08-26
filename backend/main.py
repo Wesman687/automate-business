@@ -1,6 +1,6 @@
 ﻿from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from database.models import Base
+from database.model_imports import Base
 from database import engine
 from api.chat import router as chat_router
 from api.users import router as users_router
@@ -20,6 +20,11 @@ from api.change_requests import router as change_requests_router
 from api.admin_overview import router as admin_overview_router
 from api.file_upload import router as file_upload_router
 from api.ai import router as ai_router
+from api.credits import router as credits_router
+from api.admin_credits import router as admin_credits_router
+from api.disputes import router as disputes_router
+from api.cross_app_auth import router as cross_app_router
+from api.admin_cross_app import router as admin_cross_app_router
 from api.auth import get_current_user
 import logging
 import os
@@ -61,6 +66,9 @@ async def lifespan(app: FastAPI):
     logger.info("   • /health - Health check endpoint")
     logger.info("   • /api/chat - AI chatbot interactions")
     logger.info("   • /api/users - User management")
+    logger.info("   • /api/credits - Credit system management")
+    logger.info("   • /api/admin/credits - Admin credit operations")
+    logger.info("   • /api/disputes - Credit dispute handling")
     logger.info("   • /api/contact - Contact form submissions")
     logger.info("   • /admin/* - Administrative endpoints")
     logger.info("   • /docs - API documentation")
@@ -194,7 +202,7 @@ app.add_middleware(
 app.include_router(chat_router, prefix="/api")
 app.include_router(customers_router, prefix="/api")
 app.include_router(contact_router)  # No prefix for contact form
-app.include_router(auth_router)  # No prefix for auth endpoints
+app.include_router(auth_router)  # Add /api prefix for auth endpoints
 app.include_router(email_router, prefix="/api")
 app.include_router(share_router, prefix="/api")
 app.include_router(api_router, prefix="/api")
@@ -208,6 +216,11 @@ app.include_router(change_requests_router, prefix="/api")
 app.include_router(admin_overview_router, prefix="/api")
 app.include_router(file_upload_router, prefix="/api")
 app.include_router(users_router, prefix="/api")
+app.include_router(credits_router, prefix="/api")
+app.include_router(admin_credits_router, prefix="/api")
+app.include_router(disputes_router, prefix="/api")
+app.include_router(cross_app_router, prefix="/api")
+app.include_router(admin_cross_app_router, prefix="/api")
 app.include_router(ai_router, prefix="/api/ai")
 
 

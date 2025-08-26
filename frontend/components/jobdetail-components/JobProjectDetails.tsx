@@ -1,38 +1,38 @@
 'use client';
 
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Target, Users, Calendar, DollarSign } from 'lucide-react';
-
-import { JobDetailData } from '../interfaces/job';
+import { Job } from '../interfaces/job';
+import { FormField, FormTextarea, FormSelect } from '../ui';
 
 interface JobProjectDetailsProps {
-  data: JobDetailData;
+  data: Job;
   isEditing: boolean;
-  editData: JobDetailData;
-  setEditData: (data: JobDetailData) => void;
+  editData: Job;
+  setEditData: (data: Job) => void;
 }
 
 export default function JobProjectDetails({ data, isEditing, editData, setEditData }: JobProjectDetailsProps) {
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = useCallback((field: string, value: any) => {
     setEditData({ ...editData, [field]: value });
-  };
+  }, [editData, setEditData]);
 
   const budgetRanges = [
-    'Under $5,000',
-    '$5,000 - $10,000',
-    '$10,000 - $25,000',
-    '$25,000 - $50,000',
-    '$50,000 - $100,000',
-    '$100,000+'
+    { value: 'Under $5,000', label: 'Under $5,000' },
+    { value: '$5,000 - $10,000', label: '$5,000 - $10,000' },
+    { value: '$10,000 - $25,000', label: '$10,000 - $25,000' },
+    { value: '$25,000 - $50,000', label: '$25,000 - $50,000' },
+    { value: '$50,000 - $100,000', label: '$50,000 - $100,000' },
+    { value: '$100,000+', label: '$100,000+' }
   ];
 
   const timelineOptions = [
-    '1-2 weeks',
-    '2-4 weeks',
-    '1-2 months',
-    '2-3 months',
-    '3-6 months',
-    '6+ months'
+    { value: '1-2 weeks', label: '1-2 weeks' },
+    { value: '2-4 weeks', label: '2-4 weeks' },
+    { value: '1-2 months', label: '1-2 months' },
+    { value: '2-3 months', label: '2-3 months' },
+    { value: '3-6 months', label: '3-6 months' },
+    { value: '6+ months', label: '6+ months' }
   ];
 
   return (
@@ -44,84 +44,60 @@ export default function JobProjectDetails({ data, isEditing, editData, setEditDa
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Project Goals */}
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Project Goals
-          </label>
+        <FormField label="Project Goals" name="project_goals" icon={Target} className="md:col-span-2">
           {isEditing ? (
-            <textarea
+            <FormTextarea
               value={editData.project_goals || ''}
-              onChange={(e) => handleInputChange('project_goals', e.target.value)}
-              rows={4}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+              onChange={(value) => handleInputChange('project_goals', value)}
               placeholder="Describe the main objectives and goals of this project..."
+              rows={4}
             />
           ) : (
             <p className="text-gray-900">{data.project_goals || 'No project goals specified'}</p>
           )}
-        </div>
+        </FormField>
 
         {/* Target Audience */}
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Target Audience
-          </label>
+        <FormField label="Target Audience" name="target_audience" icon={Users} className="md:col-span-2">
           {isEditing ? (
-            <textarea
+            <FormTextarea
               value={editData.target_audience || ''}
-              onChange={(e) => handleInputChange('target_audience', e.target.value)}
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+              onChange={(value) => handleInputChange('target_audience', value)}
               placeholder="Describe the target audience for this project..."
+              rows={3}
             />
           ) : (
             <p className="text-gray-900">{data.target_audience || 'No target audience specified'}</p>
           )}
-        </div>
+        </FormField>
 
         {/* Timeline */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            <Calendar className="inline w-4 h-4 mr-1" />
-            Timeline
-          </label>
+        <FormField label="Timeline" name="timeline" icon={Calendar}>
           {isEditing ? (
-            <select
+            <FormSelect
               value={editData.timeline || ''}
-              onChange={(e) => handleInputChange('timeline', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-            >
-              <option value="">Select timeline</option>
-              {timelineOptions.map((timeline) => (
-                <option key={timeline} value={timeline}>{timeline}</option>
-              ))}
-            </select>
+              onChange={(value) => handleInputChange('timeline', value)}
+              options={timelineOptions}
+              placeholder="Select timeline"
+            />
           ) : (
             <p className="text-gray-900">{data.timeline || 'Not specified'}</p>
           )}
-        </div>
+        </FormField>
 
         {/* Budget Range */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            <DollarSign className="inline w-4 h-4 mr-1" />
-            Budget Range
-          </label>
+        <FormField label="Budget Range" name="budget_range" icon={DollarSign}>
           {isEditing ? (
-            <select
+            <FormSelect
               value={editData.budget_range || ''}
-              onChange={(e) => handleInputChange('budget_range', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-            >
-              <option value="">Select budget range</option>
-              {budgetRanges.map((range) => (
-                <option key={range} value={range}>{range}</option>
-              ))}
-            </select>
+              onChange={(value) => handleInputChange('budget_range', value)}
+              options={budgetRanges}
+              placeholder="Select budget range"
+            />
           ) : (
             <p className="text-gray-900">{data.budget_range || 'Not specified'}</p>
           )}
-        </div>
+        </FormField>
 
         {/* Project Summary */}
         <div className="md:col-span-2">

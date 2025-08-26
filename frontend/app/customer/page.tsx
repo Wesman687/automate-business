@@ -107,7 +107,7 @@ export default function CustomerDashboard() {
       console.log('Fetching customer data for user:', user);
       
       // Use user_id for customer lookup to match JWT token
-      const userData = await api.get(`/customers/${user.user_id}`);
+      const userData = await api.get(`/api/customers/${user.user_id}`);
 
       
       if (userData) {
@@ -128,7 +128,7 @@ export default function CustomerDashboard() {
   const fetchAppointments = async () => {
     try {
       if (!user?.user_id) return; // Use user ID from JWT token
-      const appointmentData = await api.get(`/appointments/customer?customer_id=${user.user_id}`);
+      const appointmentData = await api.get(`/api/appointments/customer?customer_id=${user.user_id}`);
       console.log('Appointments data from backend:', appointmentData);
       console.log('Individual appointments:', appointmentData.appointments);
       if (appointmentData.appointments && appointmentData.appointments.length > 0) {
@@ -151,11 +151,11 @@ export default function CustomerDashboard() {
       // If password change is requested, handle it separately first
       if (passwordData?.password) {
         // Use user.user_id for password updates to match the JWT token
-        await api.post(`/customers/${user.user_id}/set-password`, { password: passwordData.password });
+        await api.post(`/api/customers/${user.user_id}/set-password`, { password: passwordData.password });
       }
 
       // Update customer data using user.user_id to match the JWT token
-      const updatedCustomer = await api.put(`/customers/${user.user_id}`, updatedData);
+              const updatedCustomer = await api.put(`/api/customers/${user.user_id}`, updatedData);
       setCustomer(updatedCustomer);
       setIsEditModalOpen(false);
     } catch (error) {
@@ -166,7 +166,7 @@ export default function CustomerDashboard() {
 
   const handleLogout = async () => {
     try {
-      await api.post('/auth/logout');
+              await api.post('/auth/logout');
       router.push('/');
     } catch (error) {
       console.error('Logout error:', error);
@@ -191,7 +191,7 @@ export default function CustomerDashboard() {
     if (!editingAppointment) return;
     
     try {
-      await api.put(`/appointments/${editingAppointment.id}`, updatedData);
+      await api.put(`/api/appointments/${editingAppointment.id}`, updatedData);
       await fetchAppointments(); // Refresh the list
       setShowEditAppointmentModal(false);
       setEditingAppointment(null);
@@ -216,7 +216,7 @@ export default function CustomerDashboard() {
     
     setIsDeleting(true);
     try {
-      await api.del(`/appointments/${deletingAppointment.id}`);
+      await api.del(`/api/appointments/${deletingAppointment.id}`);
       setSuccess('Appointment deleted successfully');
       
       await fetchAppointments(); // Refresh the list
@@ -242,7 +242,7 @@ export default function CustomerDashboard() {
         days_ahead: '14'
       });
 
-      const data: SmartSlotsResponse = await api.get(`/appointments/smart-slots?${params}`);
+      const data: SmartSlotsResponse = await api.get(`/api/appointments/smart-slots?${params}`);
       setRescheduleSmartSlots(data);
       
       // Auto-select the next available slot
@@ -268,7 +268,7 @@ export default function CustomerDashboard() {
         appointment_time: selectedRescheduleSlot.time
       };
       
-      await api.put(`/appointments/${editingAppointment.id}`, updatedData);
+      await api.put(`/api/appointments/${editingAppointment.id}`, updatedData);
       await fetchAppointments(); // Refresh the list
       setShowRescheduleModal(false);
       setShowEditAppointmentModal(false);

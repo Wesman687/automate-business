@@ -132,8 +132,8 @@ export default function CustomerDetail() {
 
       // Fetch customer's invoices and jobs
       const [invoicesRes, jobsRes] = await Promise.all([
-        api.get(`/invoices?customer_id=${customerId}`),
-        api.get(`/jobs?customer_id=${customerId}`)
+        api.get(`/api/invoices?customer_id=${customerId}`),
+        api.get(`/api/jobs?customer_id=${customerId}`)
       ]);
 
       if (invoicesRes.ok) {
@@ -154,7 +154,7 @@ export default function CustomerDetail() {
 
   const fetchCustomer = async () => {
     try {
-      const response = await api.get(`/customers/${customerId}`);
+      const response = await api.get(`/api/customers/${customerId}`);
 
       if (response.ok) {
         const data = await response.json();
@@ -176,7 +176,7 @@ export default function CustomerDetail() {
     try {
       // If password change is requested, handle it separately first
       if (passwordData?.password) {
-        const passwordResponse = await api.post(`/customers/${customerId}/set-password`,{password: passwordData.password })
+        const passwordResponse = await api.post(`/api/customers/${customerId}/set-password`,{password: passwordData.password })
         
 
         if (!passwordResponse.ok) {
@@ -185,7 +185,7 @@ export default function CustomerDetail() {
       }
 
       // Update customer data
-      const response = await api.put(`/customers/${customerId}`,updatedData)
+      const response = await api.put(`/api/customers/${customerId}`,updatedData)
     
 
       if (response.ok) {

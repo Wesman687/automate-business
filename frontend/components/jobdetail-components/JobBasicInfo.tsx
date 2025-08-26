@@ -1,21 +1,38 @@
 'use client';
 
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Building2, Calendar, Clock, Target, Users } from 'lucide-react';
-
-import { JobDetailData } from '../interfaces/job';
+import { Job } from '../interfaces/job';
+import { FormField, FormInput, FormTextarea, FormSelect, StatusBadge } from '../ui';
 
 interface JobBasicInfoProps {
-  data: JobDetailData;
+  data: Job;
   isEditing: boolean;
-  editData: JobDetailData;
-  setEditData: (data: JobDetailData) => void;
+  editData: Job;
+  setEditData: (data: Job) => void;
 }
 
 export default function JobBasicInfo({ data, isEditing, editData, setEditData }: JobBasicInfoProps) {
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = useCallback((field: string, value: any) => {
     setEditData({ ...editData, [field]: value });
-  };
+  }, [editData, setEditData]);
+
+  const statusOptions = [
+    { value: 'pending', label: 'Pending' },
+    { value: 'planning', label: 'Planning' },
+    { value: 'in_progress', label: 'In Progress' },
+    { value: 'review', label: 'Review' },
+    { value: 'completed', label: 'Completed' },
+    { value: 'cancelled', label: 'Cancelled' },
+    { value: 'on_hold', label: 'On Hold' }
+  ];
+
+  const priorityOptions = [
+    { value: 'low', label: 'Low' },
+    { value: 'medium', label: 'Medium' },
+    { value: 'high', label: 'High' },
+    { value: 'urgent', label: 'Urgent' }
+  ];
 
   return (
     <div className="space-y-6">
@@ -26,130 +43,100 @@ export default function JobBasicInfo({ data, isEditing, editData, setEditData }:
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Title */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Job Title
-          </label>
+        <FormField label="Job Title" name="title" icon={Target} required>
           {isEditing ? (
-            <input
+            <FormInput
               type="text"
               value={editData.title || ''}
-              onChange={(e) => handleInputChange('title', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              onChange={(value) => handleInputChange('title', value)}
+              placeholder="Enter job title"
             />
           ) : (
             <p className="text-gray-900">{data.title}</p>
           )}
-        </div>
+        </FormField>
 
         {/* Status */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Status
-          </label>
+        <FormField label="Status" name="status" icon={Target}>
           {isEditing ? (
-            <select
+            <FormSelect
               value={editData.status || ''}
-              onChange={(e) => handleInputChange('status', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="pending">Pending</option>
-              <option value="in_progress">In Progress</option>
-              <option value="review">Review</option>
-              <option value="completed">Completed</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
+              onChange={(value) => handleInputChange('status', value)}
+              options={statusOptions}
+              placeholder="Select status"
+            />
           ) : (
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-              data.status === 'completed' ? 'bg-green-100 text-green-800' :
-              data.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-              data.status === 'review' ? 'bg-yellow-100 text-yellow-800' :
-              'bg-gray-100 text-gray-800'
-            }`}>
-              {data.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-            </span>
+            <StatusBadge status={data.status} />
           )}
-        </div>
+        </FormField>
 
         {/* Description */}
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Description
-          </label>
+        <FormField label="Description" name="description" icon={Target} className="md:col-span-2">
           {isEditing ? (
-            <textarea
+            <FormTextarea
               value={editData.description || ''}
-              onChange={(e) => handleInputChange('description', e.target.value)}
+              onChange={(value) => handleInputChange('description', value)}
+              placeholder="Enter job description"
               rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           ) : (
             <p className="text-gray-900">{data.description || 'No description provided'}</p>
           )}
-        </div>
+        </FormField>
 
         {/* Dates */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Start Date
-          </label>
+        <FormField label="Start Date" name="start_date" icon={Calendar}>
           {isEditing ? (
-            <input
+            <FormInput
               type="date"
               value={editData.start_date || ''}
-              onChange={(e) => handleInputChange('start_date', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              onChange={(value) => handleInputChange('start_date', value)}
             />
           ) : (
             <p className="text-gray-900">{data.start_date || 'Not set'}</p>
           )}
-        </div>
+        </FormField>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Deadline
-          </label>
+        <FormField label="Deadline" name="deadline" icon={Clock}>
           {isEditing ? (
-            <input
+            <FormInput
               type="date"
               value={editData.deadline || ''}
-              onChange={(e) => handleInputChange('deadline', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              onChange={(value) => handleInputChange('deadline', value)}
             />
           ) : (
             <p className="text-gray-900">{data.deadline || 'Not set'}</p>
           )}
-        </div>
+        </FormField>
 
         {/* Progress */}
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Progress
-          </label>
-          <div className="flex items-center space-x-4">
-            <div className="flex-1">
-              <div className="w-full bg-gray-200 rounded-full h-2.5">
-                <div 
-                  className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
-                  style={{ width: `${data.progress_percentage}%` }}
-                ></div>
+        <FormField label="Progress" name="progress_percentage" icon={Target} className="md:col-span-2">
+          <div className="space-y-3">
+            <div className="flex items-center space-x-4">
+              <div className="flex-1">
+                <div className="w-full bg-gray-200 rounded-full h-2.5">
+                  <div 
+                    className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
+                    style={{ width: `${data.progress_percentage}%` }}
+                  ></div>
+                </div>
               </div>
+              <span className="text-sm text-gray-600 w-16 text-right">
+                {data.progress_percentage}%
+              </span>
             </div>
-            <span className="text-sm text-gray-600 w-16 text-right">
-              {data.progress_percentage}%
-            </span>
+            {isEditing && (
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={editData.progress_percentage || 0}
+                onChange={(e) => handleInputChange('progress_percentage', parseInt(e.target.value))}
+                className="w-full"
+              />
+            )}
           </div>
-          {isEditing && (
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={editData.progress_percentage || 0}
-              onChange={(e) => handleInputChange('progress_percentage', parseInt(e.target.value))}
-              className="w-full mt-2"
-            />
-          )}
-        </div>
+        </FormField>
       </div>
     </div>
   );

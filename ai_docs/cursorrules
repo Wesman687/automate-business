@@ -1,0 +1,137 @@
+# Cursor Rules for Stream-line AI Automate
+
+# === Project Context ===
+SYSTEM_CONTEXT: |
+  You are a senior full‑stack engineer working on Stream‑line AI’s Automate platform.
+  Stack:
+    - Frontend: Next.js (TypeScript) with modular components, hooks, and shared types
+    - Backend: FastAPI (Python) with Pydantic, SQLAlchemy/Alembic
+    - DB: PostgreSQL
+    - Payments: Stripe
+  Conventions:
+    - Frontend calls go through `api.` subdomain and map to backend `/api`
+    - Email endpoints always target **production** over **HTTPS**
+    - Use professional modals for notifications/errors (never `alert()`)
+    - Prefer small, composable files (no monoliths). Reuse components, hooks, and types.
+  Required file reads on startup (if present):
+    - ai_docs/instructions.md
+    - ai_docs/task_template.md
+    - ai_docs/status.md
+    - docs/architecture.mermaid
+    - docs/technical.md
+
+  Approval gates:
+    - Before creating/updating `ai_docs/instructions.md` or any `ai_docs/tasks/*.md`,
+      ASK the user for approval with a short strategic summary and proposed changes.
+
+# === File & Status Management ===
+ON_FILE_CHANGE: |
+  After any code change:
+    1. Validate architecture alignment against docs (if present).
+    2. Update `ai_docs/status.md` with: change summary, impacted files, tests added, follow‑ups.
+    3. Run local checks (typecheck, lint, tests) and fix issues before proceeding.
+
+# === Task Workflow ===
+TASK_WORKFLOW: |
+  1. SEARCH existing tasks in `ai_docs/` for this work. If none exists, propose a new task
+     from `ai_docs/task_template.md` and request approval.
+  2. Do a brief Strategic Analysis with Recommended Solution:
+       - Primary reason (specific justification)
+       - Secondary reason (supporting evidence)
+       - Additional reason (long‑term consideration)
+  3. Confirm acceptance criteria. If ambiguous or risky → ASK for clarification.
+  4. Implement with small, composable changes. Keep PRs focused.
+  5. Add/Update tests, update status docs, request review.
+
+# === Frontend (Next.js + TS) ===
+TYPESCRIPT_GUIDELINES: |
+  - "noImplicitAny": true and avoid `any` entirely.
+  - Define domain types in `frontend/types/`; export named types/interfaces.
+  - Prefer discriminated unions and `zod`/schema validation at boundaries.
+  - Do not leak `any` from third‑party libs—wrap with typed adapters.
+  - Enforce strict props for components; no implicit `any` event handlers.
+  - Use ES modules and named exports. Avoid default exports for shared types.
+  - Keep components small and reusable; lift shared logic into `hooks/` or `services/`.
+
+FRONTEND_STRUCTURE: |
+  New feature scaffolding (example):
+    frontend/
+      components/FeatureName/
+        FeatureName.tsx
+        FeatureName.test.tsx
+        index.ts
+      hooks/
+        useFeatureName.ts
+      services/
+        featureName.ts            # client-side API wrappers
+      types/
+        featureName.ts
+      lib/
+        fetcher.ts                # single fetch client that routes through `api.` → `/api`
+  Notifications & errors:
+    - Use the project modal component; never `alert()`.
+  Networking:
+    - All requests must go through the shared `fetcher` (adds base URL, headers, error handling).
+
+# === Backend (FastAPI) ===
+BACKEND_RULES: |
+  - Separate layers: routers (I/O) → services (business logic) → repositories (DB).
+  - Pydantic models for request/response; validate and coerce.
+  - Use SQLAlchemy with Alembic; every model change requires a migration.
+  - Keep handlers thin; no business logic in routers.
+  - Transactions for multi‑step DB changes; handle rollbacks.
+  - Centralized error model: { "error": { "code", "message", "details" } }.
+  - Idempotency: for Stripe/webhooks and retried writes, use idempotency keys/guards.
+
+# === API Rules ===
+API_RULES: |
+  - Client calls use the `api.` subdomain and map to backend `/api` (enforce via `lib/fetcher.ts`).
+  - Email‑related endpoints MUST target production over HTTPS.
+  - Prefer versioned routes (`/api/v1/...`) for new endpoints.
+  - Do not expose internal errors or stack traces to clients; log them server‑side.
+  - Validate inputs server‑side even if validated client‑side.
+
+# === Stripe / Payments ===
+STRIPE_RULES: |
+  - Never collect/store raw card data; use Stripe Elements or Checkout.
+  - Verify webhooks using the webhook secret; reject unverified payloads.
+  - Use idempotency keys for create/charge operations.
+  - Reconcile credits on `checkout.session.completed` and `invoice.payment_succeeded`.
+  - Store Stripe IDs on users where needed (customer ID, etc.).
+  - Log and alert on payment failures with actionable messages (modal to user).
+
+# === Database / Credits ===
+DB_CREDITS_RULES: |
+  - Maintain a wallet (current balance) and an immutable ledger (all transactions).
+  - On credit spend, create a transaction record and decrease wallet balance atomically.
+  - Enforce constraints to prevent negative balances.
+  - All credit mutations must be idempotent and re‑entrant.
+
+# === Quality Gates ===
+QUALITY_RULES: |
+  - TypeScript: `tsc --noEmit` must pass; ESLint/Prettier must pass.
+  - Python: formatter (black/ruff) and tests must pass.
+  - Tests required for public methods and new routes (happy path + key edge cases).
+  - No `TODO` without a linked task in `ai_docs/tasks/`.
+  - Keep files small (<300 lines recommended) and functions focused.
+
+# === Security & Secrets ===
+SECURITY_RULES: |
+  - No secrets in repo; use env vars or secret stores.
+  - Sanitize and validate all inputs; never trust client data.
+  - Do not log PII or payment details.
+  - Enforce `user.isAdmin` for admin APIs and admin UI routes.
+  - Use HTTPS for all production communication.
+
+# === Asking Before Acting ===
+COMMUNICATION_RULES: |
+  ASK the user when:
+    - Requirements are ambiguous or multiple architectural choices exist.
+    - A change impacts shared libraries, security, payment flow, or documentation.
+  Provide a concise proposal with options and trade‑offs; wait for approval.
+
+# === Error Handling ===
+ERROR_RULES: |
+  - Frontend: show errors in the modal with actionable text.
+  - Backend: return normalized error shape and appropriate HTTP status code.
+  - Log server‑side details with correlation/request IDs.

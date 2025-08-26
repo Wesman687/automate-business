@@ -1,31 +1,31 @@
 'use client';
 
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Palette, Target, FileText } from 'lucide-react';
-
-import { JobDetailData } from '../interfaces/job';
+import { Job } from '../interfaces/job';
+import { FormField, FormInput, FormSelect, FormTextarea } from '../ui';
 
 interface JobBrandingDesignProps {
-  data: JobDetailData;
+  data: Job;
   isEditing: boolean;
-  editData: JobDetailData;
-  setEditData: (data: JobDetailData) => void;
+  editData: Job;
+  setEditData: (data: Job) => void;
 }
 
 export default function JobBrandingDesign({ data, isEditing, editData, setEditData }: JobBrandingDesignProps) {
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = useCallback((field: string, value: any) => {
     setEditData({ ...editData, [field]: value });
-  };
+  }, [editData, setEditData]);
 
   const brandStyles = [
-    'Modern & Minimalist',
-    'Classic & Traditional',
-    'Bold & Dynamic',
-    'Elegant & Sophisticated',
-    'Playful & Creative',
-    'Professional & Corporate',
-    'Artistic & Expressive',
-    'Other'
+    { value: 'Modern & Minimalist', label: 'Modern & Minimalist' },
+    { value: 'Classic & Traditional', label: 'Classic & Traditional' },
+    { value: 'Bold & Dynamic', label: 'Bold & Dynamic' },
+    { value: 'Elegant & Sophisticated', label: 'Elegant & Sophisticated' },
+    { value: 'Playful & Creative', label: 'Playful & Creative' },
+    { value: 'Professional & Corporate', label: 'Professional & Corporate' },
+    { value: 'Artistic & Expressive', label: 'Artistic & Expressive' },
+    { value: 'Other', label: 'Other' }
   ];
 
   const predefinedColors = [
@@ -59,28 +59,20 @@ export default function JobBrandingDesign({ data, isEditing, editData, setEditDa
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Brand Style */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Brand Style
-          </label>
+        <FormField label="Brand Style" name="brand_style" icon={Palette}>
           {isEditing ? (
-            <div className="space-y-2">
-              <select
+            <div className="space-y-3">
+              <FormSelect
                 value={editData.brand_style || ''}
-                onChange={(e) => handleInputChange('brand_style', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500"
-              >
-                <option value="">Select brand style</option>
-                {brandStyles.map((style) => (
-                  <option key={style} value={style}>{style}</option>
-                ))}
-              </select>
+                onChange={(value) => handleInputChange('brand_style', value)}
+                options={brandStyles}
+                placeholder="Select brand style"
+              />
               {editData.brand_style === 'Other' && (
-                <input
+                <FormInput
                   type="text"
                   value={editData.brand_style_other || ''}
-                  onChange={(e) => handleInputChange('brand_style_other', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500"
+                  onChange={(value) => handleInputChange('brand_style_other', value)}
                   placeholder="Describe brand style"
                 />
               )}
@@ -93,21 +85,17 @@ export default function JobBrandingDesign({ data, isEditing, editData, setEditDa
               }
             </p>
           )}
-        </div>
+        </FormField>
 
         {/* Logo Files Count */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            <FileText className="inline w-4 h-4 mr-1" />
-            Logo Files
-          </label>
+        <FormField label="Logo Files" name="logo_files" icon={FileText}>
           <p className="text-gray-900">
             {data.logo_files && data.logo_files.length > 0 
               ? `${data.logo_files.length} file(s) uploaded`
               : 'No logo files uploaded'
             }
           </p>
-        </div>
+        </FormField>
 
         {/* Brand Colors */}
         <div className="md:col-span-2">
@@ -163,22 +151,18 @@ export default function JobBrandingDesign({ data, isEditing, editData, setEditDa
         </div>
 
         {/* Brand Guidelines */}
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Brand Guidelines
-          </label>
+        <FormField label="Brand Guidelines" name="brand_guidelines" icon={Target} className="md:col-span-2">
           {isEditing ? (
-            <textarea
+            <FormTextarea
               value={editData.brand_guidelines || ''}
-              onChange={(e) => handleInputChange('brand_guidelines', e.target.value)}
-              rows={4}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500"
+              onChange={(value) => handleInputChange('brand_guidelines', value)}
               placeholder="Describe brand guidelines, tone of voice, personality, etc..."
+              rows={4}
             />
           ) : (
             <p className="text-gray-900">{data.brand_guidelines || 'No brand guidelines specified'}</p>
           )}
-        </div>
+        </FormField>
 
         {/* Brand Summary */}
         <div className="md:col-span-2">

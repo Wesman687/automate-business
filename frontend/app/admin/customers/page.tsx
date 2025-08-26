@@ -39,7 +39,7 @@ export default function Customers() {
 
 const fetchCustomers = async () => {
   try {
-    const data = await api.get<Customer[]>('/customers'); // parsed JSON already
+          const data = await api.get<Customer[]>('/customers'); // parsed JSON already
     setCustomers(data);
   } catch (error) {
     console.error('Error fetching customers:', error);
@@ -54,7 +54,7 @@ const deleteCustomer = async (customerId: number) => {
   }
 
   try {
-    await api.del(`/customers/${customerId}`); // throws on error
+          await api.del(`/api/customers/${customerId}`); // throws on error
     setCustomers(prev => prev.filter(c => c.id !== customerId));
   } catch (error) {
     console.error('Error deleting customer:', error);
@@ -75,13 +75,13 @@ const updateCustomer = async (
   try {
     // 1) Optional password change
     if (passwordData?.password) {
-      await api.post(`/customers/${editingCustomer.id}/set-password`, {
+      await api.post(`/api/customers/${editingCustomer.id}/set-password`, {
         password: passwordData.password,
       }); // throws if not OK
     }
 
     // 2) Update customer details
-    const updated = await api.put<Customer>(`/customers/${editingCustomer.id}`, customerData);
+          const updated = await api.put<Customer>(`/api/customers/${editingCustomer.id}`, customerData);
 
     // Update local list without a full refetch (or keep your fetchCustomers() if you prefer)
     setCustomers(prev => prev.map(c => (c.id === updated.id ? updated : c)));

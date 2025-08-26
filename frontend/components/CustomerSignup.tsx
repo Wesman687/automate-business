@@ -79,7 +79,7 @@ export default function CustomerSignup({ isOpen, onClose, onSuccess }: CustomerS
 
     try {
       // Verify email with code
-      const verifyResponse = await api.post('/customers/verify-email', {
+              const verifyResponse = await api.post('/customers/verify-email', {
         email: formData.email,
         verification_code: verificationCode
       });

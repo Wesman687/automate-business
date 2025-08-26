@@ -1,0 +1,374 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.CrossAppAuthSDK = void 0;
+const auth_1 = require("../types/auth");
+/**
+ * Cross-App Authentication SDK
+ *
+ * Provides seamless authentication across different applications using
+ * the Stream-line AI Automate platform's unified authentication system.
+ */
+class CrossAppAuthSDK {
+    constructor(config) {
+        this.eventListeners = [];
+        this.sessionToken = null;
+        this.refreshTimer = null;
+        this.config = config;
+        this.apiBase = config.apiBase || `https://api.${config.domain}`;
+        this.state = {
+            isAuthenticated: false,
+            user: null,
+            session: null,
+            loading: false,
+            error: null
+        };
+        // Initialize from localStorage if available
+        this.initializeFromStorage();
+        // Set up automatic token refresh
+        this.setupTokenRefresh();
+        if (config.debug) {
+            console.log('🔐 CrossAppAuthSDK initialized:', config);
+        }
+    }
+    /**
+     * Check if user is currently authenticated
+     */
+    isAuthenticated() {
+        return this.state.isAuthenticated && !!this.sessionToken;
+    }
+    /**
+     * Get current user information
+     */
+    getCurrentUser() {
+        return this.state.user;
+    }
+    /**
+     * Get current session information
+     */
+    getCurrentSession() {
+        return this.state.session;
+    }
+    /**
+     * Get current authentication state
+     */
+    getAuthState() {
+        return { ...this.state };
+    }
+    /**
+     * Login user with email and password
+     */
+    async login(options) {
+        try {
+            this.setState({ loading: true, error: null });
+            const response = await fetch(`${this.apiBase}/api/cross-app/auth`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    app_id: this.config.appId,
+                    email: options.email,
+                    password: options.password,
+                    app_user_id: options.appUserId,
+                    app_metadata: options.appMetadata
+                })
+            });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new auth_1.CrossAppAuthError(errorData.detail || 'Authentication failed', 'AUTH_FAILED', errorData);
+            }
+            const sessionData = await response.json();
+            // Store session token
+            this.sessionToken = sessionData.session_token;
+            this.saveToStorage(sessionData);
+            // Update state
+            this.setState({
+                isAuthenticated: true,
+                user: sessionData.user,
+                session: sessionData,
+                loading: false,
+                error: null
+            });
+            // Emit success event
+            this.emitEvent({
+                type: 'AUTH_SUCCESS',
+                data: sessionData,
+                timestamp: Date.now()
+            });
+            // Set up token refresh
+            this.setupTokenRefresh();
+            if (this.config.debug) {
+                console.log('✅ Login successful:', sessionData.user.email);
+            }
+            return sessionData.user;
+        }
+        catch (error) {
+            const authError = error instanceof auth_1.CrossAppAuthError ? error : new auth_1.CrossAppAuthError(error instanceof Error ? error.message : 'Authentication failed', 'AUTH_ERROR', error);
+            this.setState({
+                loading: false,
+                error: authError.message
+            });
+            // Emit failure event
+            this.emitEvent({
+                type: 'AUTH_FAILURE',
+                data: { error: authError },
+                timestamp: Date.now()
+            });
+            throw authError;
+        }
+    }
+    /**
+     * Logout current user
+     */
+    async logout() {
+        try {
+            if (this.sessionToken) {
+                // Call logout endpoint
+                await fetch(`${this.apiBase}/api/cross-app/logout`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        session_token: this.sessionToken,
+                        app_id: this.config.appId
+                    })
+                });
+            }
+        }
+        catch (error) {
+            // Log error but continue with local cleanup
+            if (this.config.debug) {
+                console.warn('Warning: Logout API call failed:', error);
+            }
+        }
+        finally {
+            // Clear local state
+            this.clearSession();
+            // Emit logout event
+            this.emitEvent({
+                type: 'AUTH_LOGOUT',
+                data: null,
+                timestamp: Date.now()
+            });
+        }
+    }
+    /**
+     * Refresh authentication token
+     */
+    async refreshToken() {
+        if (!this.sessionToken) {
+            throw new auth_1.CrossAppAuthError('No session token to refresh', 'NO_SESSION');
+        }
+        try {
+            const response = await fetch(`${this.apiBase}/api/cross-app/refresh-token`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    session_token: this.sessionToken,
+                    app_id: this.config.appId
+                })
+            });
+            if (!response.ok) {
+                throw new auth_1.CrossAppAuthError('Token refresh failed', 'REFRESH_FAILED');
+            }
+            const refreshData = await response.json();
+            // Update session token
+            this.sessionToken = refreshData.newSessionToken;
+            // Update session with new expiry
+            if (this.state.session) {
+                this.state.session.session_token = refreshData.newSessionToken;
+                this.state.session.expires_at = refreshData.expiresAt;
+                this.state.session.permissions = refreshData.permissions;
+            }
+            // Save to storage
+            this.saveToStorage(this.state.session);
+            // Emit refresh event
+            this.emitEvent({
+                type: 'TOKEN_REFRESH',
+                data: refreshData,
+                timestamp: Date.now()
+            });
+            if (this.config.debug) {
+                console.log('🔄 Token refreshed successfully');
+            }
+            return refreshData.newSessionToken;
+        }
+        catch (error) {
+            // If refresh fails, clear session
+            this.clearSession();
+            throw error;
+        }
+    }
+    /**
+     * Validate current session token
+     */
+    async validateToken() {
+        if (!this.sessionToken) {
+            return { valid: false, error: 'No session token' };
+        }
+        try {
+            const response = await fetch(`${this.apiBase}/api/cross-app/validate-token`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    session_token: this.sessionToken,
+                    app_id: this.config.appId
+                })
+            });
+            if (!response.ok) {
+                return { valid: false, error: 'Token validation failed' };
+            }
+            const validationData = await response.json();
+            if (validationData.valid) {
+                // Update user data if validation successful
+                this.setState({
+                    user: validationData.user,
+                    session: {
+                        ...this.state.session,
+                        user: validationData.user,
+                        permissions: validationData.permissions,
+                        expires_at: validationData.expires_at
+                    }
+                });
+            }
+            else {
+                // Clear session if validation failed
+                this.clearSession();
+            }
+            return validationData;
+        }
+        catch (error) {
+            if (this.config.debug) {
+                console.error('Token validation error:', error);
+            }
+            return { valid: false, error: 'Validation error' };
+        }
+    }
+    /**
+     * Check if user has a specific permission
+     */
+    hasPermission(permission) {
+        return this.state.user?.permissions.includes(permission) || false;
+    }
+    /**
+     * Listen for authentication events
+     */
+    onAuthChange(callback) {
+        this.eventListeners.push(callback);
+        // Return unsubscribe function
+        return () => {
+            const index = this.eventListeners.indexOf(callback);
+            if (index > -1) {
+                this.eventListeners.splice(index, 1);
+            }
+        };
+    }
+    /**
+     * Get session token for API calls
+     */
+    getSessionToken() {
+        return this.sessionToken;
+    }
+    /**
+     * Check if session is about to expire
+     */
+    isSessionExpiringSoon(thresholdMinutes = 5) {
+        if (!this.state.session)
+            return false;
+        const expiryTime = new Date(this.state.session.expires_at).getTime();
+        const thresholdTime = Date.now() + (thresholdMinutes * 60 * 1000);
+        return expiryTime <= thresholdTime;
+    }
+    // Private methods
+    setState(updates) {
+        this.state = { ...this.state, ...updates };
+    }
+    emitEvent(event) {
+        this.eventListeners.forEach(listener => {
+            try {
+                listener(event);
+            }
+            catch (error) {
+                if (this.config.debug) {
+                    console.error('Error in auth event listener:', error);
+                }
+            }
+        });
+    }
+    clearSession() {
+        this.sessionToken = null;
+        this.setState({
+            isAuthenticated: false,
+            user: null,
+            session: null,
+            error: null
+        });
+        // Clear storage
+        localStorage.removeItem(`cross_app_auth_${this.config.appId}`);
+        // Clear refresh timer
+        if (this.refreshTimer) {
+            clearTimeout(this.refreshTimer);
+            this.refreshTimer = null;
+        }
+    }
+    saveToStorage(session) {
+        try {
+            localStorage.setItem(`cross_app_auth_${this.config.appId}`, JSON.stringify(session));
+        }
+        catch (error) {
+            if (this.config.debug) {
+                console.warn('Failed to save session to localStorage:', error);
+            }
+        }
+    }
+    initializeFromStorage() {
+        try {
+            const stored = localStorage.getItem(`cross_app_auth_${this.config.appId}`);
+            if (stored) {
+                const session = JSON.parse(stored);
+                // Check if session is still valid
+                const expiryTime = new Date(session.expires_at).getTime();
+                if (expiryTime > Date.now()) {
+                    this.sessionToken = session.session_token;
+                    this.setState({
+                        isAuthenticated: true,
+                        user: session.user,
+                        session: session
+                    });
+                }
+                else {
+                    // Clear expired session
+                    localStorage.removeItem(`cross_app_auth_${this.config.appId}`);
+                }
+            }
+        }
+        catch (error) {
+            if (this.config.debug) {
+                console.warn('Failed to restore session from localStorage:', error);
+            }
+        }
+    }
+    setupTokenRefresh() {
+        if (this.refreshTimer) {
+            clearTimeout(this.refreshTimer);
+        }
+        if (this.state.session) {
+            const expiryTime = new Date(this.state.session.expires_at).getTime();
+            const refreshTime = expiryTime - (5 * 60 * 1000); // Refresh 5 minutes before expiry
+            const delay = Math.max(0, refreshTime - Date.now());
+            this.refreshTimer = setTimeout(() => {
+                this.refreshToken().catch(() => {
+                    // If refresh fails, logout
+                    this.logout();
+                });
+            }, delay);
+        }
+    }
+}
+exports.CrossAppAuthSDK = CrossAppAuthSDK;
+//# sourceMappingURL=CrossAppAuthSDK.js.map

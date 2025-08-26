@@ -1,10 +1,11 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, Float, JSON, Enum
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, Float, JSON, Enum, Numeric
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from sqlalchemy.ext.declarative import declarative_base
+from . import Base
 import enum
 
-Base = declarative_base()
+# Import models from other files
+from models.credit_models import UserSubscription, CreditDispute
 
 class UserType(enum.Enum):
     ADMIN = "admin"
@@ -78,19 +79,28 @@ class User(Base):
     
     # Credits system
     credits = Column(Integer, nullable=False, default=0)
+    credit_status = Column(String(50), default="active")  # active, paused, suspended
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     last_login = Column(DateTime(timezone=True), nullable=True)
     
-    # Relationships
+    # Relationships - these will be set up after all models are defined
     chat_sessions = relationship("ChatSession", back_populates="user")
     appointments = relationship("Appointment", back_populates="customer")
     portal_invites = relationship("PortalInvite", back_populates="user")
     file_uploads = relationship("FileUpload", foreign_keys="[FileUpload.user_id]", back_populates="user")
     credit_transactions = relationship("CreditTransaction", back_populates="user")
     videos = relationship("Video", back_populates="user")
+    subscriptions = relationship("UserSubscription", back_populates="user")
+    credit_disputes = relationship("CreditDispute", back_populates="user")
+    stripe_customer = relationship("StripeCustomer", back_populates="user", uselist=False)
+    
+    # Scraper relationships
+    extractor_schemas = relationship("ExtractorSchema", back_populates="user")
+    scraping_jobs = relationship("ScrapingJob", back_populates="user")
+    exports = relationship("Export", back_populates="user")
     
     @property
     def is_admin(self) -> bool:
@@ -382,15 +392,28 @@ class CreditTransaction(Base):
     id = Column(String(), primary_key=True, index=True)  # UUID as string
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     job_id = Column(String(255), nullable=True)  # Redis job ID
+    subscription_id = Column(Integer, ForeignKey("user_subscriptions.id"), nullable=True)  # If related to subscription
+    
+    # Transaction details
     amount = Column(Integer, nullable=False)  # Credits spent/added (negative for spending)
     description = Column(Text, nullable=False)
+    transaction_type = Column(String(50), nullable=False, default="service")  # service, subscription, admin, dispute, purchase
+    
+    # Financial tracking
+    dollar_amount = Column(Numeric(10, 4), nullable=True)  # Dollar value of transaction
+    stripe_payment_intent_id = Column(String(255), nullable=True)  # Stripe payment reference
+    
+    # Metadata
+    transaction_metadata = Column(JSON, nullable=True)  # Additional transaction data
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     
     # Relationships
     user = relationship("User", back_populates="credit_transactions")
+    subscription = relationship("UserSubscription", back_populates="credit_transactions")
+    disputes = relationship("CreditDispute", back_populates="transaction")
     
     def __repr__(self):
-        return f"<CreditTransaction(id={self.id}, user_id={self.user_id}, amount={self.amount})>"
+        return f"<CreditTransaction(id={self.id}, user_id={self.user_id}, amount={self.amount}, type={self.transaction_type})>"
 
 
 class Video(Base):
@@ -411,10 +434,90 @@ class Video(Base):
     status = Column(String(50), nullable=False, default='pending')
     error = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now(), nullable=False)
     
     # Relationships
     user = relationship("User", back_populates="videos")
     
     def __repr__(self):
         return f"<Video(id={self.id}, user_id={self.user_id}, title='{self.title}', status='{self.status}')>"
+
+
+class StripeCustomer(Base):
+    """Stripe customer information linked to users"""
+    __tablename__ = "stripe_customers"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True, index=True)
+    stripe_customer_id = Column(String(255), nullable=False, unique=True, index=True)
+    email = Column(String(255), nullable=False)
+    name = Column(String(255), nullable=True)
+    phone = Column(String(50), nullable=True)
+    
+    # Billing information
+    default_payment_method = Column(String(255), nullable=True)
+    invoice_settings = Column(JSON, nullable=True)
+    
+    # Metadata
+    stripe_metadata = Column(JSON, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # Relationships
+    user = relationship("User", back_populates="stripe_customer")
+    
+    def __repr__(self):
+        return f"<StripeCustomer(id={self.id}, user_id={self.user_id}, stripe_id='{self.stripe_customer_id}')>"
+
+
+class StripeSubscription(Base):
+    """Stripe subscription information linked to users"""
+    __tablename__ = "stripe_subscriptions"
+    
+    id = Column(String(), primary_key=True, index=True)  # UUID as string
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    stripe_subscription_id = Column(String(255), nullable=False, unique=True, index=True)
+    
+    # Subscription details
+    product_name = Column(String(255), nullable=False)
+    price_id = Column(String(255), nullable=False)
+    amount = Column(Integer, nullable=False)  # Amount in cents
+    currency = Column(String(3), nullable=False, default="USD")
+    interval = Column(String(20), nullable=False)  # month, year, etc.
+    interval_count = Column(Integer, nullable=False, default=1)
+    quantity = Column(Integer, nullable=False, default=1)
+    
+    # Status and billing
+    status = Column(String(50), nullable=False, default="active")  # active, canceled, past_due, unpaid
+    current_period_start = Column(DateTime(timezone=True), nullable=True)
+    current_period_end = Column(DateTime(timezone=True), nullable=True)
+    cancel_at_period_end = Column(Boolean, default=False)
+    
+    # Metadata
+    stripe_metadata = Column(JSON, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    def __repr__(self):
+        return f"<StripeSubscription(id={self.id}, user_id={self.user_id}, status='{self.status}')>"
+
+
+class StripePaymentIntent(Base):
+    """Stripe payment intent tracking"""
+    __tablename__ = "stripe_payment_intents"
+    
+    id = Column(String(255), primary_key=True, index=True)  # Stripe payment intent ID
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    
+    # Payment details
+    amount = Column(Integer, nullable=False)  # Amount in cents
+    currency = Column(String(3), nullable=False, default="USD")
+    status = Column(String(50), nullable=False)  # requires_payment_method, requires_confirmation, etc.
+    description = Column(Text, nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    def __repr__(self):
+        return f"<StripePaymentIntent(id={self.id}, user_id={self.user_id}, status='{self.status}')>"

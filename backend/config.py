@@ -33,6 +33,12 @@ class Config:
     # Security
     ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY")
     
+    # Stripe Configuration
+    STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
+    STRIPE_PUBLISHABLE_KEY = os.getenv("STRIPE_PUBLISHABLE_KEY")
+    STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
+    STRIPE_API_VERSION = os.getenv("STRIPE_API_VERSION", "2023-10-16")
+    
     # File Upload SDK Configuration
     UPLOAD_BASE_URL = os.getenv("UPLOAD_BASE_URL", "https://file-server.stream-lineai.com")
     AUTH_SERVICE_TOKEN = os.getenv("AUTH_SERVICE_TOKEN", os.getenv("SERVICE_TOKEN"))  # Fallback to existing SERVICE_TOKEN
@@ -62,6 +68,14 @@ class Config:
             ("DATABASE_URL", cls.DATABASE_URL),
             ("ENCRYPTION_KEY", cls.ENCRYPTION_KEY),
         ]
+        
+        # Stripe keys are required for payment processing
+        if cls.ENVIRONMENT == "production":
+            stripe_required_vars = [
+                ("STRIPE_SECRET_KEY", cls.STRIPE_SECRET_KEY),
+                ("STRIPE_WEBHOOK_SECRET", cls.STRIPE_WEBHOOK_SECRET),
+            ]
+            required_vars.extend(stripe_required_vars)
         
         missing_vars = []
         for var_name, var_value in required_vars:

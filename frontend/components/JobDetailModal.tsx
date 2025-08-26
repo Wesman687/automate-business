@@ -5,104 +5,7 @@ import { X, Building2, Palette, Globe, Github, Calendar, Clock, DollarSign, Targ
 import { api } from '@/lib/https';
 import FileManagementModal from './FileManagementModal';
 import ErrorModal from './ErrorModal';
-
-interface JobDetailData {
-  // Basic Job Info
-  id: number;
-  title: string;
-  description?: string;
-  status: string;
-  priority: string;
-  start_date?: string;
-  deadline?: string;
-  completion_date?: string;
-  progress_percentage: number;
-  
-  // Business Information
-  business_name?: string;
-  business_type?: string;
-  industry?: string;
-  industry_other?: string;
-  
-  // Project Details
-  project_goals?: string;
-  target_audience?: string;
-  timeline?: string;
-  budget_range?: string;
-  
-  // Branding & Design
-  brand_colors?: string[];
-  brand_color_tags?: { [key: number]: string };
-  brand_color_tag_others?: { [key: number]: string };
-  brand_style?: string;
-  brand_style_other?: string;
-  logo_files?: number[];
-  brand_guidelines?: string;
-  
-  // Resources & Links
-  website_url?: string;
-  github_url?: string;
-  portfolio_url?: string;
-  social_media?: {
-    facebook?: string;
-    linkedin?: string;
-    instagram?: string;
-    twitter?: string;
-    youtube?: string;
-    tiktok?: string;
-    pinterest?: string;
-    snapchat?: string;
-  };
-  
-  // Unified Resources Array
-  resources?: Array<{
-    type: 'website' | 'github' | 'drive' | 'workspace' | 'service';
-    name: string;
-    url?: string;
-    description?: string;
-  }>;
-  
-  // Additional Tools (separate from resources)
-  additional_tools?: Array<{
-    name: string;
-    api_key?: string;
-    url?: string;
-    description?: string;
-  }>;
-
-  // Server Details (separate from resources)
-  server_details?: Array<{
-    name: string;
-    url?: string;
-    type?: string;
-    description?: string;
-  }>;
-  
-  // Additional Information
-  notes?: string;
-  additional_resource_info?: string[];
-  
-  meeting_links?: Array<{ name: string; url: string; type?: string }>;
-  
-  // Project Planning
-  milestones?: Array<{ name: string; description?: string; due_date?: string; completed: boolean }>;
-  deliverables?: Array<{ name: string; description?: string; delivered: boolean; date?: string }>;
-  
-  // Financial Data (Read-only for customers)
-  estimated_hours?: number;
-  actual_hours?: number;
-  hourly_rate?: number;
-  fixed_price?: number;
-  
-  // Additional Files
-  project_files?: number[];
-  reference_files?: number[];
-  requirements_doc?: string;
-  
-  // Timestamps
-  created_at: string;
-  updated_at?: string;
-}
+import { Job, JobDetailData } from './interfaces/job';
 
 interface JobDetailModalProps {
   isOpen: boolean;
@@ -159,9 +62,9 @@ export default function JobDetailModal({ isOpen, onClose, jobId, isCustomer = fa
     console.log('🔍 fetchJobData called for jobId:', jobId);
     try {
       setLoading(true);
-      console.log('📡 Making API call to:', `/jobs/${jobId}`);
+      console.log('📡 Making API call to:', `/api/jobs/${jobId}`);
       
-      const response = await api.get(`/jobs/${jobId}`);
+      const response = await api.get(`/api/jobs/${jobId}`);
       console.log('✅ API response received:', response);
       console.log('📊 Response data:', response.data);
       console.log('🔍 Response type:', typeof response);
@@ -183,7 +86,7 @@ export default function JobDetailModal({ isOpen, onClose, jobId, isCustomer = fa
 
   const fetchJobFiles = async () => {
     try {
-      const response = await api.get(`/file-upload/customer/job/${jobId}/files`);
+      const response = await api.get(`/api/file-upload/customer/job/${jobId}/files`);
       console.log('📁 Files API response:', response);
       console.log('📁 Files response type:', typeof response);
       
@@ -205,7 +108,7 @@ export default function JobDetailModal({ isOpen, onClose, jobId, isCustomer = fa
       if (onSave) {
         await onSave(editData);
       } else {
-        const response = await api.put(`/jobs/${jobId}`, editData);
+        const response = await api.put(`/api/jobs/${jobId}`, editData);
         if (response.data) {
           setJob(response.data);
           setEditData(response.data);
@@ -425,7 +328,7 @@ export default function JobDetailModal({ isOpen, onClose, jobId, isCustomer = fa
 
   const deleteFile = async (fileId: number) => {
     try {
-      await api.del(`/file-upload/files/${fileId}`);
+              await api.del(`/api/file-upload/files/${fileId}`);
       await fetchJobFiles();
     } catch (error) {
       console.error('Error deleting file:', error);
@@ -1915,11 +1818,7 @@ export default function JobDetailModal({ isOpen, onClose, jobId, isCustomer = fa
                   <div className="text-white font-medium text-lg">Logo Files</div>
                   <div className="text-gray-400 text-sm mb-3">
                     {Array.isArray(jobFiles) ? jobFiles.filter(file => file.upload_type === 'logo').length : 0} uploaded
-                    {Array.isArray(jobFiles) && (
-                      <div className="text-xs text-gray-500 mt-1">
-                        Debug: {jobFiles.length} total files, {jobFiles.filter(file => file.upload_type === 'logo').length} logo files
-                      </div>
-                    )}
+
                   </div>
                   <button
                     onClick={() => openFileManagement('logo')}
@@ -1961,15 +1860,6 @@ export default function JobDetailModal({ isOpen, onClose, jobId, isCustomer = fa
               {/* Current Files List */}
               {Array.isArray(jobFiles) && jobFiles.length > 0 ? (
                 <>
-                  {/* Debug Info */}
-                  <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700/50 mb-4">
-                    <h3 className="text-lg font-semibold text-white mb-3">Debug: File Structure</h3>
-                    <div className="text-sm text-gray-400 space-y-2">
-                      <div>Total files: {jobFiles.length}</div>
-                      <div>File folders: {jobFiles.map(f => f.folder).join(', ')}</div>
-                      <div>Sample file: {JSON.stringify(jobFiles[0], null, 2)}</div>
-                    </div>
-                  </div>
                   {/* General File Upload Section */}
                   {isEditing && (
                     <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700/50 mb-4">

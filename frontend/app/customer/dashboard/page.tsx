@@ -150,7 +150,7 @@ export default function CustomerDashboard() {
   const fetchCustomerData = async () => {
     try {
       // Use the user endpoint instead of customers
-      const response = await api.get(`/users/${user?.user_id}`);
+              const response = await api.get(`/api/users/${user?.user_id}`);
       setCustomerData(response);
     } catch (error) {
       console.error('Error fetching customer data:', error);
@@ -159,7 +159,7 @@ export default function CustomerDashboard() {
 
   const fetchRecentFiles = async () => {
     try {
-      const response = await api.get('/file-upload/files');
+              const response = await api.get('/file-upload/files');
       setRecentFiles(response.files?.slice(0, 5) || []);
     } catch (error) {
       console.error('Error fetching recent files:', error);
@@ -187,7 +187,7 @@ export default function CustomerDashboard() {
         // Fallback: try to get jobs with customer_id filter
         try {
           console.log('🔄 Trying fallback: /jobs?customer_id=' + user?.user_id);
-          response = await api.get(`/jobs?customer_id=${user?.user_id}`);
+          response = await api.get(`/api/jobs?customer_id=${user?.user_id}`);
           console.log('✅ Fallback endpoint worked');
         } catch (fallbackError: any) {
           console.log('❌ Fallback endpoint also failed:', fallbackError?.message);
@@ -224,7 +224,7 @@ export default function CustomerDashboard() {
 
   const fetchAppointments = async () => {
     try {
-      const response = await api.get('/appointments/customer');
+              const response = await api.get('/appointments/customer');
       setAppointments(response.appointments || []);
     } catch (error) {
       console.error('Error fetching appointments:', error);
@@ -234,7 +234,7 @@ export default function CustomerDashboard() {
   const fetchStats = async () => {
     try {
       // Fetch files count and use current jobs data from state
-      const filesResponse = await api.get('/file-upload/files');
+              const filesResponse = await api.get('/file-upload/files');
       
       setStats({
         totalFiles: filesResponse.files?.length || 0,
@@ -298,9 +298,9 @@ export default function CustomerDashboard() {
   const handleEditCustomer = async (customerData: Partial<Customer>, passwordData?: { password: string }) => {
     try {
       // Update customer data
-      await api.put(`/users/${user?.user_id}`, customerData);
+              await api.put(`/api/users/${user?.user_id}`, customerData);
       if (passwordData?.password) {
-        await api.post(`/users/${user?.user_id}/password`, { password: passwordData.password });
+                  await api.post(`/api/users/${user?.user_id}/password`, { password: passwordData.password });
       }
       setShowEditCustomerModal(false);
       fetchCustomerData(); // Refresh customer data
@@ -1125,7 +1125,7 @@ export default function CustomerDashboard() {
                 <button
                   onClick={async () => {
                     try {
-                      await api.put(`/appointments/${editingAppointment.id}`, editingAppointment);
+                      await api.put(`/api/appointments/${editingAppointment.id}`, editingAppointment);
                       setShowEditAppointmentModal(false);
                       setEditingAppointment(null);
                       await fetchAppointments();

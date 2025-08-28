@@ -1,8 +1,9 @@
+from models import User
+from services.base_service import BaseService
 from sqlalchemy.orm import Session
-from database.models import User
+from typing import List, Optional, Dict, Any
 from schemas.customer import CustomerCreate, CustomerUpdate
 from services.auth_service import AuthService
-from typing import Optional, List
 
 class CustomerService:
     def __init__(self, db: Session):

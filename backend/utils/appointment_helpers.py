@@ -1,17 +1,17 @@
 """
-Appointment Helper Functions
-Reusable utilities for appointment management across different interfaces (API, Voice Bot, Chat Bot)
+Appointment helper utilities for managing scheduling and availability
 """
-
-from typing import List, Dict, Optional, Tuple
-from datetime import datetime, timedelta, time, date
+import logging
+from typing import Dict, Any, Optional, List
 from sqlalchemy.orm import Session
-from database.models import Appointment, User
+from sqlalchemy import and_, or_, func
+from datetime import datetime, timedelta
+
+from models import Appointment, User
 from services.appointment_service import AppointmentService
 from services.google_calendar_service import google_calendar_service
 from services.email_service import email_service
 from api.appointments import send_appointment_confirmation_email, send_appointment_update_email
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -28,8 +28,8 @@ class AppointmentHelper:
     async def create_appointment_with_notifications(
         self,
         customer_id: int,
-        appointment_date: date,
-        appointment_time: time,
+        appointment_date: datetime.date,
+        appointment_time: datetime.time,
         duration_minutes: int = 30,
         meeting_type: str = "consultation",
         notes: Optional[str] = None,
@@ -331,8 +331,8 @@ class AppointmentHelper:
 async def create_appointment_easy(
     db: Session,
     customer_id: int,
-    appointment_date: date,
-    appointment_time: time,
+    appointment_date: datetime.date,
+    appointment_time: datetime.time,
     duration_minutes: int = 30,
     meeting_type: str = "consultation",
     notes: Optional[str] = None
@@ -364,7 +364,7 @@ def create_appointment_with_notifications(
     Compatible with voice agent requirements
     """
     from services.appointment_service import AppointmentService
-    from database.models import Appointment
+    from models import Appointment
     import uuid
     
     asvc = AppointmentService(db)
@@ -397,7 +397,7 @@ def create_appointment_with_notifications(
 
 def get_available_times_easy(
     db: Session,
-    target_date: date,
+    target_date: datetime.date,
     duration_minutes: int = 30
 ) -> List[str]:
     """

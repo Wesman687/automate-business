@@ -15,33 +15,13 @@ import {
   MoreVertical
 } from 'lucide-react';
 import { api } from '@/lib/https';
-
-interface Customer {
-  id: number;
-  user_id: number;
-  email: string;
-  name: string;
-  phone?: string;
-  address?: string;
-  city?: string;
-  state?: string;
-  zip_code?: string;
-  country?: string;
-  business_site?: string;
-  business_type?: string;
-  additional_websites?: string;
-  status: string;
-  notes?: string;
-  file_path?: string;
-  created_at: string;
-  updated_at?: string;
-}
+import { User as UserType, UserStatus, LeadStatus } from '@/types';
 
 interface CustomerCardProps {
-  customer: Customer;
+  customer: UserType;
   showActions?: boolean;
-  onEdit?: (customer: Customer) => void;
-  onView?: (customer: Customer) => void;
+  onEdit?: (customer: UserType) => void;
+  onView?: (customer: UserType) => void;
   onDelete?: (customerId: number) => void;
   className?: string;
 }
@@ -68,7 +48,7 @@ export default function CustomerCard({
   const handleDownloadFiles = async () => {
     setDownloading(true);
     try {
-      const response = await api.get(`/file-upload/files?customer_id=${customer.user_id}`);
+      const response = await api.get(`/file-upload/files?customer_id=${customer.id}`);
       if (response.files && response.files.length > 0) {
         // Create a zip file or download individual files
         console.log('Files to download:', response.files);
@@ -81,14 +61,38 @@ export default function CustomerCard({
     }
   };
 
-  const getStatusColor = (status: string) => {
-    return status === 'active' 
-      ? 'bg-red-500/20 text-red-400 border-red-500/30' 
-      : 'bg-red-500/20 text-red-400 border-red-500/30';
+  const getStatusColor = (status: UserStatus) => {
+    switch (status) {
+      case UserStatus.ACTIVE:
+        return 'bg-green-500/20 text-green-400 border-green-500/30';
+      case UserStatus.PENDING:
+        return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+      case UserStatus.SUSPENDED:
+        return 'bg-red-500/20 text-red-400 border-red-500/30';
+      case UserStatus.INACTIVE:
+        return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+      default:
+        return 'bg-red-500/20 text-red-400 border-red-500/30';
+    }
   };
 
-  const getStatusText = (status: string) => {
-    return status || 'Active';
+  const getStatusText = (status: UserStatus) => {
+    return status || UserStatus.ACTIVE;
+  };
+
+  const getLeadStatusColor = (leadStatus: LeadStatus) => {
+    switch (leadStatus) {
+      case LeadStatus.LEAD:
+        return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+      case LeadStatus.QUALIFIED:
+        return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
+      case LeadStatus.CUSTOMER:
+        return 'bg-green-500/20 text-green-400 border-green-500/30';
+      case LeadStatus.CLOSED:
+        return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+      default:
+        return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+    }
   };
 
   return (
@@ -105,7 +109,7 @@ export default function CustomerCard({
                 {customer.name || customer.email.split('@')[0]}
               </h3>
               <p className="text-black/80 text-sm font-medium">
-                Customer
+                {customer.user_type === 'customer' ? 'Customer' : 'User'}
               </p>
             </div>
           </div>
@@ -206,15 +210,23 @@ export default function CustomerCard({
           </div>
         </div>
 
-        {/* Status */}
+        {/* Status and Lead Status */}
         <div className="flex items-center justify-between pt-3 border-t border-dark-border">
-          <div className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(customer.status)}`}>
-            {getStatusText(customer.status)}
+          <div className="flex items-center space-x-2">
+            <div className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(customer.status)}`}>
+              {getStatusText(customer.status)}
+            </div>
+            
+            {customer.lead_status && (
+              <div className={`px-3 py-1 rounded-full text-xs font-medium border ${getLeadStatusColor(customer.lead_status)}`}>
+                {customer.lead_status}
+              </div>
+            )}
           </div>
           
           <div className="flex items-center space-x-2 text-gray-500">
             <FileText className="w-4 h-4" />
-            <span className="text-xs">Files: 0</span>
+            <span className="text-xs">Credits: {customer.credits}</span>
           </div>
         </div>
       </div>
@@ -225,7 +237,9 @@ export default function CustomerCard({
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-              <span className="text-xs text-gray-400">Last active: Today</span>
+              <span className="text-xs text-gray-400">
+                Last active: {customer.last_login ? formatDate(customer.last_login) : 'Never'}
+              </span>
             </div>
             
             <div className="flex items-center space-x-2">

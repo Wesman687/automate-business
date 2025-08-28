@@ -2,7 +2,7 @@
 
 import React, { memo, useCallback } from 'react';
 import { Calculator, TrendingUp } from 'lucide-react';
-import { Job } from '../interfaces/job';
+import { Job } from '@/types';
 
 interface FinancialEstimatesProps {
   data: Job;

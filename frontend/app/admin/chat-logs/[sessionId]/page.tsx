@@ -5,51 +5,14 @@ import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, User, Bot, Clock, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 import { api } from '@/lib/https';
-import ErrorModal from '@/components/ErrorModal';
+import ErrorModal from '@/components/modals/ErrorModal';
+import { ChatLogData } from '@/types';
 
-interface Customer {
-  id: number;
-  name: string;
-  email: string;
-  phone?: string;
-  business_type?: string;
-  status: string;
-  created_at: string;
-}
 
-interface Message {
-  id: number;
-  text: string;
-  is_bot: boolean;
-  timestamp: string;
-}
 
-interface Session {
-  session_id: string;
-  status: string;
-  is_seen: boolean;
-  created_at: string;
-  updated_at: string;
-  customer_id?: number;
-}
-
-interface ChatLogData {
-  session: Session;
-  customer?: Customer;
-  messages: Message[];
-}
 
 export default function ChatLogView() {
-  const params = useParams();
-  const router = useRouter();
-  
-  if (!params?.sessionId) {
-    router.replace('/admin/chat-logs');
-    return null;
-  }
-  
-  const sessionId = params.sessionId as string;
-  
+    
   const [data, setData] = useState<ChatLogData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -65,11 +28,22 @@ export default function ChatLogView() {
     type: 'error'
   });
 
+  const params = useParams();
+  const router = useRouter();
+  const sessionId = params.sessionId as string;
+
   useEffect(() => {
     if (sessionId) {
       fetchChatLog();
     }
   }, [sessionId]);
+
+  
+  if (!params?.sessionId) {
+    router.replace('/admin/chat-logs');
+    return null;
+  }
+  
 
   const fetchChatLog = async () => {
     try {
@@ -78,9 +52,9 @@ export default function ChatLogView() {
       
       // Fetch customer data if available
       let customer = null;
-      if (sessionData.customer_id) {
+      if (sessionData.user_id) {
         try {
-          customer = await api.get(`/customers/${sessionData.customer_id}`);
+          customer = await api.get(`/customers/${sessionData.user_id}`);
         } catch (error) {
           console.warn('Failed to fetch customer data:', error);
         }
@@ -89,6 +63,9 @@ export default function ChatLogView() {
       // Transform backend data to frontend format
       const transformedData = {
         session: {
+          id: sessionData.id,
+          user_id: sessionData.user_id,
+          message_count: sessionData.message_count,
           session_id: sessionData.session_id,
           status: sessionData.status || 'active',
           is_seen: sessionData.is_seen || false,
@@ -270,7 +247,7 @@ export default function ChatLogView() {
               </div>
               <div>
                 <span className="text-gray-400">Lead Date:</span>
-                <span className="text-white ml-2">{new Date(customer.created_at).toLocaleDateString()}</span>
+                <span className="text-white ml-2">{new Date(customer.created_at || '').toLocaleDateString()}</span>
               </div>
             </div>
           </div>

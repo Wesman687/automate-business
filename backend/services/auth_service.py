@@ -1,12 +1,16 @@
+from models import User, UserType  # Unified model only!
 from sqlalchemy.orm import Session
-from database.models import User, UserType  # Unified model only!
+from sqlalchemy import and_, or_
+from typing import Optional, Dict, Any
+import jwt
+import bcrypt
 from passlib.context import CryptContext
-from jose import JWTError, jwt
 from datetime import datetime, timedelta
-from typing import Optional, Union
-import secrets
 import os
 import base64
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from database import get_db
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -152,7 +156,7 @@ class AuthService:
             
             return user_data
             
-        except JWTError:
+        except jwt.JWTError: # Changed from JWTError to jwt.JWTError
             return None
     
     def get_user_from_token(self, token: str) -> Optional[dict]:
@@ -182,3 +186,31 @@ class AuthService:
             return user_data.get("user_id") == customer_id
         
         return False
+
+def get_current_user(token: str = Depends(OAuth2PasswordBearer(tokenUrl="/auth/login")), db: Session = Depends(get_db)) -> Optional[dict]:
+    """Get current user from JWT token - dependency for FastAPI endpoints"""
+    try:
+        auth_service = AuthService(db)
+        user_data = auth_service.verify_token(token)
+        if not user_data:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Could not validate credentials",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        return user_data
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+def get_current_admin(current_user: dict = Depends(get_current_user)) -> dict:
+    """Get current admin user - dependency for admin-only endpoints"""
+    if not current_user.get("is_admin", False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+    return current_user

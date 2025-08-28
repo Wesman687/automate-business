@@ -6,41 +6,7 @@ import { ArrowLeft, Edit, Mail, Phone, Building, Globe, Calendar, MessageSquare,
 import Link from 'next/link';
 import EditCustomerModal from '@/components/EditCustomerModal';
 import { api } from '@/lib/https';
-
-interface Customer {
-  id: number;
-  name: string;
-  email: string;
-  phone?: string;
-  address?: string;
-  city?: string;
-  state?: string;
-  zip_code?: string;
-  country?: string;
-  business_site?: string;
-  business_type?: string;
-  additional_websites?: string;
-  pain_points?: string;
-  current_tools?: string;
-  budget?: string;
-  status: string;
-  notes?: string;
-  file_path?: string;
-  created_at: string;
-  updated_at?: string;
-  chat_sessions?: ChatSession[];
-  chat_count?: number;
-}
-
-interface ChatSession {
-  id: number;
-  session_id: string;
-  customer_id: number;
-  start_time: string;
-  end_time?: string;
-  status: string;
-  message_count: number;
-}
+import { Customer, ChatSession, Job } from '@/types';
 
 interface Invoice {
   id: number;
@@ -50,15 +16,6 @@ interface Invoice {
   status: string;
   issue_date: string;
   due_date: string;
-}
-
-interface Job {
-  id: number;
-  title: string;
-  status: string;
-  priority: string;
-  progress_percentage: number;
-  deadline?: string;
 }
 
 export default function CustomerDetail() {
@@ -158,7 +115,7 @@ export default function CustomerDetail() {
 
   const fetchCustomer = async () => {
     try {
-      const data = await api.get(`/customers/${customerId}`);
+      const data = await api.get(`/users/${customerId}`);
       setCustomer(data);
     } catch (error) {
       console.error('Error fetching customer:', error);
@@ -172,16 +129,41 @@ export default function CustomerDetail() {
     }
   };
 
-  const handleUpdateCustomer = async (updatedData: Partial<Customer>, passwordData?: { password: string }) => {
+  const handleUpdateCustomer = async (updatedData: any, passwordData?: { password: string }) => {
     try {
       // If password change is requested, handle it separately first
       if (passwordData?.password) {
-        await api.post(`/customers/${customerId}/set-password`, { password: passwordData.password });
+        await api.post(`/users/${customerId}/password`, { 
+          current_password: '', // We don't have current password for admin updates
+          new_password: passwordData.password,
+          confirm_password: passwordData.password
+        });
       }
 
-      // Update customer data
-      const updatedCustomer = await api.put(`/customers/${customerId}`, updatedData);
-      setCustomer(updatedCustomer);
+      // Update customer data using the users endpoint
+      const updatedCustomer = await api.put(`/users/${customerId}`, updatedData);
+      
+      // Transform the response back to the flat structure the frontend expects
+      if (updatedCustomer && customer) {
+        const transformedCustomer = {
+          ...customer,
+          name: updatedCustomer.name || customer.name,
+          email: updatedCustomer.email || customer.email,
+          phone: updatedCustomer.phone || customer.phone,
+          status: updatedCustomer.status || customer.status,
+          address: updatedCustomer.customer_fields?.address || customer.address,
+          city: updatedCustomer.customer_fields?.city || customer.city,
+          state: updatedCustomer.customer_fields?.state || customer.state,
+          zip_code: updatedCustomer.customer_fields?.zip_code || customer.zip_code,
+          country: updatedCustomer.customer_fields?.country || customer.country,
+          business_site: updatedCustomer.customer_fields?.business_site || customer.business_site,
+          additional_websites: updatedCustomer.customer_fields?.additional_websites || customer.additional_websites,
+          business_type: updatedCustomer.customer_fields?.business_type || customer.business_type,
+          notes: updatedCustomer.customer_fields?.notes || customer.notes
+        };
+        setCustomer(transformedCustomer);
+      }
+      
       // Show success message or notification here if desired
     } catch (error) {
       console.error('Error updating customer:', error);
@@ -304,21 +286,21 @@ export default function CustomerDetail() {
               <div>
                 <div className="text-sm text-gray-400">Address</div>
                 <div className="text-white">
-                  {customer.address && (
+                  {(customer.address || customer.customer_fields?.address) && (
                     <div className="space-y-1">
-                      <div>{customer.address}</div>
-                      {(customer.city || customer.state || customer.zip_code) && (
+                      <div>{customer.address || customer.customer_fields?.address}</div>
+                      {(customer.city || customer.customer_fields?.city || customer.state || customer.customer_fields?.state || customer.zip_code || customer.customer_fields?.zip_code) && (
                         <div>
-                          {customer.city && customer.city}
-                          {customer.city && customer.state && ', '}
-                          {customer.state && customer.state}
-                          {customer.zip_code && ` ${customer.zip_code}`}
+                          {customer.city || customer.customer_fields?.city}
+                          {(customer.city || customer.customer_fields?.city) && (customer.state || customer.customer_fields?.state) && ', '}
+                          {customer.state || customer.customer_fields?.state}
+                          {(customer.zip_code || customer.customer_fields?.zip_code) && ` ${customer.zip_code || customer.customer_fields?.zip_code}`}
                         </div>
                       )}
-                      {customer.country && <div>{customer.country}</div>}
+                      {customer.country || customer.customer_fields?.country && <div>{customer.country || customer.customer_fields?.country}</div>}
                     </div>
                   )}
-                  {!customer.address && !customer.city && !customer.state && !customer.zip_code && !customer.country && (
+                  {!customer.address && !customer.customer_fields?.address && !customer.city && !customer.customer_fields?.city && !customer.state && !customer.customer_fields?.state && !customer.zip_code && !customer.customer_fields?.zip_code && !customer.country && !customer.customer_fields?.country && (
                     "Not specified"
                   )}
                 </div>
@@ -330,7 +312,7 @@ export default function CustomerDetail() {
               <div>
                 <div className="text-sm text-gray-400">Customer Since</div>
                 <div className="text-white">
-                  {new Date(customer.created_at).toLocaleDateString()}
+                  {customer.created_at ? new Date(customer.created_at).toLocaleDateString() : 'N/A'}
                 </div>
               </div>
             </div>
@@ -348,7 +330,7 @@ export default function CustomerDetail() {
               <div>
                 <div className="text-sm text-gray-400">Business Type</div>
                 <div className="text-white">
-                  {customer.business_type || "Not specified"}
+                  {customer.business_type || customer.customer_fields?.business_type || "Not specified"}
                 </div>
               </div>
             </div>
@@ -357,25 +339,25 @@ export default function CustomerDetail() {
               <div>
                 <div className="text-sm text-gray-400">Business Website</div>
                 <a
-                  href={customer.business_site}
+                  href={customer.business_site || customer.customer_fields?.business_site}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-cyan-400 hover:text-cyan-300"
                 >
-                  {customer.business_site
-                    ? customer.business_site
+                  {customer.business_site || customer.customer_fields?.business_site
+                    ? customer.business_site || customer.customer_fields?.business_site
                     : "Not specified"}
                 </a>
               </div>
             </div>
-            {customer.additional_websites && (
+            {(customer.additional_websites || customer.customer_fields?.additional_websites) && (
             <div className="flex items-start gap-3">
               <Globe className="h-5 w-5 text-cyan-400 mt-1" />
               <div>
                 <div className="text-sm text-gray-400">Additional Websites</div>
                 <div className="text-white whitespace-pre-line">
-                  {customer.additional_websites
-                    ? customer.additional_websites
+                  {customer.additional_websites || customer.customer_fields?.additional_websites
+                    ? customer.additional_websites || customer.customer_fields?.additional_websites
                     : "Not specified"}
                 </div>
               </div>
@@ -386,7 +368,7 @@ export default function CustomerDetail() {
               <div>
                 <div className="text-sm text-gray-400">Notes</div>
                 <div className="text-white whitespace-pre-line">
-                  {customer.notes ? customer.notes : "Not specified"}
+                  {customer.notes || customer.customer_fields?.notes ? customer.notes || customer.customer_fields?.notes : "Not specified"}
                 </div>
                 {customer.file_path && (
                   <div className="mt-2">
@@ -417,11 +399,11 @@ export default function CustomerDetail() {
       </div>
 
       {/* Notes */}
-      {customer.notes && (
+      {(customer.notes || customer.customer_fields?.notes) && (
         <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-6">
           <h2 className="text-xl font-semibold text-white mb-4">Notes</h2>
           <div className="text-gray-300 whitespace-pre-wrap">
-            {customer.notes}
+            {customer.notes || customer.customer_fields?.notes}
           </div>
         </div>
       )}
@@ -591,7 +573,7 @@ export default function CustomerDetail() {
                       >
                         {session.status
                           .replace("_", " ")
-                          .replace(/\b\w/g, (l) => l.toUpperCase())}
+                          .replace(/\b\w/g, (l: string) => l.toUpperCase())}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -601,10 +583,10 @@ export default function CustomerDetail() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-white">
-                        {new Date(session.start_time).toLocaleDateString()}
+                        {session.created_at ? new Date(session.created_at).toLocaleDateString() : 'N/A'}
                       </div>
                       <div className="text-xs text-gray-400">
-                        {new Date(session.start_time).toLocaleTimeString()}
+                        {session.created_at ? new Date(session.created_at).toLocaleTimeString() : 'N/A'}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">

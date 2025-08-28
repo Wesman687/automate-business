@@ -1,5 +1,6 @@
 // lib/http.ts
 import { API_BASE, BACKEND_PREFIX } from "./config";
+import { getAuthToken } from "./authToken";
 
 // Simple cookie reader for CSRF double-submit (token is NOT HttpOnly)
 function getCookie(name: string): string | null {
@@ -63,6 +64,12 @@ export async function http<T = any>(
   const h = new Headers(headers || {});
   if (!h.has("Content-Type") && init.body && !(init.body instanceof FormData)) {
     h.set("Content-Type", "application/json");
+  }
+
+  // Add Authorization header if token is available
+  const authToken = getAuthToken();
+  if (authToken) {
+    h.set("Authorization", `Bearer ${authToken}`);
   }
 
   // Optional CSRF header (double-submit): only for unsafe methods

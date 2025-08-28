@@ -2,7 +2,7 @@
 
 import React, { memo, useCallback } from 'react';
 import { Globe, Github, Link, ExternalLink } from 'lucide-react';
-import { Job } from '../interfaces/job';
+import { Job } from '@/types';
 
 interface WebsiteLinksProps {
   data: Job;
@@ -77,12 +77,12 @@ export const WebsiteLinks = memo<WebsiteLinksProps>(({
               <div className="space-y-2">
                 <input
                   type="url"
-                  value={editData[key as keyof Job] || ''}
+                  value={(editData[key as keyof Job] as string) || ''}
                   onChange={(e) => handleInputChange(key, e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   placeholder={placeholder}
                 />
-                {editData[key as keyof Job] && !validateUrl(editData[key as keyof Job] as string) && (
+                {(editData[key as keyof Job] as string) && !validateUrl(editData[key as keyof Job] as string) && (
                   <p className="text-sm text-red-600">Please enter a valid URL</p>
                 )}
               </div>
@@ -95,7 +95,7 @@ export const WebsiteLinks = memo<WebsiteLinksProps>(({
                     rel="noopener noreferrer"
                     className="text-indigo-600 hover:text-indigo-800 flex items-center space-x-1"
                   >
-                    <span>{data[key as keyof Job]}</span>
+                    <span>{data[key as keyof Job] as string}</span>
                     <ExternalLink className="w-4 h-4" />
                   </a>
                 ) : (

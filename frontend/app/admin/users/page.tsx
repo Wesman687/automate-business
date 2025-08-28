@@ -5,20 +5,9 @@ import { Plus, Edit, Trash2, Shield, User, Crown } from 'lucide-react';
 import { api } from '@/lib/https';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotification } from '@/hooks/useNotification';
-import DeleteModal from '@/components/DeleteModal';
+import DeleteModal from '@/components/modals/DeleteModal';
 import NotificationComponent from '@/components/NotificationComponent';
-
-interface Admin {
-  id: number;
-  email: string;
-  full_name?: string;
-  phone?: string;
-  address?: string;
-  is_super_admin: boolean;
-  is_active: boolean;
-  last_login?: string;
-  created_at: string;
-}
+import { Admin, UserStatus } from '@/types';
 
 export default function AdminUsers() {
   const { user, loading: authLoading, isAdmin } = useAuth();
@@ -106,8 +95,6 @@ const removeSuperAdmin = async (adminId: number) => {
   }
 
   try {
-          // HITS: /api/auth/admins/:id/remove-super-admin (Next proxy)
-      // FORWARDS TO: https://server.stream-lineai.com/auth/admins/:id/remove-super-admin
              await api.post(`/auth/admins/${adminId}/remove-super-admin`);
 
     showSuccess('Super Admin Status Removed', 'Super admin status has been removed successfully!');
@@ -237,13 +224,13 @@ const makeSuperAdmin = async (adminId: number) => {
           <div className="bg-white/5 backdrop-blur-sm rounded-lg p-6 border border-white/10">
             <h3 className="text-sm font-medium text-cyan-400">Active Admins</h3>
             <div className="text-2xl font-bold text-white">
-              {admins.filter(admin => admin.is_active).length}
+              {admins.filter(admin => admin.status === UserStatus.ACTIVE).length}
             </div>
           </div>
           <div className="bg-white/5 backdrop-blur-sm rounded-lg p-6 border border-white/10">
             <h3 className="text-sm font-medium text-cyan-400">Regular Admins</h3>
             <div className="text-2xl font-bold text-white">
-              {admins.filter(admin => !admin.is_super_admin && admin.is_active).length}
+              {admins.filter(admin => !admin.is_super_admin && admin.status === UserStatus.ACTIVE).length}
             </div>
           </div>
         </div>
@@ -320,7 +307,7 @@ const makeSuperAdmin = async (adminId: number) => {
                       </div>
                       <div className="ml-4">
                         <div className="text-sm font-medium text-white">
-                          {admin.full_name || 'N/A'}
+                          {admin.name || 'N/A'}
                         </div>
                         <div className="text-sm text-gray-400">{admin.email}</div>
                       </div>
@@ -346,11 +333,11 @@ const makeSuperAdmin = async (adminId: number) => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      admin.is_active 
+                      admin.status === UserStatus.ACTIVE 
                         ? 'bg-green-100 text-green-800' 
                         : 'bg-red-100 text-red-800'
                     }`}>
-                      {admin.is_active ? 'Active' : 'Inactive'}
+                      {admin.status === UserStatus.ACTIVE ? 'Active' : 'Inactive'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -378,7 +365,7 @@ const makeSuperAdmin = async (adminId: number) => {
                       )}
 
                                              {/* Super admin actions - only super admins can promote/demote */}
-                       {user?.is_super_admin && !admin.is_super_admin && admin.is_active && (
+                       {user?.is_super_admin && !admin.is_super_admin && admin.status === UserStatus.ACTIVE && (
                         <button
                           onClick={() => makeSuperAdmin(admin.id)}
                           className="text-yellow-400 hover:text-yellow-300 p-1 rounded"
@@ -558,7 +545,7 @@ function EditAdminModal({
 }) {
   const [formData, setFormData] = useState({
     email: admin.email || '',
-    full_name: admin.full_name || '',
+    full_name: admin.name || '',
     phone: admin.phone || '',
     address: admin.address || '',
     password: '',
@@ -573,7 +560,7 @@ function EditAdminModal({
     if (formData.email && formData.email !== admin.email) {
       updateData.email = formData.email;
     }
-    if (formData.full_name !== admin.full_name) {
+    if (formData.full_name !== admin.name) {
       updateData.full_name = formData.full_name;
     }
     if (formData.phone !== admin.phone) {

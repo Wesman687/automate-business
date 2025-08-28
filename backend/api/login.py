@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from services.auth_service import AuthService
 from services.admin_service import AdminService
+from models import Admin
 from api.auth import get_current_user, get_current_super_admin
 import logging
 
@@ -82,7 +83,6 @@ async def get_current_user_info(current_user: dict = Depends(get_current_user)):
 async def verify_token(current_user: dict = Depends(get_current_user)):
     """Verify if the current token is valid and return user info"""
     try:
-        print(f"🔍 Auth verification for user: {current_user}")
         return {
             "valid": True,
             "user": {
@@ -105,39 +105,42 @@ async def verify_token(current_user: dict = Depends(get_current_user)):
 async def get_all_admins(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     """Get all admins - Super admins see all, regular admins see only themselves"""
     try:
-        admin_service = AdminService(db)
+        from models import User
         
         if current_user.get("is_super_admin", False):
-            # Super admin sees all admins
-            admins = admin_service.get_all_admins()
+            # Super admin sees all admin users
+            admin_users = db.query(User).filter(User.user_type == "admin").all()
             admin_list = []
-            for admin in admins:
+            for user in admin_users:
+                # Check if user has admin role
+                admin_role = db.query(Admin).filter(Admin.user_id == user.id).first()
                 admin_list.append({
-                    "id": admin.id,
-                    "email": admin.email,
-                    "full_name": admin.full_name,
-                    "phone": admin.phone,
-                    "address": admin.address,
-                    "is_super_admin": admin.is_super_admin,
-                    "is_active": admin.is_active,
-                    "last_login": admin.last_login.isoformat() if admin.last_login else None,
-                    "created_at": admin.created_at.isoformat() if admin.created_at else None
+                    "id": user.id,
+                    "email": user.email,
+                    "name": user.name,  # Use name from User model
+                    "phone": user.phone,
+                    "address": getattr(user, 'address', None),  # Address might not exist
+                    "is_super_admin": admin_role.admin_level == "super_admin" if admin_role else False,
+                    "status": "active" if user.is_active else "inactive",
+                    "last_login": user.last_login.isoformat() if user.last_login else None,
+                    "created_at": user.created_at.isoformat() if user.created_at else None
                 })
             return {"admins": admin_list}
         else:
             # Regular admin sees only themselves
-            admin = admin_service.get_admin_by_id(current_user["user_id"])
-            if admin:
+            user = db.query(User).filter(User.id == current_user["user_id"]).first()
+            if user and user.user_type == "admin":
+                admin_role = db.query(Admin).filter(Admin.user_id == user.id).first()
                 admin_list = [{
-                    "id": admin.id,
-                    "email": admin.email,
-                    "full_name": admin.full_name,
-                    "phone": admin.phone,
-                    "address": admin.address,
-                    "is_super_admin": admin.is_super_admin,
-                    "is_active": admin.is_active,
-                    "last_login": admin.last_login.isoformat() if admin.last_login else None,
-                    "created_at": admin.created_at.isoformat() if admin.created_at else None
+                    "id": user.id,
+                    "email": user.email,
+                    "name": user.name,
+                    "phone": user.phone,
+                    "address": getattr(user, 'address', None),
+                    "is_super_admin": admin_role.admin_level == "super_admin" if admin_role else False,
+                    "status": "active" if user.is_active else "inactive",
+                    "last_login": user.last_login.isoformat() if user.last_login else None,
+                    "created_at": user.created_at.isoformat() if user.created_at else None
                 }]
                 return {"admins": admin_list}
             else:
@@ -349,7 +352,6 @@ async def debug_auth_status(request: Request, db: Session = Depends(get_db)):
                     break
             except:
                 continue
-    print(f"🔍 Debug Auth Status: {auth_status} for token {token_value[:20] if token_value else 'None'}")
     
     return {
         "status": "debug_info",

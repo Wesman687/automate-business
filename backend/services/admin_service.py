@@ -1,6 +1,7 @@
+from models import Admin
+from services.base_service import BaseService
 from sqlalchemy.orm import Session
-from database.models import Admin
-from typing import Optional, List
+from typing import List, Optional
 import hashlib
 import os
 from datetime import datetime
@@ -43,12 +44,12 @@ class AdminService:
         self.db.commit()
         self.db.refresh(admin)
         return admin
-    
+        
     def get_admin_by_email(self, email: str) -> Optional[Admin]:
         """Get admin by email"""
         from sqlalchemy import func
         return self.db.query(Admin).filter(func.lower(Admin.email) == func.lower(email)).first()
-    
+
     def get_admin_by_username(self, username: str) -> Optional[Admin]:
         """Get admin by username"""
         return self.db.query(Admin).filter(Admin.username == username).first()
@@ -201,8 +202,3 @@ class AdminService:
         admin.updated_at = datetime.utcnow()
         self.db.commit()
         return True
-    
-    def get_admin_by_email(self, email: str) -> Optional[Admin]:
-        """Get admin by email"""
-        from sqlalchemy import func
-        return self.db.query(Admin).filter(func.lower(Admin.email) == func.lower(email)).first()

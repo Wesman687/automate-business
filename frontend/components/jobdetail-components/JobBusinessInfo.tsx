@@ -2,7 +2,7 @@
 
 import React, { useCallback } from 'react';
 import { Building2, Globe, Target } from 'lucide-react';
-import { Job } from '../interfaces/job';
+import { Job } from '@/types';
 import { FormField, FormInput, FormSelect } from '../ui';
 
 interface JobBusinessInfoProps {

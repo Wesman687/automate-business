@@ -2,7 +2,7 @@
 
 import React, { memo, useCallback, useMemo } from 'react';
 import { Target, Calendar, CheckCircle, AlertCircle, Trash2, Plus } from 'lucide-react';
-import { Milestone } from '../interfaces/job';
+import { Milestone } from '@/types';
 
 interface MilestoneManagerProps {
   milestones: Milestone[];

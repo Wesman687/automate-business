@@ -1,7 +1,8 @@
+from models import Appointment, User
+from services.base_service import BaseService
 from sqlalchemy.orm import Session
-from database.models import Appointment, User
+from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
-from typing import List, Optional
 
 class AppointmentService:
     def __init__(self, db: Session):

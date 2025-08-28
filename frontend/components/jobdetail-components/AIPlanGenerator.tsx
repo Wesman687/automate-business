@@ -3,7 +3,7 @@
 import React, { memo, useCallback, useState } from 'react';
 import { Sparkles, Target, Users, Calendar, DollarSign } from 'lucide-react';
 import { api } from '@/lib/https';
-import { Job } from '../interfaces/job';
+import { Job } from '@/types';
 
 interface AIPlanGeneratorProps {
   jobData: Job;

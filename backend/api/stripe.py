@@ -9,7 +9,7 @@ import stripe
 
 from database import get_db
 from services.stripe_service import StripeService
-from database.models import User
+from models import User
 from schemas.stripe import (
     CheckoutSessionCreate, SubscriptionCreate, CustomerPortalResponse,
     StripeProduct, StripePrice, StripeProductWithPrices, StripeSubscription,

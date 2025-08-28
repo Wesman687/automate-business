@@ -7,8 +7,10 @@ from typing import Dict, Any, Optional
 import logging
 
 from database import get_db
+from models import User
 from services.financial_service import FinancialService
-from database.models import User
+from api.auth import get_current_user
+from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 

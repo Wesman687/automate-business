@@ -8,9 +8,9 @@ import CustomerCard from '@/components/CustomerCard';
 import SmartAppointmentModal from '@/components/SmartAppointmentModal';
 import EditCustomerModal from '@/components/EditCustomerModal';
 import JobManagementPage from '@/components/JobManagementPage';
-import ErrorModal from '@/components/ErrorModal';
-import DeleteModal from '@/components/DeleteModal';
-import SuccessModal from '@/components/SuccessModal';
+import ErrorModal from '@/components/modals/ErrorModal';
+import DeleteModal from '@/components/modals/DeleteModal';
+import SuccessModal from '@/components/modals/SuccessModal';
 import FileManagementModal from '@/components/FileManagementModal';
 import JobDetailModal from '@/components/JobDetailModal';
 import { 
@@ -28,74 +28,11 @@ import {
   X,
   Trash2
 } from 'lucide-react';
+import { JobSetupData, Customer, Job, AppointmentExtended, UserType, UserStatus, AppointmentCreateRequest, AppointmentUpdateRequest } from '@/types';
 
-interface JobSetupData {
-  business_name: string;
-  business_type: string;
-  industry: string;
-  description: string;
-  project_title: string;
-  project_description: string;
-  project_goals: string;
-  target_audience: string;
-  timeline: string;
-  budget_range: string;
-  brand_colors: string[];
-  brand_style: string;
-  logo_files: number[];
-  brand_guidelines: string;
-  website_url: string;
-  github_url: string;
-  social_media: any;
-  project_files: number[];
-  reference_files: number[];
-  requirements_doc: string;
-}
 
-interface Customer {
-  id: number;
-  user_id: number;
-  email: string;
-  name: string;
-  phone?: string;
-  address?: string;
-  city?: string;
-  state?: string;
-  zip_code?: string;
-  country?: string;
-  business_site?: string;
-  business_type?: string;
-  additional_websites?: string;
-  status: string;
-  notes?: string;
-  file_path?: string;
-  created_at: string;
-  updated_at?: string;
-}
 
-interface Job {
-  id: number;
-  title: string;
-  description: string;
-  status: string;
-  created_at: string;
-  updated_at: string;
-}
 
-interface Appointment {
-  id?: number;
-  customer_id: number;
-  title: string;
-  description?: string;
-  appointment_date?: string;
-  appointment_time?: string;
-  scheduled_date?: string; // Alternative field name
-  scheduled_time?: string; // Alternative field name
-  duration_minutes?: number;
-  meeting_type?: string;
-  status: string;
-  notes?: string;
-}
 
 export default function CustomerDashboard() {
   const { user, loading } = useAuth();
@@ -107,13 +44,13 @@ export default function CustomerDashboard() {
   const [customerData, setCustomerData] = useState<Customer | null>(null);
   const [recentFiles, setRecentFiles] = useState([]);
   const [jobs, setJobs] = useState<Job[]>([]);
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
+  const [appointments, setAppointments] = useState<AppointmentExtended[]>([]);
+  const [editingAppointment, setEditingAppointment] = useState<AppointmentExtended | null>(null);
   const [showEditAppointmentModal, setShowEditAppointmentModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deletingAppointment, setDeletingAppointment] = useState<Appointment | null>(null);
+  const [deletingAppointment, setDeletingAppointment] = useState<AppointmentExtended | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
@@ -173,11 +110,6 @@ export default function CustomerDashboard() {
   const fetchJobs = async () => {
     try {
       setLoadingJobs(true);
-      console.log('🔍 Fetching jobs from /jobs/customer...');
-      console.log('👤 Current user:', user);
-      console.log('👤 User ID:', user?.user_id);
-      console.log('👤 User type:', user?.user_type);
-      console.log('🔑 Auth token exists:', !!localStorage.getItem('auth_token') || !!localStorage.getItem('customer_token'));
       
 
       
@@ -275,7 +207,7 @@ export default function CustomerDashboard() {
     }
   };
 
-  const handleScheduleAppointment = async (appointmentData: Appointment) => {
+  const handleScheduleAppointment = async (appointmentData: AppointmentCreateRequest | AppointmentUpdateRequest) => {
     try {
       // Ensure the appointment data has the correct structure
       const appointmentPayload = {
@@ -338,7 +270,7 @@ export default function CustomerDashboard() {
     setShowJobDetailModal(true);
   };
 
-  const editAppointment = (appointment: Appointment) => {
+  const editAppointment = (appointment: AppointmentExtended) => {
     setEditingAppointment(appointment);
     setShowEditAppointmentModal(true);
   };
@@ -373,8 +305,9 @@ export default function CustomerDashboard() {
   const transformUserToCustomer = (userData: any): Customer => {
     return {
       id: userData.id || userData.user_id,
-      user_id: userData.user_id || userData.id,
       email: userData.email,
+      user_type: UserType.CUSTOMER,
+      status: userData.status || UserStatus.ACTIVE,
       name: userData.name || userData.email?.split('@')[0] || 'Unknown',
       phone: userData.phone,
       address: userData.address,
@@ -385,7 +318,6 @@ export default function CustomerDashboard() {
       business_site: userData.business_site,
       business_type: userData.business_type,
       additional_websites: userData.additional_websites,
-      status: userData.status || 'active',
       notes: userData.notes,
       file_path: userData.file_path,
       created_at: userData.created_at,

@@ -1,13 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Response
 from sqlalchemy.orm import Session
+from database import get_db
+from models import Job, TimeEntry
+from services.job_service import JobService
+from api.auth import get_current_user, get_current_admin
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, date
+from pydantic import BaseModel
+from schemas.jobs import JobCreate, JobUpdate
 from sqlalchemy import or_
 
-from database import get_db
-from database.models import Job, TimeEntry
-from schemas.jobs import Job as JobSchema, JobCreate, JobUpdate
-from api.auth import get_current_admin, get_current_user
 from api.common import (
     success_response, 
     error_response, 

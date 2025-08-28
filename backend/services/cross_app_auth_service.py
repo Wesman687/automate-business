@@ -1,6 +1,7 @@
+from models import User
+from services.base_service import BaseService
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, func
-from database.models import User
 from models.cross_app_models import AppIntegration, CrossAppSession, AppCreditUsage, AppStatus, CrossAppSessionStatus
 from schemas.cross_app import AppPermission, CrossAppSessionCreate
 from services.auth_service import AuthService

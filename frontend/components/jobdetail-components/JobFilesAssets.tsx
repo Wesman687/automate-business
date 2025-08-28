@@ -4,7 +4,7 @@ import React, { useState, useCallback } from 'react';
 import { FileText, FolderOpen, Upload, Download, Trash2, Eye } from 'lucide-react';
 import FileManagementModal from '../FileManagementModal';
 
-import { Job, JobFile } from '../interfaces/job';
+import { Job, JobFile } from '@/types';
 
 interface JobFilesAssetsProps {
   data: Job;

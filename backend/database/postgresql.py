@@ -1,11 +1,15 @@
 """
-PostgreSQL Database Configuration
+PostgreSQL-specific database utilities
 """
 import os
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from models import Base
 from sqlalchemy import create_engine
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
-from database.models import Base
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from dotenv import load_dotenv
+load_dotenv()
 
 # Database configuration
 DB_HOST = os.getenv("DB_HOST", "localhost")

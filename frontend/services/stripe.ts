@@ -11,7 +11,7 @@ import {
   StripeProductWithPrices,
   ApiResponse,
   StripeError
-} from '../types/stripe';
+} from '@/types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || '';
 

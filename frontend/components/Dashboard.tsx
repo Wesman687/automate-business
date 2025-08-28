@@ -7,12 +7,21 @@ import ChangeRequestModal from './ChangeRequestModal';
 import SmartAppointmentModal from './SmartAppointmentModal';
 import EmailManager from './EmailManager';
 import CrossAppIntegrationModal from './CrossAppIntegrationModal';
-import { api } from '@/lib/https'; // ⬅️ use the shared API helper
+import { api } from '@/lib/https';
+import { 
+  CustomerChangeRequest,
+  Job,
+  Appointment,
+  ChatSession,
+  EmailAccount
+} from '@/types';
 
-interface ChangeRequest {
+// Adapter interfaces to match component expectations
+interface ChangeRequestAdapter {
   id: number;
-  job_id: number;
   customer_id: number;
+  customer_name?: string;
+  job_title?: string;
   title: string;
   description: string;
   status: 'pending' | 'in_progress' | 'completed' | 'rejected';
@@ -21,46 +30,32 @@ interface ChangeRequest {
   session_id?: string;
   created_at: string;
   updated_at?: string;
-  customer_name?: string;
-  job_title?: string;
 }
 
-interface Job {
-  id: number;
-  title: string;
-  status: string;
-  priority: string;
-  deadline?: string;
-  customer_name?: string;
-  progress_percentage: number;
-}
-
-interface Appointment {
+interface ChangeRequestModalAdapter {
   id: number;
   customer_id: number;
-  customer_name: string;
-  customer_email: string;
+  customer_name?: string;
+  job_title?: string;
   title: string;
   description: string;
-  appointment_date: string; // 'YYYY-MM-DD'
-  appointment_time: string; // 'HH:MM:SS'
-  duration_minutes: number;
-  meeting_type: string;
-  status: string;
-  notes: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'rejected';
+  priority: 'low' | 'normal' | 'high' | 'urgent';
+  requested_via: string;
+  session_id?: string;
   created_at: string;
+  updated_at?: string;
 }
 
-interface ChatLog {
-  id: number;
-  session_id: string;
-  customer?: { id: number | null; name: string; email: string };
-  status: string;
-  is_seen: boolean;
-  created_at: string;
-  updated_at: string | null;
-  message_count: number;
-  latest_message?: { text: string; timestamp: string; is_bot: boolean } | null;
+interface AppointmentModalAdapter extends Appointment {
+  customer_name: string;
+  customer_email: string;
+  title?: string;
+  description?: string;
+  appointment_date?: string;
+  appointment_time?: string;
+  meeting_type?: string;
+  notes?: string;
 }
 
 interface DashboardStats {
@@ -71,11 +66,11 @@ interface DashboardStats {
 }
 
 export default function Dashboard() {
-  const [changeRequests, setChangeRequests] = useState<ChangeRequest[]>([]);
+  const [changeRequests, setChangeRequests] = useState<CustomerChangeRequest[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [chatLogs, setChatLogs] = useState<ChatLog[]>([]);
-  const [unreadEmails, setUnreadEmails] = useState<any[]>([]);
+  const [chatLogs, setChatLogs] = useState<ChatSession[]>([]);
+  const [unreadEmails, setUnreadEmails] = useState<EmailAccount[]>([]);
   const [showEmailManager, setShowEmailManager] = useState(false);
   const [selectedEmailId, setSelectedEmailId] = useState<string | undefined>();
   const [showCrossAppModal, setShowCrossAppModal] = useState(false);
@@ -88,7 +83,7 @@ export default function Dashboard() {
   });
 
   const [loading, setLoading] = useState(true);
-  const [selectedRequest, setSelectedRequest] = useState<ChangeRequest | null>(null);
+  const [selectedRequest, setSelectedRequest] = useState<CustomerChangeRequest | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
@@ -98,28 +93,98 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Helper function to convert CustomerChangeRequest to ChangeRequestAdapter
+  const adaptChangeRequest = (request: CustomerChangeRequest): ChangeRequestAdapter => ({
+    id: request.id,
+    customer_id: request.customer_id,
+    title: request.title,
+    description: request.description,
+    status: request.status as 'pending' | 'in_progress' | 'completed' | 'rejected',
+    priority: 'normal', // Default priority since CustomerChangeRequest doesn't have it
+    requested_via: request.requested_via,
+    session_id: request.session_id,
+    created_at: request.created_at,
+    updated_at: request.updated_at,
+    customer_name: request.user?.name,
+    job_title: request.job?.title
+  });
+
+  // Helper function to convert CustomerChangeRequest to ChangeRequestModalAdapter
+  const adaptChangeRequestForModal = (request: CustomerChangeRequest): ChangeRequestModalAdapter => ({
+    id: request.id,
+    customer_id: request.customer_id,
+    title: request.title,
+    description: request.description,
+    status: request.status as 'pending' | 'in_progress' | 'completed' | 'rejected',
+    priority: 'normal', // Default priority since CustomerChangeRequest doesn't have it
+    requested_via: request.requested_via,
+    session_id: request.session_id,
+    created_at: request.created_at,
+    updated_at: request.updated_at,
+    customer_name: request.user?.name,
+    job_title: request.job?.title
+  });
+
+  // Helper function to convert Appointment to AppointmentModalAdapter
+  const adaptAppointmentForModal = (appointment: Appointment): AppointmentModalAdapter => ({
+    id: appointment.id,
+    customer_id: appointment.customer_id,
+    customer_name: appointment.customer?.name || 'Unknown Customer',
+    customer_email: appointment.customer?.email || 'unknown@example.com',
+    title: appointment.appointment_type || 'General Meeting',
+    description: appointment.notes || '',
+    appointment_date: appointment.scheduled_date.split('T')[0], // Extract date part
+    appointment_time: appointment.scheduled_date.split('T')[1]?.split('.')[0] || '00:00:00', // Extract time part
+    duration_minutes: appointment.duration_minutes,
+    meeting_type: appointment.appointment_type || 'video_call',
+    status: 'scheduled',
+    notes: appointment.notes || ''
+  });
+
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
       const [overviewR, requestsR, appointmentsR, sessionsR, emailsR] =
         await Promise.allSettled([
           api.get<any>('/admin/overview'),
-          api.get<{ change_requests: ChangeRequest[] }>('/change-requests'),
+          api.get<{ change_requests: CustomerChangeRequest[] }>('/change-requests'),
           api.get<Appointment[]>('/appointments?upcoming=true'),
-          api.get<ChatLog[]>('/sessions'),
-          api.get<{ emails: any[]; count?: number }>('/email/unread'),
+          api.get<ChatSession[]>('/sessions'),
+          api.get<{ emails: EmailAccount[]; count?: number }>('/email/unread'),
         ]);
 
       // Overview / stats
       if (overviewR.status === 'fulfilled' && overviewR.value) {
-        const s =
-          overviewR.value.stats ?? {
-            pending_change_requests: 0,
-            new_chat_logs: 0,
-            upcoming_appointments: 0,
-            unread_emails: 0,
-          };
+        const overview = overviewR.value;
+        console.log('Admin overview response:', overview); // Debug log
+        
+        // Map the overview stats to our expected format
+        const s = {
+          pending_change_requests: overview.stats?.total_change_requests || 0,
+          new_chat_logs: 0, // Will be set from sessions
+          upcoming_appointments: overview.stats?.total_appointments || 0,
+          unread_emails: 0, // Will be set from emails
+        };
         setStats((prev) => ({ ...prev, ...s }));
+        
+        // Use appointments from overview if available
+        if (overview.upcoming_appointments && Array.isArray(overview.upcoming_appointments)) {
+          // Transform the overview appointments to match our Appointment type
+          const transformedAppointments = overview.upcoming_appointments.map((apt: any) => ({
+            id: apt.id,
+            customer_id: 0, // We don't have this in overview
+            scheduled_date: new Date().toISOString(), // We'll need to parse the scheduled_time
+            duration_minutes: parseInt(apt.duration) || 30,
+            appointment_type: apt.type || 'General Meeting',
+            status: 'confirmed' as any, // Use a valid AppointmentStatus
+            notes: '',
+            customer: {
+              name: apt.customer_name || 'Unknown Customer',
+              email: apt.customer_email || 'unknown@example.com'
+            }
+          }));
+          setAppointments(transformedAppointments);
+        }
       }
 
       // Change requests
@@ -127,8 +192,8 @@ export default function Dashboard() {
         setChangeRequests(requestsR.value.change_requests || []);
       }
 
-      // Appointments + compute upcoming count
-      if (appointmentsR.status === 'fulfilled') {
+      // Appointments + compute upcoming count (fallback if overview doesn't have them)
+      if (appointmentsR.status === 'fulfilled' && (overviewR.status !== 'fulfilled' || !overviewR.value?.upcoming_appointments)) {
         const list = Array.isArray(appointmentsR.value) ? appointmentsR.value : [];
         setAppointments(list);
 
@@ -137,9 +202,7 @@ export default function Dashboard() {
 
         const upcomingCount = list.filter((apt) => {
           try {
-            const dateTimeString = apt.appointment_time
-              ? `${apt.appointment_date}T${apt.appointment_time}`
-              : `${apt.appointment_date}T00:00:00`;
+            const dateTimeString = apt.scheduled_date;
             const d = new Date(dateTimeString);
             return !isNaN(d.getTime()) && d >= today;
           } catch {
@@ -188,19 +251,19 @@ export default function Dashboard() {
     try {
       await api.put(`/change-requests/${requestId}`, { status: newStatus });
       setChangeRequests((prev) =>
-        prev.map((r) => (r.id === requestId ? { ...r, status: newStatus as any } : r))
+        prev.map((r) => (r.id === requestId ? { ...r, status: newStatus } : r))
       );
     } catch (e) {
       console.error('Error updating change request:', e);
     }
   };
 
-  const handleEditRequest = (request: ChangeRequest) => {
+  const handleEditRequest = (request: CustomerChangeRequest) => {
     setSelectedRequest(request);
     setShowEditModal(true);
   };
 
-  const handleSaveRequest = async (updated: Partial<ChangeRequest>) => {
+  const handleSaveRequest = async (updated: Partial<ChangeRequestModalAdapter>) => {
     try {
       await api.put(`/change-requests/${updated.id}`, updated);
       setChangeRequests((prev) => prev.map((r) => (r.id === updated.id ? { ...r, ...updated } : r)));
@@ -225,18 +288,13 @@ export default function Dashboard() {
     }
   };
 
-
-
   const pendingRequests = changeRequests.filter((r) => r.status === 'pending');
   const inProgressRequests = changeRequests.filter((r) => r.status === 'in_progress');
   const newChatLogs = chatLogs;
 
   const upcomingAppointments = appointments.filter((apt) => {
     try {
-      const dateTimeString = apt.appointment_time
-        ? `${apt.appointment_date}T${apt.appointment_time}`
-        : `${apt.appointment_date}T00:00:00`;
-      const d = new Date(dateTimeString);
+      const d = new Date(apt.scheduled_date);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       return !isNaN(d.getTime()) && d >= today;
@@ -305,335 +363,170 @@ export default function Dashboard() {
           className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-6 cursor-pointer hover:bg-white/10 transition-colors"
         >
           <div className="flex items-center">
-            <Link className="h-8 w-8 text-cyan-400" />
+            <Link className="h-8 w-8 text-orange-400" />
             <div className="ml-4">
               <p className="text-2xl font-semibold text-white">+</p>
-              <p className="text-sm text-gray-300">Add New App</p>
+              <p className="text-sm text-gray-300">Cross-App</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Pending Change Requests */}
+      {/* Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-white flex items-center">
-              <AlertCircle className="h-5 w-5 text-red-400 mr-2" />
-              Pending Change Requests
-            </h2>
-            <span className="bg-red-400/20 text-red-300 text-xs font-medium px-2.5 py-0.5 rounded-full">
-              {pendingRequests.length}
+        {/* Change Requests */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-white">Change Requests</h2>
+            <span className="text-sm text-gray-400">
+              {pendingRequests.length} pending, {inProgressRequests.length} in progress
             </span>
           </div>
 
-          <div className="space-y-3 max-h-96 overflow-y-auto">
-            {pendingRequests.length === 0 ? (
-              <p className="text-gray-400 text-sm">No pending change requests</p>
-            ) : (
-              pendingRequests.map((req) => (
-                <ChangeRequestCard
-                  key={req.id}
-                  request={req}
-                  showJobInfo
-                  onStatusUpdate={updateChangeRequestStatus}
-                  onEdit={handleEditRequest}
-                />
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* Unseen Chat Logs */}
-        <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-white flex items-center">
-              <MessageSquare className="h-5 w-5 text-blue-400 mr-2" />
-              Unseen Chat Logs
-            </h2>
-            <span className="bg-blue-400/20 text-blue-300 text-xs font-medium px-2.5 py-0.5 rounded-full">
-              {newChatLogs.length}
-            </span>
-          </div>
-
-          <div className="space-y-3 max-h-96 overflow-y-auto">
-            {newChatLogs.length === 0 ? (
-              <p className="text-gray-400 text-sm">No unseen chat logs</p>
-            ) : (
-              newChatLogs.map((log) => (
-                <div key={log.id} className="border border-white/10 rounded-lg p-4 bg-white/5">
-                  <div className="flex items-center justify-between mb-2">
-                    <div>
-                      <h3 className="font-medium text-white">{log.customer?.name || 'Anonymous'}</h3>
-                      <p className="text-sm text-gray-300">{log.customer?.email || 'Unknown'}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium text-white">
-                        {new Date(log.created_at).toLocaleTimeString('en-US', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </p>
-                      <p className="text-xs text-gray-400">{log.message_count} messages</p>
-                    </div>
-                  </div>
-                  {log.latest_message && (
-                    <p className="text-sm text-gray-300 truncate mb-2">{log.latest_message.text}</p>
-                  )}
-                  <div className="mt-2 flex justify-between items-center">
-                    <button
-                      onClick={() => markChatLogAsSeen(log.session_id)}
-                      className="text-xs bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded font-medium transition-colors"
-                    >
-                      Mark as Seen
-                    </button>
-                    <button
-                      onClick={() => window.open(`/admin/chat-logs/${log.session_id}`, '_blank')}
-                      className="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors"
-                    >
-                      View Full Log →
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Upcoming Appointments & Unread Emails */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Appointments */}
-        <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-white flex items-center">
-              <Calendar className="h-5 w-5 text-green-400 mr-2" />
-              Upcoming Appointments
-            </h2>
-            <span className="bg-green-400/20 text-green-300 text-xs font-medium px-2.5 py-0.5 rounded-full">
-              {upcomingAppointments.length}
-            </span>
-          </div>
-
-          <div className="space-y-3 max-h-96 overflow-y-auto">
-            {upcomingAppointments.length === 0 ? (
-              <p className="text-gray-400 text-sm">No upcoming appointments</p>
-            ) : (
-              upcomingAppointments.map((apt) => (
-                <div
-                  key={apt.id}
-                  className="border border-white/10 rounded-lg p-4 bg-white/5 hover:bg-white/10 transition-colors"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div>
-                      <h3 className="font-medium text-white">{apt.customer_name}</h3>
-                      <p className="text-sm text-gray-300">{apt.meeting_type}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium text-white">
-                        {(() => {
-                          try {
-                            const s = apt.appointment_time
-                              ? `${apt.appointment_date}T${apt.appointment_time}`
-                              : `${apt.appointment_date}T00:00:00`;
-                            const d = new Date(s);
-                            return isNaN(d.getTime())
-                              ? 'Invalid Date'
-                              : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                          } catch {
-                            return 'Invalid Date';
-                          }
-                        })()}
-                      </p>
-                      <p className="text-xs text-gray-400">
-                        {(() => {
-                          try {
-                            const s = apt.appointment_time
-                              ? `${apt.appointment_date}T${apt.appointment_time}`
-                              : `${apt.appointment_date}T00:00:00`;
-                            const d = new Date(s);
-                            return isNaN(d.getTime())
-                              ? 'Invalid Time'
-                              : d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-                          } catch {
-                            return 'Invalid Time';
-                          }
-                        })()}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between mb-3">
-                    <span
-                      className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        apt.status === 'confirmed'
-                          ? 'bg-green-400/20 text-green-300'
-                          : 'bg-yellow-400/20 text-yellow-300'
-                      }`}
-                    >
-                      {apt.status}
-                    </span>
-                    <span className="text-xs text-gray-400">{apt.duration_minutes} min</span>
-                  </div>
-                  <div className="flex gap-2 mt-2">
-                    <button
-                      onClick={() => handleEditAppointment(apt)}
-                      className="text-xs bg-blue-600/80 hover:bg-blue-600 text-white px-6 py-1 rounded text-center font-medium transition-colors"
-                    >
-                      Edit
-                    </button>
-
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* Unread Emails */}
-        <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-white flex items-center">
-              <Mail className="h-5 w-5 text-purple-400 mr-2" />
-              Unread Emails
-            </h2>
-            <div className="flex items-center space-x-3">
-              <span className="bg-purple-400/20 text-purple-300 text-xs font-medium px-2.5 py-0.5 rounded-full">
-                {unreadEmails.length}
-              </span>
-              <button
-                onClick={() => setShowEmailManager(true)}
-                className="bg-purple-500 hover:bg-purple-600 text-white px-3 py-1.5 rounded-lg flex items-center space-x-2 transition-colors text-sm"
-              >
-                <Mail className="h-4 w-4" />
-                <span>Email Manager</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="space-y-3 max-h-96 overflow-y-auto">
-            {unreadEmails.length === 0 ? (
-              <p className="text-gray-400 text-sm">No unread emails</p>
-            ) : (
-              unreadEmails.map((email) => (
-                <div
-                  key={email.id}
-                  onClick={() => {
-                    setSelectedEmailId(email.id);
-                    setShowEmailManager(true);
-                  }}
-                  className="border border-white/10 rounded-lg p-4 bg-white/5 cursor-pointer hover:bg-white/10 transition-colors"
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-medium text-white truncate">{email.from}</h3>
-                        {email.is_important && (
-                          <span className="bg-red-400/20 text-red-300 text-xs font-medium px-1.5 py-0.5 rounded-full">
-                            !
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-sm font-medium text-gray-200 truncate">{email.subject}</p>
-                    </div>
-                    <div className="text-right ml-2">
-                      <p className="text-xs text-gray-400">
-                        {new Date(email.received_date).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                        })}
-                      </p>
-                      <span className="text-xs bg-white/10 text-gray-300 px-2 py-1 rounded">
-                        {email.account}
-                      </span>
-                    </div>
-                  </div>
-                  <p className="text-sm text-gray-300 truncate mb-2">{email.preview}</p>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-6">
-        <h2 className="text-lg font-semibold text-white mb-4 flex items-center">
-          <Link className="h-5 w-5 text-cyan-400 mr-2" />
-          Cross-App Integrations
-        </h2>
-        <div className="flex items-center justify-between">
-          <p className="text-gray-400">
-            Manage external app integrations and monitor usage
-          </p>
-          <a
-            href="/admin/cross-app"
-            className="px-4 py-2 bg-cyan-400 hover:bg-cyan-500 text-white font-medium rounded-lg transition-colors"
-          >
-            Manage Integrations
-          </a>
-        </div>
-      </div>
-
-      {/* In Progress */}
-      {inProgressRequests.length > 0 && (
-        <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-white flex items-center">
-              <Clock className="h-5 w-5 text-blue-400 mr-2" />
-              In Progress Change Requests
-            </h2>
-            <span className="bg-blue-400/20 text-blue-300 text-xs font-medium px-2.5 py-0.5 rounded-full">
-              {inProgressRequests.length}
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {inProgressRequests.map((req) => (
+          <div className="space-y-3">
+            {pendingRequests.slice(0, 3).map((request) => (
               <ChangeRequestCard
-                key={req.id}
-                request={req}
-                showJobInfo
-                onStatusUpdate={updateChangeRequestStatus}
-                onEdit={handleEditRequest}
+                key={request.id}
+                request={adaptChangeRequest(request)}
+                onEdit={() => handleEditRequest(request)}
+                onStatusUpdate={(requestId, status) => updateChangeRequestStatus(requestId, status)}
               />
             ))}
+            {pendingRequests.length === 0 && (
+              <p className="text-gray-400 text-center py-4">No pending change requests</p>
+            )}
           </div>
         </div>
-      )}
+
+        {/* Chat Logs */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-white">Recent Chat Sessions</h2>
+            <span className="text-sm text-gray-400">{newChatLogs.length} unseen</span>
+          </div>
+
+          <div className="space-y-3">
+            {newChatLogs.slice(0, 3).map((chat) => (
+              <div
+                key={chat.id}
+                className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-4 cursor-pointer hover:bg-white/10 transition-colors"
+                onClick={() => markChatLogAsSeen(chat.session_id)}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-white font-medium">
+                      {chat.customer?.name || 'Anonymous User'}
+                    </p>
+                    <p className="text-gray-400 text-sm">
+                      {chat.customer?.email || 'No email'}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-gray-500">
+                      {new Date(chat.created_at).toLocaleDateString()}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {new Date(chat.created_at).toLocaleTimeString()}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-2 flex items-center justify-between">
+                  <span className="text-xs text-gray-400">
+                    Session: {chat.session_id.slice(0, 8)}...
+                  </span>
+                  <span className="text-xs text-blue-400">Click to mark as seen</span>
+                </div>
+              </div>
+            ))}
+            {newChatLogs.length === 0 && (
+              <p className="text-gray-400 text-center py-4">No unseen chat sessions</p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Appointments Section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold text-white">Upcoming Appointments</h2>
+          <button
+            onClick={() => setShowAppointmentModal(true)}
+            className="px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors"
+          >
+            Schedule New
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {upcomingAppointments.slice(0, 6).map((appointment) => (
+            <div
+              key={appointment.id}
+              className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-4 cursor-pointer hover:bg-white/10 transition-colors"
+              onClick={() => handleEditAppointment(appointment)}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-white font-medium">{appointment.customer?.name || 'Unknown Customer'}</h3>
+                <span className="text-xs text-gray-400">
+                  {appointment.duration_minutes} min
+                </span>
+              </div>
+              <p className="text-gray-300 text-sm mb-2">
+                {appointment.appointment_type || 'General Meeting'}
+              </p>
+              <div className="flex items-center text-gray-400 text-xs">
+                <Calendar className="h-3 w-3 mr-1" />
+                {new Date(appointment.scheduled_date).toLocaleDateString()}
+              </div>
+              <div className="flex items-center text-gray-400 text-xs mt-1">
+                <Clock className="h-3 w-3 mr-1" />
+                {new Date(appointment.scheduled_date).toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </div>
+              {appointment.notes && (
+                <p className="text-gray-500 text-xs mt-2 truncate">{appointment.notes}</p>
+              )}
+            </div>
+          ))}
+          {upcomingAppointments.length === 0 && (
+            <p className="text-gray-400 text-center py-4 col-span-full">No upcoming appointments</p>
+          )}
+        </div>
+      </div>
 
       {/* Modals */}
-      <ChangeRequestModal
-        request={selectedRequest}
-        isOpen={showEditModal}
-        onClose={() => {
-          setShowEditModal(false);
-          setSelectedRequest(null);
-        }}
-        onSave={handleSaveRequest}
-      />
-
-      <SmartAppointmentModal
-        isOpen={showAppointmentModal}
-        onClose={() => {
-          setShowAppointmentModal(false);
-          setEditingAppointment(null);
-        }}
-        onSave={handleAppointmentSave}
-        appointment={editingAppointment}
-      />
-
-      {/* Email Manager */}
-      {showEmailManager && (
-        <EmailManager
-          isOpen={showEmailManager}
+      {showEditModal && selectedRequest && (
+        <ChangeRequestModal
+          request={adaptChangeRequestForModal(selectedRequest)}
+          isOpen={showEditModal}
           onClose={() => {
-            setShowEmailManager(false);
-            setSelectedEmailId(undefined);
+            setShowEditModal(false);
+            setSelectedRequest(null);
           }}
+          onSave={handleSaveRequest}
         />
       )}
 
-      {/* Cross-App Integration Modal */}
+      {showAppointmentModal && (
+        <SmartAppointmentModal
+          isOpen={showAppointmentModal}
+          onClose={() => {
+            setShowAppointmentModal(false);
+            setEditingAppointment(null);
+          }}
+          onSave={handleAppointmentSave}
+          appointment={editingAppointment ? adaptAppointmentForModal(editingAppointment) : null}
+        />
+      )}
+
+      {showEmailManager && (
+        <EmailManager
+          isOpen={showEmailManager}
+          onClose={() => setShowEmailManager(false)}
+        />
+      )}
+
       {showCrossAppModal && (
         <CrossAppIntegrationModal
           isOpen={showCrossAppModal}

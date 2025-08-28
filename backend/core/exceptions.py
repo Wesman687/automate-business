@@ -1,47 +1,31 @@
-class BaseException(Exception):
-    """Base exception for the application"""
+"""
+Core exception classes for the application
+"""
+
+class InsufficientCreditsError(Exception):
+    """Raised when a user doesn't have enough credits for an operation"""
     pass
 
-class UserNotFoundError(BaseException):
-    """Raised when a user is not found"""
+class UserNotFoundError(Exception):
+    """Raised when a user cannot be found"""
     pass
 
-class InsufficientCreditsError(BaseException):
-    """Raised when user doesn't have enough credits"""
+class CreditServiceError(Exception):
+    """Raised when there's an error in the credit service"""
     pass
 
-class CreditServiceError(BaseException):
-    """Raised when there's an error with the credit service"""
+class TransactionError(Exception):
+    """Raised when there's an error in a transaction"""
     pass
 
-class InvalidAmountError(BaseException):
+class InvalidAmountError(Exception):
     """Raised when an invalid amount is provided"""
     pass
 
-class TransactionError(BaseException):
-    """Raised when there's an error with a transaction"""
-    pass
-
-class SubscriptionError(BaseException):
-    """Raised when there's an error with subscriptions"""
-    pass
-
-class DisputeError(BaseException):
+class DisputeError(Exception):
     """Raised when there's an error with disputes"""
     pass
 
-class StripeError(BaseException):
-    """Raised when there's an error with Stripe operations"""
-    pass
-
-class ValidationError(BaseException):
+class ValidationError(Exception):
     """Raised when validation fails"""
-    pass
-
-class AuthenticationError(BaseException):
-    """Raised when authentication fails"""
-    pass
-
-class AuthorizationError(BaseException):
-    """Raised when user doesn't have permission"""
     pass

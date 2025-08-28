@@ -1,6 +1,9 @@
 import os
 from typing import Optional
-from database.models import User
+from models import User
+from services.file_upload_service import FileUploadService
+from sqlalchemy.orm import Session
+from typing import List, Optional, Dict, Any
 
 
 class CustomerFileManager:

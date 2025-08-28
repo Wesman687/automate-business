@@ -1,15 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-
-interface User {
-  id: number;
-  email: string;
-  first_name?: string;
-  last_name?: string;
-  credits: number;
-  credit_status: string;
-}
+import { User, CreditTransaction, StripeProduct } from '@/types';
 
 interface FinancialOverview {
   total_users: number;
@@ -24,30 +16,12 @@ interface MonthlyStats {
   net_change: number;
 }
 
-interface Transaction {
-  id: string;
-  user_id: number;
+interface Transaction extends CreditTransaction {
   user_email: string;
-  amount: number;
-  description: string;
-  created_at: string;
-  type: 'credit' | 'debit';
+  type: 'credit' | 'debit'; // For display purposes
   job_id?: string;
   subscription_id?: string;
   stripe_payment_intent_id?: string;
-}
-
-interface StripeProduct {
-  id: string;
-  name: string;
-  description?: string;
-  prices: Array<{
-    id: string;
-    amount: number;
-    currency: string;
-    interval: string;
-    interval_count: number;
-  }>;
 }
 
 interface FinancialDashboardData {
@@ -628,7 +602,7 @@ const AdminFinancialDashboard: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         {transaction.stripe_payment_intent_id && (
                           <button
-                            onClick={() => handleRefundTransaction(transaction.id, transaction.stripe_payment_intent_id)}
+                            onClick={() => handleRefundTransaction(transaction.id.toString(), transaction.stripe_payment_intent_id)}
                             className="text-red-600 hover:text-red-900 mr-2"
                           >
                             Refund

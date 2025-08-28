@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
 """
-Credit System Client - SDK for other applications to integrate with the credit system
-
-This client provides a simple interface for:
-- Checking credit balances
-- Consuming credits for services
-- Handling insufficient credits
-- Logging credit transactions
+Credit client service for managing credit operations
 """
-
 import logging
-from typing import Optional, Dict, Any, List
-from datetime import datetime, timedelta
+from typing import Dict, Any, Optional, List
 from sqlalchemy.orm import Session
-from database import get_db
-from database.models import User, CreditTransaction
+from sqlalchemy import and_, or_, func
+from datetime import datetime, timedelta
+import hashlib
+import secrets
+
+from models import User, CreditTransaction
+from services.base_service import BaseService
+from services.stripe_service import StripeService
+from services.email_service import EmailService
 from core.exceptions import InsufficientCreditsError, UserNotFoundError, CreditServiceError
+from database import get_db
 
 logger = logging.getLogger(__name__)
 

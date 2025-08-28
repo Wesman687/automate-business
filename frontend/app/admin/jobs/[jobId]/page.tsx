@@ -8,7 +8,7 @@ import EditJobModal from '../../../../components/EditJobModal';
 import ChangeRequestCard from '../../../../components/ChangeRequestCard';
 import ChangeRequestModal from '../../../../components/ChangeRequestModal';
 import { api } from '@/lib/https';
-import { Job, JobStatus, JobPriority } from '@/components/interfaces/job';
+import { Job, JobStatus, JobPriority, CustomerChangeRequest } from '@/types';
 
 interface Customer {
   id: number;
@@ -16,19 +16,26 @@ interface Customer {
   email: string;
 }
 
-interface ChangeRequest {
-  id: number;
-  job_id: number;
-  customer_id: number;
-  title: string;
-  description: string;
-  status: 'pending' | 'in_progress' | 'completed' | 'rejected';
-  priority: 'low' | 'normal' | 'high' | 'urgent';
-  requested_via: string;
+// Adapter interface for compatibility with components
+interface ChangeRequest extends CustomerChangeRequest {
+  customer_id: number; // Map user_id to customer_id for compatibility
+  status: 'pending' | 'in_progress' | 'completed' | 'rejected'; // Override string type
+  priority: 'low' | 'normal' | 'high' | 'urgent'; // Override JobPriority enum
+  customer_name?: string;
+  job_title?: string;
   session_id?: string;
-  created_at: string;
-  updated_at?: string;
 }
+
+// Helper function to convert JobPriority to component priority
+const convertPriority = (priority: JobPriority): 'low' | 'normal' | 'high' | 'urgent' => {
+  switch (priority) {
+    case JobPriority.LOW: return 'low';
+    case JobPriority.MEDIUM: return 'normal';
+    case JobPriority.HIGH: return 'high';
+    case JobPriority.URGENT: return 'urgent';
+    default: return 'normal';
+  }
+};
 
 interface ResourceCategory {
   id: string;
@@ -51,7 +58,7 @@ export default function JobDetail() {
   
   const [job, setJob] = useState<Job | null>(null);
   const [customer, setCustomer] = useState<Customer | null>(null);
-  const [changeRequests, setChangeRequests] = useState<ChangeRequest[]>([]);
+  const [changeRequests, setChangeRequests] = useState<CustomerChangeRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editingSection, setEditingSection] = useState<string | null>(null);
@@ -60,7 +67,7 @@ export default function JobDetail() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingStatus, setEditingStatus] = useState(false);
   const [editingPriority, setEditingPriority] = useState(false);
-  const [selectedRequest, setSelectedRequest] = useState<ChangeRequest | null>(null);
+  const [selectedRequest, setSelectedRequest] = useState<CustomerChangeRequest | null>(null);
   const [showChangeRequestModal, setShowChangeRequestModal] = useState(false);
 
   useEffect(() => {
@@ -162,12 +169,12 @@ export default function JobDetail() {
     }
   };
 
-  const handleEditRequest = (request: ChangeRequest) => {
+  const handleEditRequest = (request: CustomerChangeRequest) => {
     setSelectedRequest(request);
     setShowChangeRequestModal(true);
   };
 
-  const handleSaveRequest = async (updatedRequest: Partial<ChangeRequest>) => {
+  const handleSaveRequest = async (updatedRequest: Partial<CustomerChangeRequest>) => {
     try {
       const token = localStorage.getItem('admin_token');
       const response = await api.put(`/admin/change-requests/${updatedRequest.id}`, updatedRequest);

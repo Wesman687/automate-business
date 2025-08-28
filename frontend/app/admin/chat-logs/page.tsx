@@ -4,24 +4,8 @@ import { useEffect, useState } from 'react';
 import { Eye, Trash2, Search, Filter } from 'lucide-react';
 import Link from 'next/link';
 import { api } from '@/lib/https';
-import ErrorModal from '@/components/ErrorModal';
-
-interface Customer {
-  id: number;
-  name: string;
-  email: string;
-  business_type?: string;
-}
-
-interface ChatSession {
-  session_id: string;
-  customer?: Customer;
-  status: string;
-  is_seen: boolean;
-  created_at: string;
-  updated_at: string;
-  message_count: number;
-}
+import ErrorModal from '@/components/modals/ErrorModal';
+import { ChatSession } from '@/types';
 
 export default function ChatLogs() {
   const [sessions, setSessions] = useState<ChatSession[]>([]);

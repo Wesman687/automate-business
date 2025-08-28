@@ -25,4 +25,4 @@ export { SocialMediaManager } from './SocialMediaManager';
 export { AdditionalResources } from './AdditionalResources';
 
 // Export types for use in other components
-export type { Job, JobDetailData, JobFormData, Milestone, Deliverable, JobFile, FinancialBreakdown } from '../interfaces/job';
+export type { Job, JobDetailData, JobFormData, Milestone, Deliverable, JobFile, FinancialBreakdown } from '@/types';

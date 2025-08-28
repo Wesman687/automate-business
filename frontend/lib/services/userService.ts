@@ -11,7 +11,7 @@ import {
   BulkUserStatusUpdate,
   ApiResponse,
   PaginatedResponse
-} from '@/types/user';
+} from '@/types';
 
 export class UserService {
   private baseUrl = '/api/users';

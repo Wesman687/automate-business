@@ -23,7 +23,7 @@ class ExtractorSchema(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relationships
-    user = relationship("User", back_populates="extractor_schemas")
+    user = relationship("User")  # Removed back_populates to avoid circular dependency
     scraping_jobs = relationship("ScrapingJob", back_populates="extractor_schema")
     
     def __repr__(self):
@@ -48,7 +48,7 @@ class ScrapingJob(Base):
     schedule_timezone = Column(String(100), nullable=True)
     
     # Relationships
-    user = relationship("User", back_populates="scraping_jobs")
+    user = relationship("User")  # Removed back_populates to avoid circular dependency
     extractor_schema = relationship("ExtractorSchema", back_populates="scraping_jobs")
     runs = relationship("Run", back_populates="job")
     
@@ -120,7 +120,7 @@ class Export(Base):
     
     # Relationships
     run = relationship("Run", back_populates="exports")
-    user = relationship("User", back_populates="exports")
+    user = relationship("User")  # Removed back_populates to avoid circular dependency
     
     def __repr__(self):
         return f"<Export(id={self.id}, run_id={self.run_id}, format='{self.format}', status='{self.status}')>"

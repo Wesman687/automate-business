@@ -2,7 +2,7 @@
 
 import React, { useCallback } from 'react';
 import { Globe } from 'lucide-react';
-import { Job } from '../interfaces/job';
+import { Job } from '@/types';
 import { WebsiteLinks } from './WebsiteLinks';
 import { SocialMediaManager } from './SocialMediaManager';
 import { AdditionalResources } from './AdditionalResources';

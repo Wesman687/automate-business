@@ -2,7 +2,7 @@
 
 import React, { memo, useCallback, useMemo } from 'react';
 import { FileText, Calendar, CheckCircle, AlertCircle, Trash2, Plus } from 'lucide-react';
-import { Deliverable } from '../interfaces/job';
+import { Deliverable } from '@/types';
 
 interface DeliverableManagerProps {
   deliverables: Deliverable[];

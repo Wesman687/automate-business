@@ -99,7 +99,7 @@ class UserSubscription(Base):
     # Relationships
     user = relationship("User", back_populates="subscriptions")
     package = relationship("CreditPackage", back_populates="subscriptions")
-    credit_transactions = relationship("CreditTransaction", back_populates="subscription")
+    # Removed credit_transactions relationship - database doesn't have proper foreign key structure
     
     def __repr__(self):
         return f"<UserSubscription(id={self.id}, user_id={self.user_id}, package_id={self.package_id}, status={self.status})>"
@@ -123,7 +123,7 @@ class CreditDispute(Base):
     resolved_amount = Column(Integer, nullable=True)  # Credits actually refunded
     
     # Admin handling
-    admin_id = Column(Integer, ForeignKey("admins.id"), nullable=True)  # Admin handling the dispute
+    admin_id = Column(Integer, ForeignKey("admin.id"), nullable=True)  # Admin handling the dispute
     admin_notes = Column(Text, nullable=True)
     resolution_notes = Column(Text, nullable=True)
     

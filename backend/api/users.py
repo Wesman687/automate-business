@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from models import User
+from services.user_service import UserService
+from api.auth import get_current_user, get_current_admin
+from database import get_db
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from database import get_db
-from database.models import User
-from api.auth import get_current_user, get_current_admin
-from services.user_service import UserService
 from schemas.user import (
     UserCreate, UserUpdate, UserResponse, CustomerResponse, AdminResponse,
     UserListResponse, UserFilter, UserStats, BulkUserUpdate, BulkUserStatusUpdate,

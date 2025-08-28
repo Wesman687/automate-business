@@ -5,6 +5,10 @@ import { MessageSquare, Send, Upload, X, User, Bot, Mail, Building, Phone, FileU
 import { motion, AnimatePresence } from 'framer-motion'
 import NotificationComponent from './NotificationComponent'
 import { api } from '@/lib/https'
+import { 
+  User as UserType,
+  FileUpload as FileUploadType
+} from '@/types'
 
 interface CustomerInfo {
   email: string
@@ -53,7 +57,7 @@ export default function ChatBot() {
   const [isExistingCustomer, setIsExistingCustomer] = useState(false)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [authMode, setAuthMode] = useState<'login' | 'register' | 'reset'>('login')
-  const [customerData, setCustomerData] = useState<any>(null)
+  const [customerData, setCustomerData] = useState<UserType | null>(null)
   const [authCredentials, setAuthCredentials] = useState({
     email: '',
     password: '',
@@ -530,7 +534,7 @@ To make our call as helpful as possible, could you tell me more about:
     }
   }
 
-  const proceedWithAuthenticatedCustomer = async (customer: any) => {
+  const proceedWithAuthenticatedCustomer = async (customer: UserType) => {
     setShowInfoCapture(false)
     
     // Check if customer has previous projects/history

@@ -2,61 +2,22 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, Calendar, Clock, Video, Phone, MapPin, Users, CheckCircle, AlertCircle } from 'lucide-react';
-import ErrorModal from './ErrorModal';
+import ErrorModal from './modals/ErrorModal';
 import { api } from '@/lib/https';
-
-interface Customer {
-  id: number;
-  name: string;
-  email: string;
-}
-
-interface TimeSlot {
-  time: string;
-  display_time: string;
-  label: string;
-  datetime: string;
-  date: string;
-  is_next_available?: boolean;
-}
-
-interface AvailableDate {
-  date: string;
-  day_name: string;
-  formatted_date: string;
-  is_today: boolean;
-  is_tomorrow: boolean;
-  slots_count: number;
-  time_slots: TimeSlot[];
-}
-
-interface SmartSlotsResponse {
-  success: boolean;
-  next_available: TimeSlot | null;
-  available_dates: AvailableDate[];
-  recommended_times: TimeSlot[];
-  total_available_dates: number;
-}
-
-interface Appointment {
-  id: number;
-  customer_id: number;
-  customer_name: string;
-  customer_email: string;
-  title: string;
-  description: string;
-  appointment_date: string;
-  appointment_time: string;
-  duration_minutes: number;
-  meeting_type: string;
-  status: string;
-  notes: string;
-}
+import { 
+  User,
+  Appointment,
+  AppointmentCreateRequest,
+  AppointmentUpdateRequest,
+  TimeSlot,
+  AvailableDate,
+  SmartSlotsResponse
+} from '@/types';
 
 interface AppointmentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (appointmentData: any) => Promise<void>;
+  onSave: (appointmentData: AppointmentCreateRequest | AppointmentUpdateRequest) => Promise<void>;
   appointment: Appointment | null;
   customerId?: number | undefined;
   customerName?: string;
@@ -64,15 +25,15 @@ interface AppointmentModalProps {
 }
 
 export default function SmartAppointmentModal({ isOpen, onClose, onSave, appointment, customerId, customerName, customerEmail }: AppointmentModalProps) {
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customers, setCustomers] = useState<User[]>([]);
   const [smartSlots, setSmartSlots] = useState<SmartSlotsResponse | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<TimeSlot | null>(null);
   const [conflictError, setConflictError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'recommended' | 'calendar'>('recommended');
-  const [formData, setFormData] = useState({
-    customer_id: '',
+  const [formData, setFormData] = useState<Partial<AppointmentCreateRequest>>({
+    customer_id: customerId || 0,
     title: '',
     description: '',
     duration_minutes: 60,
@@ -109,7 +70,7 @@ export default function SmartAppointmentModal({ isOpen, onClose, onSave, appoint
 
   const populateFormData = (appointmentData: Appointment) => {
     setFormData({
-      customer_id: appointmentData.customer_id.toString(),
+      customer_id: appointmentData.customer_id,
       title: appointmentData.title,
       description: appointmentData.description || '',
       duration_minutes: appointmentData.duration_minutes,
@@ -123,7 +84,7 @@ export default function SmartAppointmentModal({ isOpen, onClose, onSave, appoint
 
   const resetForm = () => {
     setFormData({
-      customer_id: customerId ? customerId.toString() : '',
+      customer_id: customerId || 0,
       title: '',
       description: '',
       duration_minutes: 60,
@@ -204,13 +165,13 @@ export default function SmartAppointmentModal({ isOpen, onClose, onSave, appoint
 
     try {
       // Generate title if not provided
-      const selectedCustomer = customers.find(c => c.id.toString() === formData.customer_id);
+      const selectedCustomer = customers.find(c => c.id === formData.customer_id);
       const title = formData.title || `Consultation - ${selectedCustomer?.name || 'Customer'}`;
       
-      const appointmentData = {
+      const appointmentData: AppointmentCreateRequest | AppointmentUpdateRequest = {
         ...formData,
         title,
-        customer_id: customerId || parseInt(formData.customer_id),
+        customer_id: customerId || formData.customer_id,
         duration_minutes: parseInt(formData.duration_minutes.toString()),
         appointment_date: selectedDate,
         appointment_time: selectedTime
@@ -279,7 +240,7 @@ export default function SmartAppointmentModal({ isOpen, onClose, onSave, appoint
                ) : (
                 <select
                   value={formData.customer_id}
-                  onChange={(e) => setFormData({ ...formData, customer_id: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, customer_id: parseInt(e.target.value) })}
                   className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
                   required
                 >

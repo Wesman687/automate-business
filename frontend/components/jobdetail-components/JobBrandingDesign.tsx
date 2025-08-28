@@ -2,7 +2,7 @@
 
 import React, { useCallback } from 'react';
 import { Palette, Target, FileText } from 'lucide-react';
-import { Job } from '../interfaces/job';
+import { Job } from '@/types';
 import { FormField, FormInput, FormSelect, FormTextarea } from '../ui';
 
 interface JobBrandingDesignProps {

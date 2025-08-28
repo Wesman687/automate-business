@@ -1,11 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from models import CustomerChangeRequest, Job, User
+from services.change_request_service import ChangeRequestService
+from api.auth import get_current_user
 from database import get_db
-from database.models import CustomerChangeRequest, Job, User
-from services.job_service import JobService, ChangeRequestService
-from services.appointment_service import AppointmentService
+from sqlalchemy.orm import Session
 
-from api.auth import get_current_admin
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
@@ -27,7 +26,7 @@ class ChangeRequestResponse(BaseModel):
 async def get_all_change_requests(
     status: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_admin)
+    current_user: dict = Depends(get_current_user)
 ):
     """Get all change requests, optionally filtered by status"""
     try:
@@ -81,7 +80,7 @@ async def update_change_request(
     request_id: int,
     update_data: ChangeRequestUpdate,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_admin)
+    current_user: dict = Depends(get_current_user)
 ):
     """Update a change request status and details"""
     try:

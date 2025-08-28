@@ -2,7 +2,7 @@
 
 import React, { memo, useCallback } from 'react';
 import { FileText, Link } from 'lucide-react';
-import { Job } from '../interfaces/job';
+import { Job } from '@/types';
 
 interface AdditionalResourcesProps {
   data: Job;

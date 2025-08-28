@@ -15,7 +15,7 @@ from schemas.cross_app import (
     AppIntegrationCreate, AppIntegrationUpdate, AppIntegrationResponse,
     AppStatus, AppPermission
 )
-from database.models import User
+from models import User
 from api.auth import get_current_user
 
 logger = logging.getLogger(__name__)

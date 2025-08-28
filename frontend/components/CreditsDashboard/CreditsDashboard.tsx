@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useCredits } from '../../hooks/useCredits';
-import { TransactionType } from '../../types/credits';
+import { TransactionType } from '@/types';
 
 interface CreditsDashboardProps {
   className?: string;

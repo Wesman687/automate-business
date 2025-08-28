@@ -1,19 +1,17 @@
 """
-Financial service for managing credits, subscriptions, and financial operations.
+Financial service for managing invoices, payments, and financial operations
 """
 import logging
-from typing import List, Dict, Any, Optional
-from datetime import datetime, timezone, timedelta
+from typing import Dict, Any, Optional, List
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_, desc
-from fastapi import HTTPException, status
+from sqlalchemy import and_, or_, func
+from datetime import datetime, timedelta
 
-from database.models import User, CreditTransaction
-from database.stripe_models import (
-    StripeCustomer, StripeSubscription, StripePaymentIntent,
-    StripeWebhookEvent
-)
-from database.models import CreditDispute
+from models import User, CreditTransaction
+from models.credit_models import CreditDispute
+from services.base_service import BaseService
+from services.stripe_service import StripeService
+from services.email_service import EmailService
 
 logger = logging.getLogger(__name__)
 

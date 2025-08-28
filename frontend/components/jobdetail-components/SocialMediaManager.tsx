@@ -2,7 +2,7 @@
 
 import React, { memo, useCallback } from 'react';
 import { Share2, ExternalLink } from 'lucide-react';
-import { Job } from '../interfaces/job';
+import { Job } from '@/types';
 
 interface SocialMediaManagerProps {
   data: Job;

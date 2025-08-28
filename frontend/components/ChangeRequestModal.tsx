@@ -2,21 +2,15 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, Save, AlertCircle } from 'lucide-react';
+import { CustomerChangeRequest } from '@/types';
 
-interface ChangeRequest {
-  id: number;
-  job_id: number;
-  customer_id: number;
-  title: string;
-  description: string;
-  status: 'pending' | 'in_progress' | 'completed' | 'rejected';
-  priority: 'low' | 'normal' | 'high' | 'urgent';
-  requested_via: string;
-  session_id?: string;
-  created_at: string;
-  updated_at?: string;
+interface ChangeRequest extends CustomerChangeRequest {
+  customer_id: number; // Map user_id to customer_id for compatibility
+  status: 'pending' | 'in_progress' | 'completed' | 'rejected'; // Override string type
+  priority: 'low' | 'normal' | 'high' | 'urgent'; // Override JobPriority enum
   customer_name?: string;
   job_title?: string;
+  session_id?: string;
 }
 
 interface ChangeRequestModalProps {

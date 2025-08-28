@@ -5,11 +5,11 @@ from alembic import context
 import os
 import sys
 
-# Add the backend directory to the path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add the backend directory to the Python path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from database.models import Base
-from database import DATABASE_URL
+from database import Base, DATABASE_URL
+from models import *  # Import all models to ensure they are registered
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -28,7 +28,6 @@ target_metadata = Base.metadata
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
-
 
 def get_database_url():
     """Get database URL from environment or config"""

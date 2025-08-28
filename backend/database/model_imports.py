@@ -24,7 +24,7 @@ from .models import (
 )
 
 # Import credit models
-from models.credit_models import (
+from ..models.credit_models import (
     CreditPackage,
     UserSubscription,
     CreditDispute,
@@ -32,14 +32,14 @@ from models.credit_models import (
 )
 
 # Import cross-app models
-from models.cross_app_models import (
+from ..models.cross_app_models import (
     AppIntegration,
     CrossAppSession,
     AppCreditUsage
 )
 
 # Import email models
-from models.email_account import EmailAccount
+from ..models.email_account import EmailAccount
 
 # Export all models
 __all__ = [

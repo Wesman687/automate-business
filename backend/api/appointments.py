@@ -1,14 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, HTTPException, Depends, Query
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional, Optional
 from datetime import datetime, date, time, timedelta
 from database import get_db
-from database.models import Appointment, User
+from models import Appointment, User
 from services.appointment_service import AppointmentService
 from services.google_calendar_service import google_calendar_service
 from services.email_service import email_service
-from api.auth import get_current_user as get_current_user, get_customer_or_admin
+from api.auth import get_current_user
 from pydantic import BaseModel
 import logging
 
@@ -1023,9 +1023,6 @@ async def get_appointment(
         user_type = current_user.get('user_type')
         user_id = current_user.get('user_id')
         
-        print(f"🔍 Get appointment {appointment_id} - User: {current_user}")
-        print(f"🔍 Is admin: {is_admin}, User type: {user_type}, User ID: {user_id}")
-        print(f"🔍 Appointment customer_id: {appointment.customer_id}")
         
         # Authorization check
         if not is_admin and (user_type != "customer" or user_id != appointment.customer_id):
@@ -1077,10 +1074,6 @@ async def update_appointment(
         is_admin = current_user.get('is_admin', False)
         user_type = current_user.get('user_type')
         user_id = current_user.get('user_id')
-        
-        print(f"🔍 Update appointment {appointment_id} - User: {current_user}")
-        print(f"🔍 Is admin: {is_admin}, User type: {user_type}, User ID: {user_id}")
-        print(f"🔍 Appointment customer_id: {appointment.customer_id}")
         
         # Authorization check
         if not is_admin and (user_type != "customer" or user_id != appointment.customer_id):

@@ -1,5 +1,7 @@
-from services.email_service import email_service
-from database.models import CustomerChangeRequest, Job, User
+from models import CustomerChangeRequest, Job, User
+from services.email_service import EmailService
+from sqlalchemy.orm import Session
+from typing import List, Optional
 import os
 import logging
 
@@ -191,8 +193,10 @@ StreamlineAI Automation System
         """
         
         # Send to tech team
+        email_service = EmailService()
         success = email_service.send_email(
             to_emails=['tech@stream-lineai.com'],
+            from_account='no-reply',
             subject=subject,
             body=body,
             html_body=html_body

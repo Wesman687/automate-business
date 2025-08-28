@@ -1,4 +1,4 @@
-import { apiClient } from '../lib/api';
+import { api } from '../lib/https';
 import {
   CreditBalance,
   CreditTransactionHistory,
@@ -8,7 +8,7 @@ import {
   UserCreditSummary,
   CreditRate,
   CreditPackageResponse
-} from '../types/credits';
+} from '@/types';
 
 export class CreditsService {
   private baseUrl = '/api/credits';

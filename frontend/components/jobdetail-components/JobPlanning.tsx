@@ -2,7 +2,7 @@
 
 import React, { useCallback } from 'react';
 import { Target, Calendar, CheckCircle, AlertCircle, Trash2, Plus, Sparkles, FileText } from 'lucide-react';
-import { Job } from '../interfaces/job';
+import { Job } from '@/types';
 import { MilestoneManager } from './MilestoneManager';
 import { DeliverableManager } from './DeliverableManager';
 import { AIPlanGenerator } from './AIPlanGenerator';

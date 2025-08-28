@@ -4,10 +4,8 @@ Stripe-specific database models for payment processing and financial management.
 from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, Float, JSON, Enum, Index
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from sqlalchemy.ext.declarative import declarative_base
+from database import Base
 import enum
-
-Base = declarative_base()
 
 class StripeCustomer(Base):
     """Links users to Stripe customer records"""
@@ -113,97 +111,72 @@ class StripePaymentIntent(Base):
 
 
 class StripePaymentMethod(Base):
-    """Stores payment method information"""
+    """Stores customer payment methods"""
     __tablename__ = "stripe_payment_methods"
     
     id = Column(Integer, primary_key=True, index=True)
     stripe_payment_method_id = Column(String(255), unique=True, nullable=False, index=True)
     customer_id = Column(Integer, ForeignKey("stripe_customers.id"), nullable=False, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     
     # Payment method details
-    type = Column(String(50), nullable=False)  # card, bank_account, sepa_debit, etc.
-    card_brand = Column(String(20), nullable=True)  # visa, mastercard, amex, etc.
+    type = Column(String(50), nullable=False)  # card, bank_account, etc.
+    card_brand = Column(String(50), nullable=True)  # visa, mastercard, etc.
     card_last4 = Column(String(4), nullable=True)
     card_exp_month = Column(Integer, nullable=True)
     card_exp_year = Column(Integer, nullable=True)
-    card_fingerprint = Column(String(255), nullable=True)
     
-    # Billing details
-    billing_details = Column(JSON, nullable=True)  # Stripe billing details object
-    
-    # Status
-    is_default = Column(Boolean, default=False)
-    is_active = Column(Boolean, default=True)
-    
-    # Timestamps
+    # Metadata
+    stripe_metadata = Column(JSON, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relationships
     customer = relationship("StripeCustomer", back_populates="payment_methods")
-    user = relationship("User")
     
     def __repr__(self):
-        return f"<StripePaymentMethod(id={self.id}, type='{self.type}', last4='{self.card_last4}')>"
+        return f"<StripePaymentMethod(id={self.id}, stripe_id='{self.stripe_payment_method_id}', type='{self.type}')>"
 
 
 class StripeWebhookEvent(Base):
-    """Logs webhook events for debugging and audit"""
+    """Tracks Stripe webhook events for audit and idempotency"""
     __tablename__ = "stripe_webhook_events"
     
     id = Column(Integer, primary_key=True, index=True)
     stripe_event_id = Column(String(255), unique=True, nullable=False, index=True)
-    event_type = Column(String(100), nullable=False, index=True)  # checkout.session.completed, invoice.payment_succeeded, etc.
     
-    # Event data
+    # Event details
+    event_type = Column(String(100), nullable=False, index=True)
     api_version = Column(String(20), nullable=True)
-    created = Column(DateTime(timezone=True), nullable=True)  # Stripe timestamp
-    data = Column(JSON, nullable=False)  # Full event data
-    livemode = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Processing status
     processed = Column(Boolean, default=False)
     processed_at = Column(DateTime(timezone=True), nullable=True)
     error_message = Column(Text, nullable=True)
     
-    # Timestamps
-    received_at = Column(DateTime(timezone=True), server_default=func.now())
+    # Raw event data
+    event_data = Column(JSON, nullable=True)
     
     def __repr__(self):
-        return f"<StripeWebhookEvent(id={self.id}, event_type='{self.event_type}', processed={self.processed})>"
+        return f"<StripeWebhookEvent(id={self.id}, stripe_event_id='{self.stripe_event_id}', type='{self.event_type}')>"
 
 
 class StripeProduct(Base):
-    """Stripe products for subscription plans"""
+    """Stores Stripe product information"""
     __tablename__ = "stripe_products"
     
     id = Column(Integer, primary_key=True, index=True)
     stripe_product_id = Column(String(255), unique=True, nullable=False, index=True)
+    
+    # Product details
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     active = Column(Boolean, default=True)
     
-    # Pricing
-    unit_amount = Column(Integer, nullable=False)  # Price in cents
-    currency = Column(String(3), default="USD")
-    recurring_interval = Column(String(20), nullable=False)  # day, week, month, year
-    recurring_interval_count = Column(Integer, default=1)
-    
-    # Features
-    features = Column(JSON, nullable=True)  # Array of feature objects
+    # Metadata
     stripe_metadata = Column(JSON, nullable=True)
-    
-    # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     def __repr__(self):
-        return f"<StripeProduct(id={self.id}, name='{self.name}', amount={self.unit_amount})>"
-
-
-# Create indexes for better query performance
-Index('idx_stripe_customers_user_id', StripeCustomer.user_id)
-Index('idx_stripe_subscriptions_user_id', StripeSubscription.user_id)
-Index('idx_stripe_payment_intents_user_id', StripePaymentIntent.user_id)
-Index('idx_stripe_webhook_events_type_processed', StripeWebhookEvent.event_type, StripeWebhookEvent.processed)
+        return f"<StripeProduct(id={self.id}, stripe_id='{self.stripe_product_id}', name='{self.name}')>"

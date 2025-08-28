@@ -4,22 +4,29 @@ import React, { useState, useEffect } from 'react';
 import { X, Building2, Palette, Globe, Github, Calendar, Clock, DollarSign, Target, Users, FileText, ExternalLink, CheckCircle, AlertCircle, FolderOpen, Edit3, Save, ArrowLeft, Plus, Upload } from 'lucide-react';
 import { api } from '@/lib/https';
 import FileManagementModal from './FileManagementModal';
-import ErrorModal from './ErrorModal';
-import { Job, JobDetailData } from './interfaces/job';
+import { ErrorModal } from '@/components/modals';
+import { 
+  Job, 
+  JobUpdate,
+  UserUpdateRequest,
+  FileUploadExtended as FileUploadType,
+  JOB_STATUSES_OBJ,
+  JOB_PRIORITIES_OBJ
+} from '@/types';
 
 interface JobDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   jobId: number;
   isCustomer?: boolean;
-  onSave?: (updatedJob: Partial<JobDetailData>) => Promise<void>;
+  onSave?: (updatedJob: Partial<JobUpdate>) => Promise<void>;
 }
 
 export default function JobDetailModal({ isOpen, onClose, jobId, isCustomer = false, onSave }: JobDetailModalProps) {
   const [activeTab, setActiveTab] = useState('overview');
   const [isEditing, setIsEditing] = useState(false);
-  const [editData, setEditData] = useState<Partial<JobDetailData>>({});
-  const [job, setJob] = useState<JobDetailData | null>(null);
+  const [editData, setEditData] = useState<Partial<JobUpdate>>({});
+  const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(false);
   const [newResource, setNewResource] = useState({ type: '', name: '', url: '' });
   const [newTool, setNewTool] = useState({ name: '', api_key: '', url: '' });
@@ -32,7 +39,7 @@ export default function JobDetailModal({ isOpen, onClose, jobId, isCustomer = fa
   const [showFileManager, setShowFileManager] = useState<'logo' | 'project' | 'reference' | null>(null);
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [newColor, setNewColor] = useState('#000000');
-  const [jobFiles, setJobFiles] = useState<any[]>([]);
+  const [jobFiles, setJobFiles] = useState<FileUploadType[]>([]);
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -60,7 +67,7 @@ export default function JobDetailModal({ isOpen, onClose, jobId, isCustomer = fa
     try {
       setLoading(true);
       
-      const response = await api.get(`/jobs/${jobId}`);
+      const response = await api.get<Job>(`/jobs/${jobId}`);
       
       // Handle new standardized API response format
       const jobData = response?.data || response;
@@ -75,7 +82,7 @@ export default function JobDetailModal({ isOpen, onClose, jobId, isCustomer = fa
 
   const fetchJobFiles = async () => {
     try {
-      const response = await api.get(`/file-upload/customer/job/${jobId}/files`);
+      const response = await api.get<{ files: FileUploadType[] }>(`/file-upload/customer/job/${jobId}/files`);
       
       // The API response has a nested structure: { files: Array, file_server_status: 'success', ... }
       const filesData = response.files || [];
@@ -111,18 +118,18 @@ export default function JobDetailModal({ isOpen, onClose, jobId, isCustomer = fa
         ];
         
         // Extract job data
-        const jobData = {};
+        const jobData: Partial<JobUpdate> = {};
         Object.keys(editData).forEach(key => {
-          if (jobFields.includes(key) && editData[key] !== undefined) {
-            jobData[key] = editData[key];
+          if (jobFields.includes(key) && editData[key as keyof JobUpdate] !== undefined) {
+            (jobData as any)[key] = editData[key as keyof JobUpdate];
           }
         });
         
         // Extract user data
-        const userData = {};
+        const userData: Partial<UserUpdateRequest> = {};
         Object.keys(editData).forEach(key => {
-          if (userFields.includes(key) && editData[key] !== undefined) {
-            userData[key] = editData[key];
+          if (userFields.includes(key) && editData[key as keyof JobUpdate] !== undefined) {
+            (userData as any)[key] = editData[key as keyof JobUpdate];
           }
         });
         
@@ -219,7 +226,7 @@ export default function JobDetailModal({ isOpen, onClose, jobId, isCustomer = fa
     setNewServer({ name: '', url: '', type: '' });
   };
 
-  const removeResource = (field: keyof JobDetailData, index: number) => {
+  const removeResource = (field: keyof JobUpdateRequest, index: number) => {
     if (field === 'resources') {
       const currentResources = editData.resources || [];
       const newResources = currentResources.filter((_, i) => i !== index);
@@ -262,7 +269,7 @@ export default function JobDetailModal({ isOpen, onClose, jobId, isCustomer = fa
         }
       }
 
-      const currentFiles = editData[`${type}_files` as keyof JobDetailData] as number[] || [];
+      const currentFiles = editData[`${type}_files` as keyof JobUpdateRequest] as number[] || [];
       setEditData({
         ...editData,
         [`${type}_files`]: [...currentFiles, ...uploadedFileIds]
@@ -487,7 +494,7 @@ export default function JobDetailModal({ isOpen, onClose, jobId, isCustomer = fa
     );
   }
 
-  const renderEditableField = (label: string, value: any, field: keyof JobDetailData, type: 'text' | 'textarea' | 'select' | 'date' = 'text', options?: string[]) => {
+  const renderEditableField = (label: string, value: any, field: keyof JobUpdateRequest, type: 'text' | 'textarea' | 'select' | 'date' = 'text', options?: string[]) => {
     if (!isEditing) {
       return (
         <div className="flex justify-between items-start py-3 border-b border-gray-700/50">

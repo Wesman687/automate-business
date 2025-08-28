@@ -98,6 +98,15 @@
 - [ ] Customer portal integration
 - [ ] Payment processing for credit purchases
 
+### 2. Modal Cleanup and Standardization
+- [x] **NEW TASK CREATED**: `ai_docs/tasks/modal-cleanup-standardization-task.md`
+- [x] **Modal components reorganized** into `frontend/components/modals/` folder
+- [x] **Created comprehensive documentation** and index files for easy imports
+- [ ] Replace all `alert()` calls with professional modal components
+- [ ] Consolidate custom inline modals to use standardized components
+- [ ] Ensure consistent modal behavior and styling across the application
+- [ ] Improve accessibility and user experience consistency
+
 ### 2. Admin Dashboard Enhancement
 - [ ] **New Task Created**: `ADMIN-DASH-001` - Admin Functionality & Dashboard Enhancement
 - [ ] **Current Status**: Task documented and ready for implementation

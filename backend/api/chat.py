@@ -21,20 +21,21 @@ async def get_chat_sessions(
             {
                 "id": session.id,
                 "session_id": session.session_id,
+                "customer_id": session.customer_id,
+                "status": session.status,
+                "is_seen": session.is_seen,
                 "customer": {
                     "id": session.user.id if session.user else None,
                     "name": session.user.name if session.user else "Anonymous",
                     "email": session.user.email if session.user else None
                 } if session.customer_id else None,
-                "status": session.status,
-                "is_seen": session.is_seen,
                 "created_at": session.created_at.isoformat() if session.created_at else None,
                 "updated_at": session.updated_at.isoformat() if session.updated_at else None,
                 "message_count": len(session.messages) if session.messages else 0,
                 "latest_message": {
                     "text": session.messages[-1].text if session.messages else None,
-                    "timestamp": session.messages[-1].timestamp.isoformat() if session.messages else None,
-                    "is_bot": session.messages[-1].is_bot if session.messages else None
+                    "is_bot": session.messages[-1].is_bot if session.messages else None,
+                    "timestamp": session.messages[-1].timestamp.isoformat() if session.messages else None
                 } if session.messages else None
             }
             for session in sessions

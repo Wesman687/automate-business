@@ -2,13 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { StripeSubscription } from '@/types';
 
-interface Subscription {
-  id: number;
-  stripe_subscription_id: string;
-  status: string;
-  current_period_start: string;
-  current_period_end: string;
+interface Subscription extends StripeSubscription {
   amount: number;
   currency: string;
   product_name: string;

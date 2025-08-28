@@ -7,19 +7,15 @@ import {
   Upload, Copy, Scissors, Clipboard, Edit3, Share2, Info
 } from 'lucide-react';
 import { api } from '@/lib/https';
-import DeleteModal from './DeleteModal';
+import DeleteModal from './modals/DeleteModal';
+import { 
+  FileUploadExtended as FileUploadType
+} from '@/types';
 
-interface FileInfo {
-  id: number;
-  filename: string;
-  original_filename: string;
-  file_size: number;
-  mime_type: string;
+interface FileInfo extends FileUploadType {
   upload_type: string;
   description?: string;
   tags?: string;
-  uploaded_at: string;
-  file_url: string;
   folder?: string;
   is_folder?: boolean;
 }

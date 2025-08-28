@@ -2,7 +2,7 @@
 
 import React, { memo, useCallback, useMemo, useState } from 'react';
 import { DollarSign, Calculator, TrendingUp, Edit3, Save } from 'lucide-react';
-import { FinancialBreakdown } from '../interfaces/job';
+import { FinancialBreakdown } from '@/types';
 
 interface CostBreakdownProps {
   financialBreakdown: FinancialBreakdown | null;

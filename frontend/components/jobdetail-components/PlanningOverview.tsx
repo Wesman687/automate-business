@@ -2,7 +2,7 @@
 
 import React, { memo, useMemo } from 'react';
 import { Target, FileText, Calendar, TrendingUp } from 'lucide-react';
-import { Job } from '../interfaces/job';
+import { Job } from '@/types';
 
 interface PlanningOverviewProps {
   jobData: Job;

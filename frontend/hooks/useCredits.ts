@@ -6,7 +6,7 @@ import {
   UserCreditSummary,
   CreditPurchaseValidation,
   CreditTransaction
-} from '../types/credits';
+} from '@/types';
 
 interface UseCreditsReturn {
   // State

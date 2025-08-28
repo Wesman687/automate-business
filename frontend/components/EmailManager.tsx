@@ -3,25 +3,18 @@
 import { useState, useEffect } from 'react';
 import { Mail, Send, Reply, MoreHorizontal, Search, RefreshCw, X, Eye, EyeOff, Clock, AlertCircle, Forward } from 'lucide-react';
 import { api } from '@/lib/https';
-
-interface Email {
-  id: string;
-  account: string;
-  from: string;
-  subject: string;
-  received_date: string;
-  preview: string;
-  is_important: boolean;
-  is_read: boolean; // Add read status
-  body?: string;
-}
+import { 
+  EmailAccount,
+  EmailCreateRequest,
+  Email
+} from '@/types';
 
 interface EmailManagerProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-interface ComposeData {
+interface ComposeData extends EmailCreateRequest {
   to_email: string;
   subject: string;
   body: string;
@@ -79,8 +72,6 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
   // Email accounts state
   const [emailAccounts, setEmailAccounts] = useState<Array<{name: string, value: string, email: string}>>([]);
 
-
-  
   // Company email accounts - easily configurable
   const companyEmailAccounts = [
     { name: 'Tech Support', value: 'tech', email: 'tech@stream-lineai.com' },

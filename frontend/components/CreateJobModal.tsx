@@ -3,34 +3,42 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2 } from 'lucide-react';
 import { api } from '@/lib/https';
-import { JobFormData } from './interfaces/job';
-
-interface Customer {
-  id: number;
-  name: string;
-  email: string;
-}
+import { 
+  User, 
+  Job, 
+  JobCreateRequest,
+  JOB_STATUSES_OBJ, 
+  JOB_PRIORITIES_OBJ,
+  DEFAULT_JOB 
+} from '@/types';
 
 interface CreateJobModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (jobData: any) => Promise<void>;
+  onSave: (jobData: JobCreateRequest) => Promise<void>;
+}
+
+interface Milestone {
+  name: string;
+  description: string;
+  due_date: string;
+  completed: boolean;
 }
 
 export default function CreateJobModal({ isOpen, onClose, onSave }: CreateJobModalProps) {
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customers, setCustomers] = useState<User[]>([]);
   const [hasDeadline, setHasDeadline] = useState(false);
-  const [formData, setFormData] = useState<Partial<JobFormData>>({
-    customer_id: '',
+  const [formData, setFormData] = useState<Partial<JobCreateRequest>>({
+    customer_id: undefined,
     title: '',
     description: '',
-    status: 'planning',
-    priority: 'medium',
+    status: JOB_STATUSES_OBJ.PLANNING,
+    priority: JOB_PRIORITIES_OBJ.MEDIUM,
     start_date: new Date().toISOString().split('T')[0],
-    deadline: '',
-    estimated_hours: '',
-    hourly_rate: '',
-    fixed_price: '',
+    deadline: undefined,
+    estimated_hours: undefined,
+    hourly_rate: undefined,
+    fixed_price: undefined,
     website_url: '',
     notes: '',
     milestones: []
@@ -47,7 +55,6 @@ export default function CreateJobModal({ isOpen, onClose, onSave }: CreateJobMod
   const fetchCustomers = async () => {
     console.log('Fetching customers...');
     try {
-
       const data = await api.get('/customers');
       setCustomers(data);
     } catch (error) {
@@ -61,31 +68,40 @@ export default function CreateJobModal({ isOpen, onClose, onSave }: CreateJobMod
     setError(null);
 
     try {
-      const jobData = {
-        ...formData,
-        customer_id: parseInt(formData.customer_id || '0'),
-        start_date: formData.start_date || null,
-        deadline: formData.deadline || null,
-        estimated_hours: formData.estimated_hours ? parseFloat(formData.estimated_hours) : null,
-        hourly_rate: formData.hourly_rate ? parseFloat(formData.hourly_rate) : null,
-        fixed_price: formData.fixed_price ? parseFloat(formData.fixed_price) : null,
-        progress_percentage: 0
+      if (!formData.customer_id) {
+        throw new Error('Customer is required');
+      }
+
+      const jobData: JobCreateRequest = {
+        customer_id: parseInt(formData.customer_id.toString()),
+        title: formData.title || '',
+        description: formData.description,
+        status: formData.status || JOB_STATUSES_OBJ.PLANNING,
+        priority: formData.priority || JOB_PRIORITIES_OBJ.MEDIUM,
+        start_date: formData.start_date || undefined,
+        deadline: hasDeadline ? formData.deadline : undefined,
+        estimated_hours: formData.estimated_hours ? parseFloat(formData.estimated_hours.toString()) : undefined,
+        hourly_rate: formData.hourly_rate ? parseFloat(formData.hourly_rate.toString()) : undefined,
+        fixed_price: formData.fixed_price ? parseFloat(formData.fixed_price.toString()) : undefined,
+        website_url: formData.website_url,
+        notes: formData.notes,
+        milestones: formData.milestones || []
       };
 
       await onSave(jobData);
       onClose();
       setHasDeadline(false);
       setFormData({
-        customer_id: '',
+        customer_id: undefined,
         title: '',
         description: '',
-        status: 'planning',
-        priority: 'medium',
+        status: JOB_STATUSES_OBJ.PLANNING,
+        priority: JOB_PRIORITIES_OBJ.MEDIUM,
         start_date: new Date().toISOString().split('T')[0],
-        deadline: '',
-        estimated_hours: '',
-        hourly_rate: '',
-        fixed_price: '',
+        deadline: undefined,
+        estimated_hours: undefined,
+        hourly_rate: undefined,
+        fixed_price: undefined,
         website_url: '',
         notes: '',
         milestones: []
@@ -130,15 +146,15 @@ export default function CreateJobModal({ isOpen, onClose, onSave }: CreateJobMod
                 Customer
               </label>
               <select
-                value={formData.customer_id}
-                onChange={(e) => setFormData({ ...formData, customer_id: e.target.value })}
+                value={formData.customer_id || ''}
+                onChange={(e) => setFormData({ ...formData, customer_id: e.target.value ? parseInt(e.target.value) : undefined })}
                 className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
                 required
               >
                 <option value="">Select a customer</option>
                 {customers.map((customer) => (
                   <option key={customer.id} value={customer.id} className="bg-gray-800">
-                    {customer.name} ({customer.email})
+                    {customer.name || customer.email.split('@')[0]} ({customer.email})
                   </option>
                 ))}
               </select>
@@ -164,7 +180,7 @@ export default function CreateJobModal({ isOpen, onClose, onSave }: CreateJobMod
               Description
             </label>
             <textarea
-              value={formData.description}
+              value={formData.description || ''}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               rows={3}
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
@@ -179,14 +195,14 @@ export default function CreateJobModal({ isOpen, onClose, onSave }: CreateJobMod
               </label>
               <select
                 value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value as keyof typeof JOB_STATUSES_OBJ })}
                 className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
               >
-                <option value="planning" className="bg-gray-800">Planning</option>
-                <option value="in_progress" className="bg-gray-800">In Progress</option>
-                <option value="on_hold" className="bg-gray-800">On Hold</option>
-                <option value="completed" className="bg-gray-800">Completed</option>
-                <option value="cancelled" className="bg-gray-800">Cancelled</option>
+                <option value={JOB_STATUSES_OBJ.PLANNING} className="bg-gray-800">Planning</option>
+                <option value={JOB_STATUSES_OBJ.IN_PROGRESS} className="bg-gray-800">In Progress</option>
+                <option value={JOB_STATUSES_OBJ.ON_HOLD} className="bg-gray-800">On Hold</option>
+                <option value={JOB_STATUSES_OBJ.COMPLETED} className="bg-gray-800">Completed</option>
+                <option value={JOB_STATUSES_OBJ.CANCELLED} className="bg-gray-800">Cancelled</option>
               </select>
             </div>
 
@@ -196,13 +212,13 @@ export default function CreateJobModal({ isOpen, onClose, onSave }: CreateJobMod
               </label>
               <select
                 value={formData.priority}
-                onChange={(e) => setFormData({ ...formData, priority: e.target.value as any })}
+                onChange={(e) => setFormData({ ...formData, priority: e.target.value as keyof typeof JOB_PRIORITIES_OBJ })}
                 className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
               >
-                <option value="low" className="bg-gray-800">Low</option>
-                <option value="medium" className="bg-gray-800">Medium</option>
-                <option value="high" className="bg-gray-800">High</option>
-                <option value="urgent" className="bg-gray-800">Urgent</option>
+                <option value={JOB_PRIORITIES_OBJ.LOW} className="bg-gray-800">Low</option>
+                <option value={JOB_PRIORITIES_OBJ.MEDIUM} className="bg-gray-800">Medium</option>
+                <option value={JOB_PRIORITIES_OBJ.HIGH} className="bg-gray-800">High</option>
+                <option value={JOB_PRIORITIES_OBJ.URGENT} className="bg-gray-800">Urgent</option>
               </select>
             </div>
 
@@ -213,8 +229,8 @@ export default function CreateJobModal({ isOpen, onClose, onSave }: CreateJobMod
               <input
                 type="number"
                 step="0.5"
-                value={formData.estimated_hours}
-                onChange={(e) => setFormData({ ...formData, estimated_hours: e.target.value })}
+                value={formData.estimated_hours || ''}
+                onChange={(e) => setFormData({ ...formData, estimated_hours: e.target.value ? parseFloat(e.target.value) : undefined })}
                 className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
                 placeholder="40"
               />
@@ -228,7 +244,7 @@ export default function CreateJobModal({ isOpen, onClose, onSave }: CreateJobMod
               </label>
               <input
                 type="date"
-                value={formData.start_date}
+                value={formData.start_date || ''}
                 onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
                 className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
               />
@@ -243,7 +259,7 @@ export default function CreateJobModal({ isOpen, onClose, onSave }: CreateJobMod
                   onChange={(e) => {
                     setHasDeadline(e.target.checked);
                     if (!e.target.checked) {
-                      setFormData({ ...formData, deadline: '' });
+                      setFormData({ ...formData, deadline: undefined });
                     }
                   }}
                   className="w-4 h-4 text-cyan-600 bg-gray-700 border-gray-600 rounded focus:ring-cyan-500"
@@ -255,7 +271,7 @@ export default function CreateJobModal({ isOpen, onClose, onSave }: CreateJobMod
               {hasDeadline && (
                 <input
                   type="date"
-                  value={formData.deadline}
+                  value={formData.deadline || ''}
                   onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
                   className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
                 />
@@ -269,8 +285,8 @@ export default function CreateJobModal({ isOpen, onClose, onSave }: CreateJobMod
               <input
                 type="number"
                 step="0.01"
-                value={formData.hourly_rate}
-                onChange={(e) => setFormData({ ...formData, hourly_rate: e.target.value })}
+                value={formData.hourly_rate || ''}
+                onChange={(e) => setFormData({ ...formData, hourly_rate: e.target.value ? parseFloat(e.target.value) : undefined })}
                 className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
                 placeholder="75.00"
               />
@@ -284,8 +300,8 @@ export default function CreateJobModal({ isOpen, onClose, onSave }: CreateJobMod
             <input
               type="number"
               step="0.01"
-              value={formData.fixed_price}
-              onChange={(e) => setFormData({ ...formData, fixed_price: e.target.value })}
+              value={formData.fixed_price || ''}
+              onChange={(e) => setFormData({ ...formData, fixed_price: e.target.value ? parseFloat(e.target.value) : undefined })}
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
               placeholder="5000.00"
             />
@@ -297,7 +313,7 @@ export default function CreateJobModal({ isOpen, onClose, onSave }: CreateJobMod
             </label>
             <input
               type="url"
-              value={formData.website_url}
+              value={formData.website_url || ''}
               onChange={(e) => setFormData({ ...formData, website_url: e.target.value })}
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
               placeholder="https://example.com"
@@ -309,7 +325,7 @@ export default function CreateJobModal({ isOpen, onClose, onSave }: CreateJobMod
               Notes
             </label>
             <textarea
-              value={formData.notes}
+              value={formData.notes || ''}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               rows={3}
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
@@ -327,7 +343,7 @@ export default function CreateJobModal({ isOpen, onClose, onSave }: CreateJobMod
                 type="button"
                 onClick={() => setFormData({
                   ...formData,
-                  milestones: [...formData.milestones, { name: '', description: '', due_date: '', completed: false }]
+                  milestones: [...(formData.milestones || []), { name: '', description: '', due_date: '', completed: false }]
                 })}
                 className="text-cyan-400 hover:text-cyan-300 text-sm flex items-center"
               >
@@ -335,7 +351,7 @@ export default function CreateJobModal({ isOpen, onClose, onSave }: CreateJobMod
                 Add Milestone
               </button>
             </div>
-            {formData.milestones.map((milestone, index) => (
+            {(formData.milestones || []).map((milestone, index) => (
               <div key={index} className="bg-gray-700/50 p-4 rounded-lg mb-3">
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="text-sm font-medium text-gray-300">Milestone {index + 1}</h4>
@@ -343,7 +359,7 @@ export default function CreateJobModal({ isOpen, onClose, onSave }: CreateJobMod
                     type="button"
                     onClick={() => setFormData({
                       ...formData,
-                      milestones: formData.milestones.filter((_, i) => i !== index)
+                      milestones: (formData.milestones || []).filter((_, i) => i !== index)
                     })}
                     className="text-red-400 hover:text-red-300"
                   >
@@ -359,7 +375,7 @@ export default function CreateJobModal({ isOpen, onClose, onSave }: CreateJobMod
                       type="text"
                       value={milestone.name}
                       onChange={(e) => {
-                        const newMilestones = [...formData.milestones];
+                        const newMilestones = [...(formData.milestones || [])];
                         newMilestones[index].name = e.target.value;
                         setFormData({ ...formData, milestones: newMilestones });
                       }}
@@ -375,7 +391,7 @@ export default function CreateJobModal({ isOpen, onClose, onSave }: CreateJobMod
                       type="date"
                       value={milestone.due_date}
                       onChange={(e) => {
-                        const newMilestones = [...formData.milestones];
+                        const newMilestones = [...(formData.milestones || [])];
                         newMilestones[index].due_date = e.target.value;
                         setFormData({ ...formData, milestones: newMilestones });
                       }}
@@ -390,7 +406,7 @@ export default function CreateJobModal({ isOpen, onClose, onSave }: CreateJobMod
                   <textarea
                     value={milestone.description}
                     onChange={(e) => {
-                      const newMilestones = [...formData.milestones];
+                      const newMilestones = [...(formData.milestones || [])];
                       newMilestones[index].description = e.target.value;
                       setFormData({ ...formData, milestones: newMilestones });
                     }}

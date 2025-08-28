@@ -3,38 +3,20 @@
 import React, { useState, useEffect } from 'react';
 import { X, Clock, Video, Phone, MapPin, Users, CheckCircle, AlertCircle } from 'lucide-react';
 import { api } from '@/lib/https';
-
-interface TimeSlot {
-  time: string;
-  display_time: string;
-  label: string;
-  datetime: string;
-  date: string;
-  is_next_available?: boolean;
-}
-
-interface DateSlot {
-  formatted_date: string;
-  day_name: string;
-  is_today: boolean;
-  is_tomorrow: boolean;
-  slots_count: number;
-  time_slots: TimeSlot[];
-}
-
-interface SmartSlotsResponse {
-  success: boolean;
-  next_available: TimeSlot | null;
-  available_dates: DateSlot[];
-  recommended_times: TimeSlot[];
-  total_available_dates: number;
-}
+import { 
+  AppointmentCreateRequest,
+  Appointment,
+  User,
+  TimeSlot,
+  DateSlot,
+  SmartSlotsResponse
+} from '@/types';
 
 interface CustomerAppointmentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (appointmentData: any) => Promise<void>;
-  customerId: number; // Add customer ID prop
+  onSave: (appointmentData: AppointmentCreateRequest) => Promise<void>;
+  customerId: number;
 }
 
 export default function CustomerAppointmentModal({ isOpen, onClose, onSave, customerId }: CustomerAppointmentModalProps) {
@@ -42,13 +24,14 @@ export default function CustomerAppointmentModal({ isOpen, onClose, onSave, cust
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<TimeSlot | null>(null);
   const [conflictError, setConflictError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'recommended' | 'calendar'>('recommended');
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<Partial<AppointmentCreateRequest>>({
     title: '',
     description: '',
     duration_minutes: 60,
     meeting_type: 'video_call',
     status: 'scheduled',
-    notes: ''
+    notes: '',
+    customer_id: customerId
   });
   const [loading, setLoading] = useState(false);
   const [loadingSlots, setLoadingSlots] = useState(false);
@@ -74,7 +57,8 @@ export default function CustomerAppointmentModal({ isOpen, onClose, onSave, cust
       duration_minutes: 60,
       meeting_type: 'video_call',
       status: 'scheduled',
-      notes: ''
+      notes: '',
+      customer_id: customerId
     });
     setSelectedTimeSlot(null);
     setConflictError(null);
@@ -86,7 +70,7 @@ export default function CustomerAppointmentModal({ isOpen, onClose, onSave, cust
     setLoadingSlots(true);
     try {
       const params = new URLSearchParams({
-        duration_minutes: formData.duration_minutes.toString(),
+        duration_minutes: formData.duration_minutes?.toString() || '60',
         days_ahead: '14'
       });
 
@@ -126,13 +110,13 @@ export default function CustomerAppointmentModal({ isOpen, onClose, onSave, cust
       const title = formData.title || 'Business Consultation';
       
       // Extract date and time from the selected time slot (same format as admin modal)
-      const appointmentData = {
+      const appointmentData: AppointmentCreateRequest = {
         customer_id: customerId,
         title,
         description: formData.description,
         appointment_date: selectedTimeSlot.date, // Use the date directly from the slot
         appointment_time: selectedTimeSlot.time, // Use the time directly from the slot
-        duration_minutes: parseInt(formData.duration_minutes.toString()),
+        duration_minutes: parseInt(formData.duration_minutes?.toString() || '60'),
         meeting_type: formData.meeting_type,
         status: formData.status,
         notes: formData.notes

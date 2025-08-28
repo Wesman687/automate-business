@@ -1,23 +1,23 @@
+from models import PortalInvite, User
+from services.base_service import BaseService
 from sqlalchemy.orm import Session
-from database.models import PortalInvite, User
-from schemas.portal_invite import PortalInviteCreate, PortalInviteUpdate
+from typing import List, Optional
 from datetime import datetime, timedelta
 import secrets
 import string
-from typing import Optional, List
 
-class PortalInviteService:
+class PortalInviteService(BaseService):
     def __init__(self, db: Session):
-        self.db = db
+        super().__init__(db)
     
-    def generate_invite_token(self) -> str:=
+    def generate_invite_token(self) -> str:
         """Generate a secure random invite token"""
         return ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(32))
     
     def create_invite(self, customer_id: int, email: str, expires_in_days: int = 7) -> PortalInvite:
         """Create a new portal invite for a customer"""
         # Check if customer exists
-        customer = self.db.query(Customer).filter(Customer.id == customer_id).first()
+        customer = self.db.query(User).filter(User.id == customer_id).first()
         if not customer:
             raise ValueError("Customer not found")
         

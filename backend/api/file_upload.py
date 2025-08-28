@@ -1,16 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from models import FileUpload, Job, User
+from services.file_upload_service import FileUploadService
+from api.auth import get_current_user
+from database import get_db
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from database import get_db
-from api.auth import get_current_user, get_current_admin
-from database.models import FileUpload, Job, User
-from config import config
-import requests
-import base64
 import logging
 import os
 import hashlib
 from dotenv import load_dotenv
+from config import config
 
 # Import the new centralized FileService
 try:
@@ -655,7 +654,7 @@ async def update_customer_job(
 async def get_all_files(
     upload_type: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_admin)
+    current_user: dict = Depends(get_current_user)
 ):
     """Get all files (admin only)"""
     try:

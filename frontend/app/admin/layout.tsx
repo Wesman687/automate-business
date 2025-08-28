@@ -15,7 +15,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   // Redirect non-admins out of /admin
   useEffect(() => {
-    console.log('🔍 Admin layout auth check:', { loading, user, isAdmin });
     if (!loading && (!user || !isAdmin)) {
       console.log('❌ User not admin, redirecting to portal');
       router.replace('/portal');

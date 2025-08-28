@@ -1,7 +1,6 @@
 ﻿from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from database.model_imports import Base
-from database import engine
+from database import Base, engine
 from api.chat import router as chat_router
 from api.users import router as users_router
 from api.customers import router as customers_router
@@ -247,7 +246,7 @@ async def health_check():
 async def get_users_test():
     """Test endpoint to verify migrated users"""
     from database import get_db
-    from database.models import User
+    from models import User
     from sqlalchemy.orm import Session
     
     db_gen = get_db()

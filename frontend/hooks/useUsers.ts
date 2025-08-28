@@ -13,7 +13,7 @@ import {
   UseUsersReturn,
   UseUserReturn,
   UseUserStatsReturn
-} from '@/types/user';
+} from '@/types';
 
 /**
  * Hook for managing multiple users (admin functionality)

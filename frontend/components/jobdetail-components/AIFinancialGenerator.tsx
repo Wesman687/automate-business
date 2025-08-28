@@ -3,7 +3,7 @@
 import React, { memo, useCallback, useState } from 'react';
 import { Sparkles, Target, Users, Calendar, DollarSign, TrendingUp } from 'lucide-react';
 import { api } from '@/lib/https';
-import { Job, FinancialBreakdown } from '../interfaces/job';
+import { Job, FinancialBreakdown } from '@/types';
 
 interface AIFinancialGeneratorProps {
   jobData: Job;

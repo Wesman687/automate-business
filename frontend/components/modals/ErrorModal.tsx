@@ -3,13 +3,13 @@
 import { useEffect } from 'react';
 import { X, AlertTriangle, XCircle, CheckCircle, Info } from 'lucide-react';
 
-interface ModalButton {
+export interface ModalButton {
   label: string;
   onClick: () => void;
   variant?: 'primary' | 'secondary' | 'danger';
 }
 
-interface ErrorModalProps {
+export interface ErrorModalProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;

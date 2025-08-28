@@ -1,27 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Card, Table, Modal, Form, Input, Select, Switch, message, Tag, Space, Tooltip } from 'antd';
+import { Button, Table, Modal, Form, Input, Select, Switch, message, Space } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, KeyOutlined } from '@ant-design/icons';
 import { api } from '@/lib/https';
+import { AppIntegration } from '@/types';
 
 const { Option } = Select;
 const { TextArea } = Input;
-
-interface AppIntegration {
-  id: number;
-  app_id: string;
-  app_name: string;
-  app_domain: string;
-  app_url?: string;
-  description?: string;
-  permissions: string[];
-  is_public: boolean;
-  status: 'pending_approval' | 'active' | 'inactive' | 'suspended';
-  created_at: string;
-  updated_at?: string;
-  created_by?: number;
-  approved_by?: number;
-  approved_at?: string;
-}
 
 interface CreateAppForm {
   app_name: string;
@@ -62,7 +46,7 @@ const CrossAppIntegrations: React.FC = () => {
   const fetchIntegrations = async () => {
     setLoading(true);
     try {
-      const data = await api.get('/admin/cross-app/integrations');
+      const data = await api.get<AppIntegration[]>('/admin/cross-app/integrations');
       setIntegrations(data);
     } catch (error) {
       console.error('Error fetching integrations:', error);
@@ -74,7 +58,7 @@ const CrossAppIntegrations: React.FC = () => {
 
   const handleCreate = async (values: CreateAppForm) => {
     try {
-      const result = await api.post('/admin/cross-app/integrations', {
+      const result = await api.post<{ api_key: string }>('/admin/cross-app/integrations', {
         app_name: values.app_name,
         app_domain: values.app_domain,
         description: values.description,
@@ -106,7 +90,7 @@ const CrossAppIntegrations: React.FC = () => {
     if (!selectedIntegration) return;
     
     try {
-      await api.put(`/admin/cross-app/integrations/${selectedIntegration.app_id}`, values);
+      await api.put(`/admin/cross-app/integrations/${selectedIntegration.id}`, values);
       message.success('Integration updated successfully!');
       setEditModalVisible(false);
       setSelectedIntegration(null);

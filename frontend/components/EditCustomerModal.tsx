@@ -3,36 +3,24 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, User, Mail, Phone, Building, Globe, MessageSquare, FileText, Lock, EyeOff, Eye } from 'lucide-react';
 import { formatPhoneNumber, handlePhoneChange, isValidPhoneNumber } from '@/utils/phoneFormatter';
-
-interface Customer {
-  id: number;
-  name: string;
-  email: string;
-  phone?: string;
-  address?: string;
-  city?: string;
-  state?: string;
-  zip_code?: string;
-  country?: string;
-  business_site?: string;
-  business_type?: string;
-  additional_websites?: string;
-  status: string;
-  notes?: string;
-  file_path?: string;
-  created_at?: string;
-  chat_sessions?: any[];
-}
+import { 
+  User as UserType, 
+  UserStatus, 
+  LeadStatus,
+  UserUpdateRequest,
+  VALIDATION_PATTERNS,
+  VALIDATION_MESSAGES
+} from '@/types';
 
 interface EditCustomerModalProps {
-  customer: Customer;
+  customer: UserType;
   isOpen: boolean;
   onClose: () => void;
-  onSave: (updatedCustomer: Partial<Customer>, passwordData?: { password: string }) => Promise<void>;
+  onSave: (updatedCustomer: UserUpdateRequest, passwordData?: { password: string }) => Promise<void>;
 }
 
 export default function EditCustomerModal({ customer, isOpen, onClose, onSave }: EditCustomerModalProps) {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<UserUpdateRequest>({
     name: '',
     email: '',
     phone: '',
@@ -44,7 +32,7 @@ export default function EditCustomerModal({ customer, isOpen, onClose, onSave }:
     business_site: '',
     business_type: '',
     additional_websites: '',
-    status: 'lead',
+    status: UserStatus.PENDING,
     notes: ''
   });
   
@@ -75,7 +63,7 @@ export default function EditCustomerModal({ customer, isOpen, onClose, onSave }:
         business_site: customer.business_site || '',
         business_type: customer.business_type || '',
         additional_websites: customer.additional_websites || '',
-        status: customer.status || 'lead',
+        status: customer.status || UserStatus.PENDING,
         notes: customer.notes || ''
       });
       
@@ -94,35 +82,34 @@ export default function EditCustomerModal({ customer, isOpen, onClose, onSave }:
     const newErrors: Record<string, string> = {};
 
     // Required fields
-    if (!formData.name.trim()) {
-      newErrors.name = 'Name is required';
+    if (!formData.name?.trim()) {
+      newErrors.name = VALIDATION_MESSAGES.REQUIRED;
     }
 
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email address';
+    if (!formData.email?.trim()) {
+      newErrors.email = VALIDATION_MESSAGES.REQUIRED;
+    } else if (!VALIDATION_PATTERNS.EMAIL.test(formData.email)) {
+      newErrors.email = VALIDATION_MESSAGES.INVALID_EMAIL;
     }
 
     // Phone validation
     if (formData.phone && !isValidPhoneNumber(formData.phone)) {
-      newErrors.phone = 'Please enter a valid phone number';
+      newErrors.phone = VALIDATION_MESSAGES.INVALID_PHONE;
     }
 
     // URL validation for business site
     if (formData.business_site && formData.business_site.trim()) {
-      const urlPattern = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
-      if (!urlPattern.test(formData.business_site)) {
-        newErrors.business_site = 'Please enter a valid website URL';
+      if (!VALIDATION_PATTERNS.URL.test(formData.business_site)) {
+        newErrors.business_site = VALIDATION_MESSAGES.INVALID_URL;
       }
     }
 
     // Password validation if changing password
     if (changePassword) {
       if (!passwordData.password) {
-        newErrors.password = 'Password is required';
+        newErrors.password = VALIDATION_MESSAGES.REQUIRED;
       } else if (passwordData.password.length < 8) {
-        newErrors.password = 'Password must be at least 8 characters long';
+        newErrors.password = VALIDATION_MESSAGES.MIN_LENGTH(8);
       }
 
       if (!passwordData.confirmPassword) {
@@ -136,7 +123,7 @@ export default function EditCustomerModal({ customer, isOpen, onClose, onSave }:
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field: keyof UserUpdateRequest, value: string) => {
     if (field === 'phone') {
       // Use the phone formatter
       value = handlePhoneChange(value);
@@ -169,7 +156,7 @@ export default function EditCustomerModal({ customer, isOpen, onClose, onSave }:
       if (value.length === 0) {
         delete newErrors.password;
       } else if (value.length < 8) {
-        newErrors.password = 'Password must be at least 8 characters long';
+        newErrors.password = VALIDATION_MESSAGES.MIN_LENGTH(8);
       } else {
         delete newErrors.password;
       }
@@ -201,32 +188,37 @@ export default function EditCustomerModal({ customer, isOpen, onClose, onSave }:
     }
 
     setLoading(true);
+    
     try {
-      // Prepare the update data
-      const updateData: Partial<Customer> = {
-        name: formData.name.trim(),
-        email: formData.email.trim(),
-        phone: formData.phone.trim() || undefined,
-        address: formData.address.trim() || undefined,
-        city: formData.city.trim() || undefined,
-        state: formData.state.trim() || undefined,
-        zip_code: formData.zip_code.trim() || undefined,
-        country: formData.country.trim() || undefined,
-        business_site: formData.business_site.trim() || undefined,
-        business_type: formData.business_type.trim() || undefined,
-        additional_websites: formData.additional_websites.trim() || undefined,
+      // Transform the flat form data into the nested structure the backend expects
+      const transformedData = {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
         status: formData.status,
-        notes: formData.notes.trim() || undefined
+        customer_fields: {
+          address: formData.address,
+          city: formData.city,
+          state: formData.state,
+          zip_code: formData.zip_code,
+          country: formData.country,
+          business_site: formData.business_site,
+          additional_websites: formData.additional_websites,
+          business_type: formData.business_type,
+          notes: formData.notes
+        }
       };
 
-      // Include password data if changing password
-      const passwordUpdateData = changePassword ? { password: passwordData.password } : undefined;
-
-      await onSave(updateData, passwordUpdateData);
+      const finalPasswordData = changePassword ? { password: passwordData.password } : undefined;
+      await onSave(transformedData, finalPasswordData);
       onClose();
     } catch (error) {
       console.error('Error updating customer:', error);
-      // You could set a general error state here
+      if (error instanceof Error) {
+        setErrors({ general: error.message });
+      } else {
+        setErrors({ general: 'Failed to update customer. Please try again.' });
+      }
     } finally {
       setLoading(false);
     }
@@ -235,345 +227,333 @@ export default function EditCustomerModal({ customer, isOpen, onClose, onSave }:
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-gray-900 border border-gray-700 rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        {/* Header */}
+    <div className="fixed inset-0 bg-gray-800/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-gray-800 rounded-xl border border-gray-700 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-700">
-          <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-            <User className="h-5 w-5 text-cyan-400" />
-            Edit Customer
-          </h2>
+          <h2 className="text-xl font-semibold text-white">Edit Customer</h2>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
+            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
           >
-            <X className="h-5 w-5 text-gray-400" />
+            <X className="h-5 w-5 text-white" />
           </button>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {errors.general && (
+            <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3">
+              <p className="text-red-300 text-sm">{errors.general}</p>
+            </div>
+          )}
+
           {/* Basic Information */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                <User className="h-4 w-4 inline mr-1" />
-                Name *
-              </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => handleInputChange('name', e.target.value)}
-                className={`w-full px-3 py-2 bg-gray-800 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 ${
-                  errors.name ? 'border-red-500' : 'border-gray-600'
-                }`}
-                placeholder="Enter customer name"
-              />
-              {errors.name && <p className="text-red-400 text-sm mt-1">{errors.name}</p>}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium text-white border-b border-gray-700 pb-2">Basic Information</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Name <span className="text-red-400">*</span>
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    value={formData.name || ''}
+                    onChange={(e) => handleInputChange('name', e.target.value)}
+                    className="w-full pl-10 pr-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    placeholder="Customer name"
+                  />
+                </div>
+                {errors.name && <p className="text-red-400 text-xs mt-1">{errors.name}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Email <span className="text-red-400">*</span>
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    type="email"
+                    value={formData.email || ''}
+                    onChange={(e) => handleInputChange('email', e.target.value)}
+                    className="w-full pl-10 pr-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    placeholder="customer@example.com"
+                  />
+                </div>
+                {errors.email && <p className="text-red-400 text-xs mt-1">{errors.email}</p>}
+              </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                <Mail className="h-4 w-4 inline mr-1" />
-                Email *
-              </label>
-              <input
-                type="email"
-                value={formData.email}
-                onChange={(e) => handleInputChange('email', e.target.value)}
-                className={`w-full px-3 py-2 bg-gray-800 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 ${
-                  errors.email ? 'border-red-500' : 'border-gray-600'
-                }`}
-                placeholder="Enter email address"
-              />
-              {errors.email && <p className="text-red-400 text-sm mt-1">{errors.email}</p>}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Phone Number
+                </label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    type="tel"
+                    value={formData.phone || ''}
+                    onChange={(e) => handleInputChange('phone', e.target.value)}
+                    className="w-full pl-10 pr-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    placeholder="(555) 123-4567"
+                  />
+                </div>
+                {errors.phone && <p className="text-red-400 text-xs mt-1">{errors.phone}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Status
+                </label>
+                <select
+                  value={formData.status}
+                  onChange={(e) => handleInputChange('status', e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                >
+                  <option value={UserStatus.ACTIVE}>Active</option>
+                  <option value={UserStatus.PENDING}>Pending</option>
+                  <option value={UserStatus.INACTIVE}>Inactive</option>
+                  <option value={UserStatus.SUSPENDED}>Suspended</option>
+                </select>
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                <Phone className="h-4 w-4 inline mr-1" />
-                Phone Number
-              </label>
-              <input
-                type="tel"
-                value={formData.phone}
-                onChange={(e) => handleInputChange('phone', e.target.value)}
-                className={`w-full px-3 py-2 bg-gray-800 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 ${
-                  errors.phone ? 'border-red-500' : 'border-gray-600'
-                }`}
-                placeholder="(000) 000-0000"
-                maxLength={14}
-              />
-              {errors.phone && <p className="text-red-400 text-sm mt-1">{errors.phone}</p>}
-              <p className="text-gray-500 text-xs mt-1">Format: (386) 227-4629</p>
+          {/* Address Information */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium text-white border-b border-gray-700 pb-2">Address Information</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Address
+                </label>
+                <input
+                  type="text"
+                  value={formData.address || ''}
+                  onChange={(e) => handleInputChange('address', e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  placeholder="123 Main St"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  City
+                </label>
+                <input
+                  type="text"
+                  value={formData.city || ''}
+                  onChange={(e) => handleInputChange('city', e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  placeholder="City"
+                />
+              </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Status
-              </label>
-              <select
-                value={formData.status}
-                onChange={(e) => handleInputChange('status', e.target.value)}
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-              >
-                <option value="lead">Lead</option>
-                <option value="qualified">Qualified</option>
-                <option value="customer">Customer</option>
-                <option value="closed">Closed</option>
-              </select>
-            </div>
-          </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  State
+                </label>
+                <input
+                  type="text"
+                  value={formData.state || ''}
+                  onChange={(e) => handleInputChange('state', e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  placeholder="State"
+                />
+              </div>
 
-          {/* Address */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              <Building className="h-4 w-4 inline mr-1" />
-              Street Address
-            </label>
-            <input
-              type="text"
-              value={formData.address}
-              onChange={(e) => handleInputChange('address', e.target.value)}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-              placeholder="Enter street address"
-            />
-          </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  ZIP Code
+                </label>
+                <input
+                  type="text"
+                  value={formData.zip_code || ''}
+                  onChange={(e) => handleInputChange('zip_code', e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  placeholder="12345"
+                />
+              </div>
 
-          {/* City, State, Zip, Country */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                City
-              </label>
-              <input
-                type="text"
-                value={formData.city}
-                onChange={(e) => handleInputChange('city', e.target.value)}
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                placeholder="City"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                State/Province
-              </label>
-              <input
-                type="text"
-                value={formData.state}
-                onChange={(e) => handleInputChange('state', e.target.value)}
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                placeholder="State"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                ZIP/Postal Code
-              </label>
-              <input
-                type="text"
-                value={formData.zip_code}
-                onChange={(e) => handleInputChange('zip_code', e.target.value)}
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                placeholder="ZIP"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Country
-              </label>
-              <input
-                type="text"
-                value={formData.country}
-                onChange={(e) => handleInputChange('country', e.target.value)}
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                placeholder="Country"
-              />
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Country
+                </label>
+                <input
+                  type="text"
+                  value={formData.country || ''}
+                  onChange={(e) => handleInputChange('country', e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  placeholder="Country"
+                />
+              </div>
             </div>
           </div>
 
           {/* Business Information */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                <Building className="h-4 w-4 inline mr-1" />
-                Business Type
-              </label>
-              <input
-                type="text"
-                value={formData.business_type}
-                onChange={(e) => handleInputChange('business_type', e.target.value)}
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                placeholder="e.g., Technology, Retail, Manufacturing"
-              />
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium text-white border-b border-gray-700 pb-2">Business Information</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Business Type
+                </label>
+                <div className="relative">
+                  <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    value={formData.business_type || ''}
+                    onChange={(e) => handleInputChange('business_type', e.target.value)}
+                    className="w-full pl-10 pr-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    placeholder="e.g., Technology, Healthcare"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Business Website
+                </label>
+                <div className="relative">
+                  <Globe className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    type="url"
+                    value={formData.business_site || ''}
+                    onChange={(e) => handleInputChange('business_site', e.target.value)}
+                    className="w-full pl-10 pr-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    placeholder="https://example.com"
+                  />
+                </div>
+                {errors.business_site && <p className="text-red-400 text-xs mt-1">{errors.business_site}</p>}
+              </div>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                <Globe className="h-4 w-4 inline mr-1" />
-                Business Website
+                Additional Websites
               </label>
-              <input
-                type="url"
-                value={formData.business_site}
-                onChange={(e) => handleInputChange('business_site', e.target.value)}
-                className={`w-full px-3 py-2 bg-gray-800 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 ${
-                  errors.business_site ? 'border-red-500' : 'border-gray-600'
-                }`}
-                placeholder="https://example.com"
+              <textarea
+                value={formData.additional_websites || ''}
+                onChange={(e) => handleInputChange('additional_websites', e.target.value)}
+                rows={2}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                placeholder="List additional websites, one per line"
               />
-              {errors.business_site && <p className="text-red-400 text-sm mt-1">{errors.business_site}</p>}
             </div>
-          </div>
-
-          {/* Additional Websites */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              <Globe className="h-4 w-4 inline mr-1" />
-              Additional Websites
-            </label>
-            <textarea
-              value={formData.additional_websites}
-              onChange={(e) => handleInputChange('additional_websites', e.target.value)}
-              rows={3}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-              placeholder="Enter additional websites (one per line)"
-            />
           </div>
 
           {/* Notes */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              <MessageSquare className="h-4 w-4 inline mr-1" />
-              Notes
-            </label>
-            <textarea
-              value={formData.notes}
-              onChange={(e) => handleInputChange('notes', e.target.value)}
-              rows={4}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-              placeholder="Enter any additional notes about this customer"
-            />
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium text-white border-b border-gray-700 pb-2">Notes & Additional Information</h3>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Notes
+              </label>
+              <div className="relative">
+                <MessageSquare className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <textarea
+                  value={formData.notes || ''}
+                  onChange={(e) => handleInputChange('notes', e.target.value)}
+                  rows={4}
+                  className="w-full pl-10 pr-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  placeholder="Additional notes about the customer..."
+                />
+              </div>
+            </div>
           </div>
 
           {/* Password Change Section */}
-          <div className="border-t border-gray-700 pt-6">
-            <div className="flex items-center justify-between mb-4">
-              <label className="block text-sm font-medium text-gray-300">
-                <Lock className="h-4 w-4 inline mr-1" />
+          <div className="space-y-4">
+            <div className="flex items-center space-x-3">
+              <input
+                type="checkbox"
+                id="changePassword"
+                checked={changePassword}
+                onChange={(e) => setChangePassword(e.target.checked)}
+                className="w-4 h-4 text-cyan-600 bg-gray-700 border-gray-600 rounded focus:ring-cyan-500"
+              />
+              <label htmlFor="changePassword" className="text-sm font-medium text-gray-300">
                 Change Password
               </label>
-              <button
-                type="button"
-                onClick={() => {
-                  setChangePassword(!changePassword);
-                  if (!changePassword) {
-                    // Reset password fields when enabling
-                    setPasswordData({ password: '', confirmPassword: '' });
-                    setErrors(prev => {
-                      const newErrors = { ...prev };
-                      delete newErrors.password;
-                      delete newErrors.confirmPassword;
-                      return newErrors;
-                    });
-                  }
-                }}
-                className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                  changePassword 
-                    ? 'bg-cyan-600 text-white hover:bg-cyan-700' 
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
-              >
-                {changePassword ? 'Cancel' : 'Change Password'}
-              </button>
             </div>
 
             {changePassword && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
-                    New Password *
+                    New Password <span className="text-red-400">*</span>
                   </label>
                   <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <input
                       type={showPassword ? 'text' : 'password'}
                       value={passwordData.password}
                       onChange={(e) => handlePasswordChange('password', e.target.value)}
-                      className={`w-full px-3 py-2 bg-gray-800 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 pr-10 ${
-                        errors.password ? 'border-red-500' : 'border-gray-600'
-                      }`}
-                      placeholder="Enter new password"
+                      className="w-full pl-10 pr-10 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      placeholder="New password"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-300"
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
                     >
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
-                  {errors.password && <p className="text-red-400 text-sm mt-1">{errors.password}</p>}
-                  <p className="text-gray-500 text-xs mt-1">Minimum 8 characters</p>
+                  {errors.password && <p className="text-red-400 text-xs mt-1">{errors.password}</p>}
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Confirm Password *
+                    Confirm Password <span className="text-red-400">*</span>
                   </label>
                   <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <input
                       type={showConfirmPassword ? 'text' : 'password'}
                       value={passwordData.confirmPassword}
                       onChange={(e) => handlePasswordChange('confirmPassword', e.target.value)}
-                      className={`w-full px-3 py-2 bg-gray-800 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 pr-10 ${
-                        errors.confirmPassword ? 'border-red-500' : 'border-gray-600'
-                      }`}
+                      className="w-full pl-10 pr-10 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
                       placeholder="Confirm new password"
                     />
                     <button
                       type="button"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-300"
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
                     >
                       {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
-                  {errors.confirmPassword && <p className="text-red-400 text-sm mt-1">{errors.confirmPassword}</p>}
+                  {errors.confirmPassword && <p className="text-red-400 text-xs mt-1">{errors.confirmPassword}</p>}
                 </div>
               </div>
             )}
           </div>
 
-          {/* Footer */}
-          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-700">
+          {/* Action Buttons */}
+          <div className="flex justify-end space-x-3 pt-6 border-t border-gray-700">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+              className="px-4 py-2 text-gray-300 hover:text-white transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="inline-flex items-center px-4 py-2 bg-cyan-600 hover:bg-cyan-700 disabled:bg-cyan-800 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+              className="px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
             >
-              {loading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="h-4 w-4 mr-2" />
-                  Save Changes
-                </>
-              )}
+              <Save className="h-4 w-4" />
+              <span>{loading ? 'Saving...' : 'Save Changes'}</span>
             </button>
           </div>
         </form>

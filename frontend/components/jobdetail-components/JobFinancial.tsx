@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { DollarSign } from 'lucide-react';
-import { Job, FinancialBreakdown } from '../interfaces/job';
+import { Job, FinancialBreakdown } from '@/types';
 import { FinancialEstimates } from './FinancialEstimates';
 import { AIFinancialGenerator } from './AIFinancialGenerator';
 import { CostBreakdown } from './CostBreakdown';

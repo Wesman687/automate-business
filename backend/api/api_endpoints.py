@@ -1,14 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from database import get_db
+from models import ChatSession
+from api.auth import get_current_user
 from services.session_service import SessionService
 from services.customer_service import CustomerService
-from api.auth import get_current_user  # Legacy import
-from api.auth import get_current_admin
+from typing import List, Optional
 from pydantic import BaseModel
-from typing import List
 from datetime import datetime
-from database.models import ChatSession
 
 class SeenStatusRequest(BaseModel):
     is_seen: bool
@@ -16,7 +15,7 @@ class SeenStatusRequest(BaseModel):
 router = APIRouter()
 
 @router.get("/sessions")
-async def get_all_sessions(db: Session = Depends(get_db), current_user: dict = Depends(get_current_admin)):
+async def get_all_sessions(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     """Get all chat sessions with customer info for admin"""
     try:
         print(f"🔍 Sessions endpoint - Current user: {current_user}")
@@ -28,8 +27,9 @@ async def get_all_sessions(db: Session = Depends(get_db), current_user: dict = D
         result = []
         for session, customer, message_count in sessions_data:
             session_dict = {
-                "id": session.session_id,
+                "id": session.id,
                 "session_id": session.session_id,
+                "customer_id": session.customer_id,
                 "status": session.status,
                 "is_seen": session.is_seen,
                 "created_at": session.created_at.isoformat() if session.created_at else None,
@@ -54,7 +54,7 @@ async def get_all_sessions(db: Session = Depends(get_db), current_user: dict = D
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/sessions/{session_id}")
-async def get_session_details(session_id: str, db: Session = Depends(get_db), current_user: dict = Depends(get_current_admin)):
+async def get_session_details(session_id: str, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     """Get session details with messages"""
     try:
         session_service = SessionService(db)
@@ -73,13 +73,13 @@ async def get_session_details(session_id: str, db: Session = Depends(get_db), cu
         messages = session_service.get_session_messages(session_id)
         
         result = {
-            "id": session.session_id,
+            "id": session.id,
             "session_id": session.session_id,
+            "customer_id": session.customer_id,
             "status": session.status,
             "is_seen": session.is_seen,
             "created_at": session.created_at.isoformat() if session.created_at else None,
             "updated_at": session.updated_at.isoformat() if session.updated_at else None,
-            "customer_id": session.customer_id,
             "customer": None,
             "messages": []
         }
@@ -111,7 +111,7 @@ async def get_session_details(session_id: str, db: Session = Depends(get_db), cu
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/sessions/{session_id}/messages")
-async def get_session_messages(session_id: str, db: Session = Depends(get_db), current_user: dict = Depends(get_current_admin)):
+async def get_session_messages(session_id: str, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     """Get messages for a specific session"""
     try:
         session_service = SessionService(db)
@@ -133,7 +133,7 @@ async def get_session_messages(session_id: str, db: Session = Depends(get_db), c
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.delete("/sessions/{session_id}")
-async def delete_session(session_id: str, db: Session = Depends(get_db), current_user: dict = Depends(get_current_admin)):
+async def delete_session(session_id: str, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     """Delete a chat session"""
     try:
         session_service = SessionService(db)

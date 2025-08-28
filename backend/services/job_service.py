@@ -1,6 +1,7 @@
+from models import Job, CustomerChangeRequest, User
+from services.base_service import BaseService
 from sqlalchemy.orm import Session
-from database.models import Job, CustomerChangeRequest, User
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 
 class JobService:

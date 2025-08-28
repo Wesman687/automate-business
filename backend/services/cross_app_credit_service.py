@@ -1,12 +1,13 @@
+from models import User, CreditTransaction
+from services.base_service import BaseService
 from sqlalchemy.orm import Session
+from typing import List, Optional, Dict, Any
 from sqlalchemy import and_, func
-from database.models import User, CreditTransaction
 from models.credit_models import CreditPackage, UserSubscription
 from models.cross_app_models import AppIntegration, AppCreditUsage, AppStatus
 from schemas.cross_app import AppPermission
 from services.cross_app_auth_service import CrossAppAuthService
 from services.stripe_service import StripeService
-from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
 import logging
 from fastapi import HTTPException, status

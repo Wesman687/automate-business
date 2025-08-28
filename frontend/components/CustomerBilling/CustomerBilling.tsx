@@ -1,59 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { Invoice, StripeSubscription, CreditDispute, CustomerBillingData } from '@/types';
 
-interface Invoice {
-  id: string;
-  number: string;
-  amount: number;
-  currency: string;
-  status: 'paid' | 'unpaid' | 'overdue' | 'draft';
-  due_date: string;
-  created_at: string;
-  description: string;
-  stripe_invoice_id?: string;
-}
 
-interface Subscription {
-  id: string;
-  product_name: string;
-  status: 'active' | 'canceled' | 'past_due' | 'unpaid';
-  amount: number;
-  currency: string;
-  interval: string;
-  interval_count: number;
-  current_period_start: string;
-  current_period_end: string;
-  next_billing_date: string;
-  stripe_subscription_id: string;
-}
-
-interface Dispute {
-  id: string;
-  transaction_id: string;
-  reason: string;
-  description: string;
-  status: 'pending' | 'under_review' | 'resolved' | 'rejected';
-  requested_refund: number;
-  created_at: string;
-  resolved_at?: string;
-  resolution_notes?: string;
-}
-
-interface CustomerBillingData {
-  invoices: Invoice[];
-  subscriptions: Subscription[];
-  disputes: Dispute[];
-  credit_balance: number;
-  payment_methods: Array<{
-    id: string;
-    type: string;
-    last4: string;
-    brand: string;
-    exp_month: number;
-    exp_year: number;
-  }>;
-}
 
 const CustomerBilling: React.FC = () => {
   const [data, setData] = useState<CustomerBillingData | null>(null);
@@ -318,8 +268,8 @@ const CustomerBilling: React.FC = () => {
               {data.subscriptions.filter(s => s.status === 'active').map((subscription) => (
                 <div key={subscription.id} className="border-l-4 border-green-400 pl-3">
                   <p className="text-sm font-medium text-gray-900">{subscription.product_name}</p>
-                  <p className="text-sm text-gray-500">{formatCurrency(subscription.amount, subscription.currency)} / {subscription.interval}</p>
-                  <p className="text-xs text-gray-400">Next billing: {formatDate(subscription.next_billing_date)}</p>
+                  <p className="text-sm text-gray-500">{formatCurrency(subscription.amount || 0, subscription.currency || 'USD')} / {subscription.interval}</p>
+                  <p className="text-xs text-gray-400">Next billing: {formatDate(subscription.next_billing_date || '')}</p>
                 </div>
               ))}
             </div>
@@ -447,9 +397,9 @@ const CustomerBilling: React.FC = () => {
                   </div>
                   
                   <div className="space-y-2 text-sm text-gray-600">
-                    <p><strong>Amount:</strong> {formatCurrency(subscription.amount, subscription.currency)} / {subscription.interval}</p>
-                    <p><strong>Current Period:</strong> {formatDate(subscription.current_period_start)} - {formatDate(subscription.current_period_end)}</p>
-                    <p><strong>Next Billing:</strong> {formatDate(subscription.next_billing_date)}</p>
+                    <p><strong>Amount:</strong> {formatCurrency(subscription.amount || 0, subscription.currency || 'USD')} / {subscription.interval}</p>
+                    <p><strong>Current Period:</strong> {formatDate(subscription.current_period_start || '')} - {formatDate(subscription.current_period_end || '')}</p>
+                    <p><strong>Next Billing:</strong> {formatDate(subscription.next_billing_date || '')}</p>
                   </div>
                   
                   <div className="mt-4 flex space-x-2">
@@ -499,10 +449,10 @@ const CustomerBilling: React.FC = () => {
                     </span>
                   </div>
                   
-                  <p className="text-sm text-gray-600 mb-3">{dispute.description}</p>
+                  <p className="text-sm text-gray-600 mb-3">{dispute.reason || ''}</p>
                   
                   <div className="flex justify-between items-center text-sm text-gray-500">
-                    <span>Requested Refund: {formatCurrency(dispute.requested_refund * 100)}</span>
+                    <span>Requested Refund: {formatCurrency(dispute.requested_refund || 0)}</span>
                     <span>Submitted: {formatDate(dispute.created_at)}</span>
                   </div>
                   

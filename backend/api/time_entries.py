@@ -1,17 +1,18 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from models import TimeEntry
+from api.auth import get_current_user
 from database import get_db
-from database.models import TimeEntry
-from api.auth import get_current_admin, get_current_user
-from typing import List
-from datetime import datetime
+from typing import List, Optional
+from datetime import datetime, date
+from pydantic import BaseModel
 
 router = APIRouter(tags=["time-entries"])
 
 @router.get("/time-entries", response_model=List[dict])
 async def get_time_entries(
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_admin)
+    current_user: dict = Depends(get_current_user)
 ):
     """Get all time entries (Admin only)"""
     try:
@@ -50,7 +51,7 @@ async def get_customer_time_entries(
     
     try:
         # Get jobs for the current customer
-        from database.models import Job
+        from models import Job
         customer_jobs = db.query(Job.id).filter(Job.customer_id == current_user.get('user_id')).all()
         job_ids = [job.id for job in customer_jobs]
         
@@ -86,7 +87,7 @@ async def get_customer_time_entries(
 async def create_time_entry(
     entry_data: dict,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_admin)
+    current_user: dict = Depends(get_current_user)
 ):
     """Create a new time entry"""
     try:

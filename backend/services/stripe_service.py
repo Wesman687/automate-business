@@ -1,24 +1,23 @@
 """
-Stripe service for payment processing, customer management, and webhook handling.
+Stripe service for handling payment processing
 """
-import stripe
 import logging
-from typing import Optional, Dict, Any, List
-from datetime import datetime, timezone
+from typing import Dict, Any, Optional, List
 from sqlalchemy.orm import Session
+from sqlalchemy import and_, or_, func
+from datetime import datetime, timedelta
+import stripe
+import os
 from fastapi import HTTPException, status
 
-from config import config
-from database.stripe_models import (
-    StripeCustomer, StripeSubscription, StripePaymentIntent,
-    StripePaymentMethod, StripeWebhookEvent, StripeProduct
-)
-from database.models import User, CreditTransaction
-from utils.idempotency import IdempotencyManager
+from models import User, CreditTransaction
+from models.stripe_models import StripeCustomer, StripeSubscription, StripePaymentIntent, StripePaymentMethod, StripeWebhookEvent, StripeProduct
+from services.base_service import BaseService
+from services.email_service import EmailService
 
 # Configure Stripe
-stripe.api_key = config.STRIPE_SECRET_KEY
-stripe.api_version = config.STRIPE_API_VERSION
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+stripe.api_version = os.getenv("STRIPE_API_VERSION")
 
 logger = logging.getLogger(__name__)
 
@@ -28,8 +27,8 @@ class StripeService:
     
     def __init__(self, db: Session):
         self.db = db
-        self.idempotency_manager = IdempotencyManager()
-        self.webhook_secret = config.STRIPE_WEBHOOK_SECRET
+        self.idempotency_manager = BaseService.IdempotencyManager()
+        self.webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
     
     async def create_customer(self, user: User, email: str, name: Optional[str] = None) -> StripeCustomer:
         """Create a Stripe customer and link it to a user"""

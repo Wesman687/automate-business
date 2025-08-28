@@ -5,24 +5,7 @@ import { Plus, Edit, Trash2, Eye, MessageSquare, Search, Filter, ExternalLink } 
 import Link from 'next/link';
 import { api } from '@/lib/https'
 import EditCustomerModal from '@/components/EditCustomerModal';
-
-interface Customer {
-  id: number;
-  name: string;
-  email: string;
-  phone?: string;
-  address?: string;
-  business_site?: string;
-  business_type?: string;
-  additional_websites?: string;
-  status: string;
-  notes?: string;
-  file_path?: string;
-  created_at: string;
-  updated_at?: string;
-  chat_count?: number;
-  chat_sessions?: any[];
-}
+import { Customer, LeadStatus } from '@/types';
 
 export default function Customers() {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -100,16 +83,16 @@ const updateCustomer = async (
       customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       customer.business_type?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesStatus = statusFilter === 'all' || customer.status === statusFilter;
+    const matchesStatus = statusFilter === 'all' || customer.lead_status === statusFilter;
     
     return matchesSearch && matchesStatus;
   });
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'customer':
+      case LeadStatus.CUSTOMER:
         return 'bg-green-100 text-green-800';
-      case 'lead':
+      case LeadStatus.LEAD:
         return 'bg-yellow-100 text-yellow-800';
       default:
         return 'bg-gray-100 text-gray-800';
@@ -179,13 +162,13 @@ const updateCustomer = async (
         <div className="bg-white/5 backdrop-blur-sm rounded-lg p-6 border border-white/10">
           <h3 className="text-sm font-medium text-cyan-400">Active Leads</h3>
           <div className="text-2xl font-bold text-white">
-            {customers.filter(c => c.status === 'lead').length}
+            {customers.filter(c => c.lead_status === LeadStatus.LEAD).length}
           </div>
         </div>
         <div className="bg-white/5 backdrop-blur-sm rounded-lg p-6 border border-white/10">
           <h3 className="text-sm font-medium text-cyan-400">Paying Customers</h3>
           <div className="text-2xl font-bold text-white">
-            {customers.filter(c => c.status === 'customer').length}
+            {customers.filter(c => c.lead_status === LeadStatus.CUSTOMER).length}
           </div>
         </div>
         <div className="bg-white/5 backdrop-blur-sm rounded-lg p-6 border border-white/10">
@@ -268,8 +251,8 @@ const updateCustomer = async (
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(customer.status)}`}>
-                      {customer.status}
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(customer.lead_status || '')}`}>
+                      {customer.lead_status || customer.status}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">

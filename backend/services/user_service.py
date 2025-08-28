@@ -1,6 +1,10 @@
-from sqlalchemy.orm import Session, joinedload
+from models import User
+from services.base_service import BaseService
+from sqlalchemy.orm import Session
+from typing import List, Optional, Dict, Any
+import logging
+from datetime import datetime, timedelta
 from sqlalchemy import and_, or_, func, desc
-from database.models import User
 from schemas.user import (
     UserCreate, UserUpdate, UserResponse, CustomerResponse, AdminResponse,
     UserListResponse, UserFilter, UserStats, BulkUserUpdate, BulkUserStatusUpdate,
@@ -8,8 +12,6 @@ from schemas.user import (
 )
 from services.auth_service import AuthService
 from typing import Optional, List, Dict, Any, Union
-import logging
-from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -149,9 +151,11 @@ class UserService:
         if not user:
             raise ValueError(f"User with ID {user_id} not found")
         
-        # Verify current password
-        if not self.auth_service.verify_password(current_password, user.password_hash):
-            raise ValueError("Current password is incorrect")
+        # For admin updates, skip current password verification
+        if not is_admin:
+            # Verify current password only for non-admin users
+            if not self.auth_service.verify_password(current_password, user.password_hash):
+                raise ValueError("Current password is incorrect")
         
         # Hash and update new password
         new_password_hash = self.auth_service.hash_password(new_password)
@@ -211,17 +215,17 @@ class UserService:
         
         try:
             # Total counts
-            total_users = self.db.query(func.count(User.id)).scalar()
-            total_customers = self.db.query(func.count(User.id)).filter(User.user_type == UserType.CUSTOMER.value).scalar()
-            total_admins = self.db.query(func.count(User.id)).filter(User.user_type == UserType.ADMIN.value).scalar()
+            total_users = self.db.query(User).count()
+            total_customers = self.db.query(User).filter(User.user_type == UserType.CUSTOMER.value).count()
+            total_admins = self.db.query(User).filter(User.user_type == UserType.ADMIN.value).count()
             
             # Status counts
-            active_users = self.db.query(func.count(User.id)).filter(User.status == UserStatus.ACTIVE.value).scalar()
-            pending_users = self.db.query(func.count(User.id)).filter(User.status == UserStatus.PENDING.value).scalar()
-            suspended_users = self.db.query(func.count(User.id)).filter(User.status == UserStatus.SUSPENDED.value).scalar()
+            active_users = self.db.query(User).filter(User.status == UserStatus.ACTIVE.value).count()
+            pending_users = self.db.query(User).filter(User.status == UserStatus.PENDING.value).count()
+            suspended_users = self.db.query(User).filter(User.status == UserStatus.SUSPENDED.value).count()
             
             # Credits
-            users_with_credits = self.db.query(func.count(User.id)).filter(User.credits > 0).scalar()
+            users_with_credits = self.db.query(User).filter(User.credits > 0).count()
             total_credits = self.db.query(func.sum(User.credits)).scalar() or 0
             
             # Time-based counts
@@ -229,12 +233,12 @@ class UserService:
             month_ago = now - timedelta(days=30)
             week_ago = now - timedelta(days=7)
             
-            new_users_this_month = self.db.query(func.count(User.id)).filter(
+            new_users_this_month = self.db.query(User).filter(
                 User.created_at >= month_ago
-            ).scalar()
-            new_users_this_week = self.db.query(func.count(User.id)).filter(
+            ).count()
+            new_users_this_week = self.db.query(User).filter(
                 User.created_at >= week_ago
-            ).scalar()
+            ).count()
             
             return UserStats(
                 total_users=total_users,

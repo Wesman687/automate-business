@@ -11,7 +11,7 @@ SYSTEM_CONTEXT: |
   Conventions:
     - Frontend calls go through `api.` subdomain and map to backend `/api`
     - Email endpoints always target **production** over **HTTPS**
-    - Use professional modals for notifications/errors (never `alert()`)
+    - **ALWAYS use professional modals for notifications/errors (NEVER `alert()`)**
     - Prefer small, composable files (no monoliths). Reuse components, hooks, and types.
   Required file reads on startup (if present):
     - ai_docs/instructions.md
@@ -44,6 +44,26 @@ TASK_WORKFLOW: |
   5. Add/Update tests, update status docs, request review.
 
 # === Frontend (Next.js + TS) ===
+MODAL_USAGE_RULES: |
+  **CRITICAL: Modal Usage Standards**
+  - **NEVER use `alert()`, `confirm()`, or `prompt()` - these are unprofessional and break UX**
+  - **ALWAYS use the project's standardized modal components:**
+    - `SuccessModal` for success, info, and warning messages
+    - `ErrorModal` for error messages and notifications
+    - `DeleteModal` for confirmations and destructive actions
+  - **Consistent state management pattern:**
+    ```tsx
+    const [showModal, setShowModal] = useState(false);
+    const [modalMessage, setModalMessage] = useState('');
+    
+    const handleSuccess = (message: string) => {
+      setModalMessage(message);
+      setShowModal(true);
+    };
+    ```
+  - **Replace all existing alert calls** with appropriate modal components
+  - **Use consistent modal titles and messaging** across the application
+
 TYPESCRIPT_GUIDELINES: |
   - "noImplicitAny": true and avoid `any` entirely.
   - Define domain types in `frontend/types/`; export named types/interfaces.
@@ -69,7 +89,10 @@ FRONTEND_STRUCTURE: |
       lib/
         fetcher.ts                # single fetch client that routes through `api.` → `/api`
   Notifications & errors:
-    - Use the project modal component; never `alert()`.
+    - **ALWAYS use the project modal component; NEVER `alert()`.**
+    - Use `SuccessModal` for success/info/warning messages
+    - Use `ErrorModal` for error messages
+    - Use `DeleteModal` for confirmations (danger/warning variants)
   Networking:
     - All requests must go through the shared `fetcher` (adds base URL, headers, error handling).
 

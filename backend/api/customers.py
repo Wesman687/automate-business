@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from api.api_endpoints import SeenStatusRequest
 from database import get_db
-from database.models import ChatSession, User as UserModel
+from models import ChatSession, User as UserModel
 from services.customer_service import CustomerService
 from services.session_service import SessionService
 from services.email_service import email_service
@@ -241,9 +241,6 @@ async def get_customers(
         user_type = current_user.get('user_type')
         user_id = current_user.get('user_id')
         
-        print(f"🔍 Customers endpoint - User: {current_user}")
-        print(f"🔍 Is admin: {is_admin}, User type: {user_type}, User ID: {user_id}")
-        
         if is_admin:
             # Admin sees all customers
             customers = customer_service.get_customers(skip=skip, limit=limit)
@@ -300,10 +297,8 @@ async def get_customers(
 async def test_customers_endpoint(db: Session = Depends(get_db)):
     """Test endpoint to check if customers API is working"""
     try:
-        print("🔍 Testing customers endpoint...")
         customer_service = CustomerService(db)
         customers = customer_service.get_all_customers()
-        print(f"✅ Found {len(customers)} customers")
         return {"message": "Customers endpoint working", "count": len(customers)}
     except Exception as e:
         import traceback
@@ -319,8 +314,6 @@ async def get_customer(
 ):
     """Get a specific customer by ID - Admin sees any, customers see only themselves"""
     try:
-        print(f"🔍 Starting get_customer for customer_id: {customer_id} (type: {type(customer_id)})")
-        print(f"🔍 Current user: {current_user}")
         
         customer_service = CustomerService(db)
         session_service = SessionService(db)
@@ -330,30 +323,24 @@ async def get_customer(
         user_type = current_user.get('user_type')
         user_id = current_user.get('user_id')
         
-        print(f"🔍 Is admin: {is_admin}, User type: {user_type}, User ID: {user_id}")
         
         # Authorization check - fixed to properly check admin status
         if not is_admin and (user_type != "customer" or user_id != customer_id):
             print(f"❌ Access denied - is_admin: {is_admin}, user_type: {user_type}, user_id: {user_id}, customer_id: {customer_id}")
             raise HTTPException(status_code=403, detail="Access denied - can only view your own data")
         
-        print(f"🔍 Authorization passed, fetching customer from database...")
         customer = customer_service.get_customer_by_id(customer_id)
-        print(f"🔍 Customer query result: {customer}")
         
         if not customer:
             print(f"❌ Customer not found in database for ID: {customer_id}")
             raise HTTPException(status_code=404, detail="Customer not found")
         
-        print(f"🔍 Customer found, fetching chat sessions...")
         try:
             # Get chat sessions with message counts for this customer
             chat_session_items = session_service.get_customer_sessions_with_message_counts(customer.id)
-            print(f"🔍 Chat sessions found: {len(chat_session_items) if chat_session_items else 0}")
         except Exception as e:
             print(f"⚠️ Warning: Error fetching chat sessions: {str(e)}")
             chat_session_items = []
-            print(f"🔍 Using empty chat sessions list")
         
         # Create customer dict with chat sessions
         customer_dict = {
@@ -406,9 +393,6 @@ async def update_customer(
         is_admin = current_user.get('is_admin', False)
         user_type = current_user.get('user_type')
         user_id = current_user.get('user_id')
-        
-        print(f"🔍 Update customer {customer_id} - User: {current_user}")
-        print(f"🔍 Is admin: {is_admin}, User type: {user_type}, User ID: {user_id}")
         
         # Authorization check - customers can only update their own data
         if not is_admin:
@@ -737,9 +721,6 @@ async def update_session_seen_status(
 ):
     """Update the seen status of a chat session"""
     try:
-        print(f"🔍 Updating seen status for session: {session_id}")
-        print(f"🔍 Request data: {request.dict()}")
-        
         # Find the chat session by session_id (string)
         session = db.query(ChatSession).filter(ChatSession.session_id == session_id).first()
         if not session:
@@ -748,7 +729,6 @@ async def update_session_seen_status(
         
         # Update the seen status
         is_seen = request.is_seen
-        print(f"🔍 Setting is_seen to: {is_seen}")
         session.is_seen = is_seen
         session.updated_at = datetime.utcnow()
         

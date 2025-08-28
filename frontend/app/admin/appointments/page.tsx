@@ -5,29 +5,14 @@ import { Calendar, Clock, Video, Phone, MapPin, Plus, Edit, Trash2, Users, Chevr
 import Link from 'next/link';
 import SmartAppointmentModal from '@/components/SmartAppointmentModal';
 import { api } from '@/lib/https';
-
-interface Appointment {
-  id: number;
-  customer_id: number;
-  customer_name: string;
-  customer_email: string;
-  title: string;
-  description: string;
-  appointment_date: string;
-  appointment_time: string;
-  duration_minutes: number;
-  meeting_type: string;
-  status: string;
-  notes: string;
-  created_at: string;
-}
+import { AppointmentExtended } from '@/types';
 
 export default function AppointmentsPage() {
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [appointments, setAppointments] = useState<AppointmentExtended[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
-  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
+  const [editingAppointment, setEditingAppointment] = useState<AppointmentExtended | null>(null);
   const [filter, setFilter] = useState('all');
 
   useEffect(() => {
@@ -36,9 +21,7 @@ export default function AppointmentsPage() {
 
   const fetchAppointments = async () => {
     try {
-      console.log('🔍 Fetching appointments...');
       const data = await api.get('/appointments');
-      console.log('📊 Appointments data:', data);
       setAppointments(data);
     } catch (error) {
       console.error('💥 Error fetching appointments:', error);
@@ -48,7 +31,7 @@ export default function AppointmentsPage() {
     }
   };
 
-  const [deletingAppointment, setDeletingAppointment] = useState<Appointment | null>(null);
+  const [deletingAppointment, setDeletingAppointment] = useState<AppointmentExtended | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const deleteAppointment = async (id: number) => {
@@ -132,6 +115,8 @@ export default function AppointmentsPage() {
   };
 
   const filteredAppointments = appointments.filter(appointment => {
+    if (!appointment.appointment_date) return false;
+    
     const today = new Date();
     const appointmentDate = new Date(appointment.appointment_date);
     
@@ -189,7 +174,7 @@ export default function AppointmentsPage() {
             <div>
               <p className="text-sm text-gray-400">Today</p>
               <p className="text-2xl font-bold text-white">
-                {appointments.filter(apt => new Date(apt.appointment_date).toDateString() === new Date().toDateString()).length}
+                {appointments.filter(apt => apt.appointment_date && new Date(apt.appointment_date).toDateString() === new Date().toDateString()).length}
               </p>
             </div>
             <Clock className="h-8 w-8 text-green-400" />
@@ -202,6 +187,7 @@ export default function AppointmentsPage() {
               <p className="text-sm text-gray-400">This Week</p>
               <p className="text-2xl font-bold text-white">
                 {appointments.filter(apt => {
+                  if (!apt.appointment_date) return false;
                   const aptDate = new Date(apt.appointment_date);
                   const today = new Date();
                   const weekStart = new Date(today.setDate(today.getDate() - today.getDay()));
@@ -302,15 +288,15 @@ export default function AppointmentsPage() {
                         </div>
                         <div className="flex items-center gap-2">
                           <Calendar className="h-4 w-4 text-gray-400" />
-                          {formatDate(appointment.appointment_date)}
+                          {appointment.appointment_date ? formatDate(appointment.appointment_date) : 'N/A'}
                         </div>
                         <div className="flex items-center gap-2">
                           <Clock className="h-4 w-4 text-gray-400" />
-                          {formatTime(appointment.appointment_time)} ({appointment.duration_minutes} min)
+                          {appointment.appointment_time ? formatTime(appointment.appointment_time) : 'N/A'} ({appointment.duration_minutes || 0} min)
                         </div>
                         <div className="flex items-center gap-2">
-                          {getMeetingIcon(appointment.meeting_type)}
-                          {appointment.meeting_type.replace('_', ' ').toUpperCase()}
+                          {appointment.meeting_type ? getMeetingIcon(appointment.meeting_type) : null}
+                          {appointment.meeting_type ? appointment.meeting_type.replace('_', ' ').toUpperCase() : 'N/A'}
                         </div>
                       </div>
                       

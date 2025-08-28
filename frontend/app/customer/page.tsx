@@ -2,80 +2,32 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Calendar, Clock, User, Phone, Mail, MapPin, Building2, Globe, LogOut, Edit, Save, X, Plus, Trash2, CheckCircle } from 'lucide-react';
+import { Calendar, Clock, Phone, Mail, MapPin, Building2, Globe, LogOut, Edit, Save, X, Plus, Trash2, CheckCircle, User as UserIcon } from 'lucide-react';
 
 import EditCustomerModal from '@/components/EditCustomerModal';
 import CustomerAppointmentModal from '@/components/CustomerAppointmentModal';
-import ErrorModal from '@/components/ErrorModal';
-import DeleteModal from '@/components/DeleteModal';
+import ErrorModal from '@/components/modals/ErrorModal';
+import DeleteModal from '@/components/modals/DeleteModal';
 import { api } from '@/lib/https';
 import { useAuth } from '@/hooks/useAuth';
-
-interface Customer {
-  id: number;
-  name: string;
-  email: string;
-  phone?: string;
-  company?: string;
-  address?: string;
-  business_site?: string;
-  business_type?: string;
-  notes?: string;
-  status: string;
-}
-
-interface Appointment {
-  id: number;
-  appointment_date?: string;
-  appointment_time?: string;
-  scheduled_date?: string; // Backend might return this instead
-  status: string;
-  title?: string;
-  description?: string;
-  duration_minutes?: number;
-  meeting_type?: string;
-  notes?: string;
-}
-
-interface TimeSlot {
-  datetime: string;
-  date: string;
-  time: string;
-  display_time: string;
-  label?: string;
-}
-
-interface DateSlot {
-  formatted_date: string;
-  day_name: string;
-  is_today: boolean;
-  is_tomorrow: boolean;
-  slots_count: number;
-  time_slots: TimeSlot[];
-}
-
-interface SmartSlotsResponse {
-  recommended_times: TimeSlot[];
-  available_dates: DateSlot[];
-  next_available?: TimeSlot;
-}
+import { User, Customer, Appointment, AppointmentExtended, TimeSlot, DateSlot, SmartSlotsResponse } from '@/types';
 
 export default function CustomerDashboard() {
-  const [customer, setCustomer] = useState<Customer | null>(null);
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [customer, setCustomer] = useState<User | null>(null);
+  const [appointments, setAppointments] = useState<AppointmentExtended[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
-  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
+  const [editingAppointment, setEditingAppointment] = useState<AppointmentExtended | null>(null);
   const [showEditAppointmentModal, setShowEditAppointmentModal] = useState(false);
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [rescheduleViewMode, setRescheduleViewMode] = useState<'recommended' | 'calendar'>('recommended');
   const [rescheduleSmartSlots, setRescheduleSmartSlots] = useState<SmartSlotsResponse | null>(null);
   const [rescheduleLoadingSlots, setRescheduleLoadingSlots] = useState(false);
   const [selectedRescheduleSlot, setSelectedRescheduleSlot] = useState<TimeSlot | null>(null);
-  const [deletingAppointment, setDeletingAppointment] = useState<Appointment | null>(null);
+  const [deletingAppointment, setDeletingAppointment] = useState<AppointmentExtended | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const router = useRouter();
@@ -376,7 +328,7 @@ export default function CustomerDashboard() {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
-                      <User className="inline h-4 w-4 mr-2" />
+                      <UserIcon className="inline h-4 w-4 mr-2" />
                       Full Name
                     </label>
                     <p className="text-white">{customer.name || 'Not provided'}</p>

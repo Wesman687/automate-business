@@ -1,5 +1,7 @@
-from sqlalchemy.orm import Session, joinedload
-from database.models import ChatSession, ChatMessage, User
+from models import ChatSession, ChatMessage, User
+from services.base_service import BaseService
+from sqlalchemy.orm import Session
+from typing import List, Optional, Dict, Any
 from schemas.chat import ChatSessionCreate, ChatMessageCreate
 from typing import Optional, List, Tuple
 from sqlalchemy import func
@@ -11,14 +13,15 @@ class SessionService:
         self.db = db
     
     def create_session(self, session_id: str, customer_id: Optional[int] = None) -> ChatSession:
-        db_session = ChatSession(
+        """Create a new chat session"""
+        session = ChatSession(
             session_id=session_id,
             customer_id=customer_id
         )
-        self.db.add(db_session)
+        self.db.add(session)
         self.db.commit()
-        self.db.refresh(db_session)
-        return db_session
+        self.db.refresh(session)
+        return session
     
     def get_session(self, session_id: str) -> Optional[ChatSession]:
         return self.db.query(ChatSession).filter(ChatSession.session_id == session_id).first()
@@ -54,27 +57,17 @@ class SessionService:
             .limit(limit)\
             .all()
     
-    def update_session_status(self, session_id: str, status: str) -> Optional[ChatSession]:
-        session = self.get_session(session_id)
-        if not session:
-            return None
-        
-        session.status = status
-        self.db.commit()
-        self.db.refresh(session)
-        return session
-    
     def link_session_to_customer(self, session_id: str, customer_id: int) -> Optional[ChatSession]:
+        """Link an existing session to a customer"""
         session = self.get_session(session_id)
-        if not session:
-            return None
-        
-        session.customer_id = customer_id
-        self.db.commit()
-        self.db.refresh(session)
+        if session:
+            session.customer_id = customer_id
+            self.db.commit()
+            self.db.refresh(session)
         return session
     
     def get_customer_sessions(self, customer_id: int) -> List[ChatSession]:
+        """Get all sessions for a specific customer"""
         return self.db.query(ChatSession)\
             .filter(ChatSession.customer_id == customer_id)\
             .order_by(ChatSession.created_at.desc())\
@@ -145,7 +138,7 @@ class SessionService:
         formatted_messages = []
         for msg in messages:
             formatted_messages.append({
-                "id": msg.message_id,
+                "id": msg.id,
                 "text": msg.text,
                 "is_bot": msg.is_bot,
                 "timestamp": msg.timestamp.isoformat() if msg.timestamp else None,
@@ -155,10 +148,10 @@ class SessionService:
         return {
             "session_id": session_id,
             "customer_id": session.customer_id,
+            "status": session.status,
+            "is_seen": session.is_seen,
             "created_at": session.created_at.isoformat() if session.created_at else None,
             "updated_at": session.updated_at.isoformat() if session.updated_at else None,
-            "status": getattr(session, 'status', 'active'),
-            "is_seen": getattr(session, 'is_seen', False),
             "messages": formatted_messages
         }
 
@@ -166,8 +159,8 @@ class SessionService:
         """Get all chat sessions ordered by creation date"""
         return self.db.query(ChatSession)\
             .options(
-                joinedload(ChatSession.messages),
-                joinedload(ChatSession.user)
+                # joinedload(ChatSession.messages), # This line was removed as per the new_code
+                # joinedload(ChatSession.user) # This line was removed as per the new_code
             )\
             .order_by(ChatSession.created_at.desc())\
             .all()

@@ -12,6 +12,7 @@ import {
   User, 
   TimeEntry,
   JobCreate,
+  JOB_STATUSES,
   JOB_STATUSES_OBJ,
   JOB_PRIORITIES_OBJ
 } from '@/types';
@@ -42,7 +43,7 @@ export default function JobManagementPage({ onCreateNewJob, isCustomer = false }
       // Fetch jobs, customers, and time entries
       console.log('🔍 Fetching jobs...');
       const [jobsResponse, customersResponse, timeEntriesResponse] = await Promise.all([
-        api.get<Job[]>(isCustomer ? '/jobs/customer' : '/jobs'),
+        api.get<any>(isCustomer ? '/jobs/customer' : '/jobs'),
         api.get<User[]>('/customers'),
         api.get<TimeEntry[]>(isCustomer ? '/time-entries/customer' : '/time-entries')
       ]);
@@ -51,8 +52,8 @@ export default function JobManagementPage({ onCreateNewJob, isCustomer = false }
       console.log('✅ Customers response:', customersResponse);
       console.log('✅ Time entries response:', timeEntriesResponse);
       
-      // Handle API responses - they should be arrays directly
-      const jobs = Array.isArray(jobsResponse) ? jobsResponse : [];
+      // Handle API responses - jobs API returns paginated response
+      const jobs = jobsResponse?.data || [];
       const customers = Array.isArray(customersResponse) ? customersResponse : [];
       const timeEntries = Array.isArray(timeEntriesResponse) ? timeEntriesResponse : [];
       
@@ -114,42 +115,42 @@ export default function JobManagementPage({ onCreateNewJob, isCustomer = false }
   const getStatusColor = (status: string) => {
     switch (status) {
       case JOB_STATUSES_OBJ.COMPLETED:
-        return 'bg-green-100 text-green-800 border-green-200';
+        return 'bg-green-500/20 text-green-300 border-green-500/30';
       case JOB_STATUSES_OBJ.IN_PROGRESS:
-        return 'bg-blue-100 text-blue-800 border-blue-200';
+        return 'bg-blue-500/20 text-blue-300 border-blue-500/30';
       case JOB_STATUSES_OBJ.ON_HOLD:
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+        return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30';
       case JOB_STATUSES_OBJ.CANCELLED:
-        return 'bg-red-100 text-red-800 border-red-200';
+        return 'bg-red-500/20 text-red-300 border-red-500/30';
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+        return 'bg-gray-500/20 text-gray-300 border-gray-500/30';
     }
   };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case JOB_PRIORITIES_OBJ.URGENT:
-        return 'bg-red-100 text-red-800 border-red-200';
+        return 'bg-red-500/20 text-red-300 border-red-500/30';
       case JOB_PRIORITIES_OBJ.HIGH:
-        return 'bg-orange-100 text-orange-800 border-orange-200';
+        return 'bg-orange-500/20 text-orange-300 border-orange-500/30';
       case JOB_PRIORITIES_OBJ.MEDIUM:
-        return 'bg-blue-100 text-blue-800 border-blue-200';
+        return 'bg-blue-500/20 text-blue-300 border-blue-500/30';
       case JOB_PRIORITIES_OBJ.LOW:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+        return 'bg-gray-500/20 text-gray-300 border-gray-500/30';
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+        return 'bg-gray-500/20 text-gray-300 border-gray-500/30';
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case JOB_STATUSES.COMPLETED:
+      case JOB_STATUSES_OBJ.COMPLETED:
         return CheckCircle;
-      case JOB_STATUSES.IN_PROGRESS:
+      case JOB_STATUSES_OBJ.IN_PROGRESS:
         return Clock;
-      case JOB_STATUSES.ON_HOLD:
+      case JOB_STATUSES_OBJ.ON_HOLD:
         return AlertCircle;
-      case JOB_STATUSES.CANCELLED:
+      case JOB_STATUSES_OBJ.CANCELLED:
         return AlertCircle;
       default:
         return Briefcase;
@@ -178,10 +179,10 @@ export default function JobManagementPage({ onCreateNewJob, isCustomer = false }
 
   const getJobStats = () => {
     const total = jobs.length;
-    const completed = jobs.filter(job => job.status === JOB_STATUSES.COMPLETED).length;
-    const inProgress = jobs.filter(job => job.status === JOB_STATUSES.IN_PROGRESS).length;
-    const pending = jobs.filter(job => job.status === JOB_STATUSES.PLANNING).length;
-    const onHold = jobs.filter(job => job.status === JOB_STATUSES.ON_HOLD).length;
+    const completed = jobs.filter(job => job.status === JOB_STATUSES_OBJ.COMPLETED).length;
+    const inProgress = jobs.filter(job => job.status === JOB_STATUSES_OBJ.IN_PROGRESS).length;
+    const pending = jobs.filter(job => job.status === JOB_STATUSES_OBJ.PENDING).length;
+    const onHold = jobs.filter(job => job.status === JOB_STATUSES_OBJ.ON_HOLD).length;
 
     return { total, completed, inProgress, pending, onHold };
   };
@@ -201,8 +202,8 @@ export default function JobManagementPage({ onCreateNewJob, isCustomer = false }
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Job Management</h1>
-          <p className="text-gray-600">Manage and track all your projects and tasks</p>
+          <h1 className="text-2xl font-bold text-white">Job Management</h1>
+          <p className="text-gray-400">Manage and track all your projects and tasks</p>
         </div>
         {!isCustomer && (
           <button
@@ -217,105 +218,105 @@ export default function JobManagementPage({ onCreateNewJob, isCustomer = false }
 
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-4">
           <div className="flex items-center">
-            <Briefcase className="h-8 w-8 text-cyan-600" />
+            <Briefcase className="h-8 w-8 text-cyan-400" />
             <div className="ml-3">
-              <p className="text-2xl font-semibold text-gray-900">{stats.total}</p>
-              <p className="text-sm text-gray-600">Total Jobs</p>
+              <p className="text-2xl font-semibold text-white">{stats.total}</p>
+              <p className="text-sm text-gray-300">Total Jobs</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-4">
           <div className="flex items-center">
-            <CheckCircle className="h-8 w-8 text-green-600" />
+            <CheckCircle className="h-8 w-8 text-green-400" />
             <div className="ml-3">
-              <p className="text-2xl font-semibold text-gray-900">{stats.completed}</p>
-              <p className="text-sm text-gray-600">Completed</p>
+              <p className="text-2xl font-semibold text-white">{stats.completed}</p>
+              <p className="text-sm text-gray-300">Completed</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-4">
           <div className="flex items-center">
-            <Clock className="h-8 w-8 text-blue-600" />
+            <Clock className="h-8 w-8 text-blue-400" />
             <div className="ml-3">
-              <p className="text-2xl font-semibold text-gray-900">{stats.inProgress}</p>
-              <p className="text-sm text-gray-600">In Progress</p>
+              <p className="text-2xl font-semibold text-white">{stats.inProgress}</p>
+              <p className="text-sm text-gray-300">In Progress</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-4">
           <div className="flex items-center">
-            <AlertCircle className="h-8 w-8 text-yellow-600" />
+            <AlertCircle className="h-8 w-8 text-yellow-400" />
             <div className="ml-3">
-              <p className="text-2xl font-semibold text-gray-900">{stats.pending}</p>
-              <p className="text-sm text-gray-600">Planning</p>
+              <p className="text-2xl font-semibold text-white">{stats.pending}</p>
+              <p className="text-sm text-gray-300">Planning</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-4">
           <div className="flex items-center">
-            <AlertCircle className="h-8 w-8 text-orange-600" />
+            <AlertCircle className="h-8 w-8 text-orange-400" />
             <div className="ml-3">
-              <p className="text-2xl font-semibold text-gray-900">{stats.onHold}</p>
-              <p className="text-sm text-gray-600">On Hold</p>
+              <p className="text-2xl font-semibold text-white">{stats.onHold}</p>
+              <p className="text-sm text-gray-300">On Hold</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Jobs List */}
-      <div className="bg-white rounded-lg border border-gray-200">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">All Jobs</h2>
+      <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10">
+        <div className="px-6 py-4 border-b border-white/10">
+          <h2 className="text-lg font-semibold text-white">All Jobs</h2>
         </div>
         
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-white/10">
+            <thead className="bg-cyan-600/20">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-cyan-400 uppercase tracking-wider">
                   Job
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-cyan-400 uppercase tracking-wider">
                   Customer
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-cyan-400 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-cyan-400 uppercase tracking-wider">
                   Priority
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-cyan-400 uppercase tracking-wider">
                   Progress
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-cyan-400 uppercase tracking-wider">
                   Deadline
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-cyan-400 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="divide-y divide-white/10">
               {jobs.map((job) => {
                 const StatusIcon = getStatusIcon(job.status);
                 return (
-                  <tr key={job.id} className="hover:bg-gray-50">
+                  <tr key={job.id} className="hover:bg-white/5 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-10 w-10">
-                          <div className="h-10 w-10 rounded-full bg-cyan-100 flex items-center justify-center">
-                            <Briefcase className="h-5 w-5 text-cyan-600" />
+                          <div className="h-10 w-10 rounded-full bg-cyan-600/20 flex items-center justify-center">
+                            <Briefcase className="h-5 w-5 text-cyan-400" />
                           </div>
                         </div>
                         <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">{job.title}</div>
-                          <div className="text-sm text-gray-500">
+                          <div className="text-sm font-medium text-white">{job.title}</div>
+                          <div className="text-sm text-gray-300">
                             {job.description ? job.description.substring(0, 50) + '...' : 'No description'}
                           </div>
                         </div>
@@ -323,7 +324,7 @@ export default function JobManagementPage({ onCreateNewJob, isCustomer = false }
                     </td>
                     
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{getCustomerName(job.customer_id)}</div>
+                      <div className="text-sm text-white">{getCustomerName(job.customer_id)}</div>
                     </td>
                     
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -341,17 +342,17 @@ export default function JobManagementPage({ onCreateNewJob, isCustomer = false }
                     
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <div className="w-16 bg-gray-200 rounded-full h-2 mr-2">
+                        <div className="w-16 bg-gray-600 rounded-full h-2 mr-2">
                           <div 
-                            className="bg-cyan-600 h-2 rounded-full" 
+                            className="bg-cyan-400 h-2 rounded-full" 
                             style={{ width: `${job.progress_percentage || 0}%` }}
                           ></div>
                         </div>
-                        <span className="text-sm text-gray-900">{job.progress_percentage || 0}%</span>
+                        <span className="text-sm text-white">{job.progress_percentage || 0}%</span>
                       </div>
                     </td>
                     
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
                       {job.deadline ? formatDate(job.deadline) : 'No deadline'}
                     </td>
                     
@@ -362,21 +363,21 @@ export default function JobManagementPage({ onCreateNewJob, isCustomer = false }
                             setSelectedJob(job);
                             setShowJobDetail(true);
                           }}
-                          className="text-cyan-600 hover:text-cyan-900"
+                          className="text-cyan-400 hover:text-cyan-300"
                         >
                           <FileText className="h-4 w-4" />
                         </button>
                         {!isCustomer && (
                           <>
                             <button
-                              onClick={() => updateJob(job.id, { status: JOB_STATUSES.IN_PROGRESS })}
-                              className="text-blue-600 hover:text-blue-900"
+                              onClick={() => updateJob(job.id, { status: JOB_STATUSES_OBJ.IN_PROGRESS })}
+                              className="text-blue-400 hover:text-blue-300"
                             >
                               <Clock className="h-4 w-4" />
                             </button>
                             <button
                               onClick={() => deleteJob(job.id)}
-                              className="text-red-600 hover:text-red-900"
+                              className="text-red-400 hover:text-red-300"
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
@@ -394,8 +395,8 @@ export default function JobManagementPage({ onCreateNewJob, isCustomer = false }
         {jobs.length === 0 && (
           <div className="text-center py-12">
             <Briefcase className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No jobs</h3>
-            <p className="mt-1 text-sm text-gray-500">
+            <h3 className="mt-2 text-sm font-medium text-white">No jobs</h3>
+            <p className="mt-1 text-sm text-gray-400">
               {isCustomer ? 'You don\'t have any jobs yet.' : 'Get started by creating a new job.'}
             </p>
             {!isCustomer && (

@@ -145,9 +145,19 @@ export default function JobDetailModal({ isOpen, onClose, jobId, isCustomer = fa
           }
         }
         
-        if (jobResponse.data) {
-          setJob(jobResponse.data);
-          setEditData(jobResponse.data);
+        // Update the job state with the saved data
+        // The API response might have a different structure, so we merge the saved data
+        if (jobResponse && typeof jobResponse === 'object') {
+          // If response has data property, use it; otherwise use the response directly
+          const responseData = (jobResponse as any).data || jobResponse;
+          const updatedJob = { ...job, ...responseData };
+          setJob(updatedJob);
+          setEditData(updatedJob);
+        } else {
+          // If no response data, update with the saved data
+          const updatedJob = { ...job, ...editData };
+          setJob(updatedJob);
+          setEditData(updatedJob);
         }
       }
       

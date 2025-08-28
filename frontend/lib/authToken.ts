@@ -1,6 +1,7 @@
 let tokenGetter: () => string | null = () => {
   if (typeof window === "undefined") return null;
-  return localStorage.getItem("auth_token"); // or your AuthContext can override
+  // Check for admin_token first (used by admin components), then fall back to auth_token
+  return localStorage.getItem("admin_token") || localStorage.getItem("auth_token");
 };
 export const TOKEN_KEYS = ['admin_token', 'access_token', 'token']; // legacy keys too
 

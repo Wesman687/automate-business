@@ -66,22 +66,22 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
     smtp_server: 'smtp.gmail.com',
     smtp_port: '587'
   });
-  
+
   // New state for success notification
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
-  
+
   // New state for email cache
   const [emailCache, setEmailCache] = useState<Map<string, Email>>(new Map());
   const [emailBodies, setEmailBodies] = useState<Map<string, string>>(new Map());
   const [preloadingEmails, setPreloadingEmails] = useState<Set<string>>(new Set());
   const [cachingProgress, setCachingProgress] = useState({ total: 0, cached: 0 });
-  
+
   // Email accounts state
-  const [emailAccounts, setEmailAccounts] = useState<Array<{name: string, value: string, email: string}>>([]);
+  const [emailAccounts, setEmailAccounts] = useState<Array<{ name: string, value: string, email: string }>>([]);
 
 
-  
+
   // Company email accounts - easily configurable
   const companyEmailAccounts = [
     { name: 'Tech Support', value: 'tech', email: 'tech@stream-lineai.com' },
@@ -108,19 +108,19 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
     try {
       // Use api utility - automatically routes to production server
       const data = await api.get('/api/email/accounts');
-      
+
       console.log('🔧 Email accounts from server:', data);
-      
+
       // Map server accounts to our format
       const serverAccounts = data.accounts?.map((account: any) => ({
         name: account.name,
         value: account.name.toLowerCase(),
         email: account.email
       })) || [];
-      
+
       console.log('🔧 Mapped server accounts:', serverAccounts);
       console.log('🔧 Company fallback accounts:', companyEmailAccounts);
-      
+
       setEmailAccounts(serverAccounts.length > 0 ? serverAccounts : companyEmailAccounts);
     } catch (error) {
       console.error('Error fetching email accounts:', error);
@@ -131,29 +131,29 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
   const fetchEmails = async () => {
     try {
       setLoading(true);
-      
+
       // Use api utility - automatically routes to production server
       const data = await api.get('/api/email/all');
       const emailList = data.emails || [];
       setEmails(emailList);
-      
+
       // Set caching progress
       const uncachedEmails = emailList.filter((email: Email) => !emailBodies.has(email.id));
       setCachingProgress({ total: uncachedEmails.length, cached: 0 });
-      
+
       // Preload ALL email bodies for instant access
       console.log(`📧 Preloading ${uncachedEmails.length} email bodies for instant access...`);
-      
+
       // Process emails in batches to avoid overwhelming the server
       const batchSize = 5;
       for (let i = 0; i < uncachedEmails.length; i += batchSize) {
         const batch = uncachedEmails.slice(i, i + batchSize);
         await Promise.all(batch.map((email: Email) => preloadEmailBody(email.id)));
-        
+
         // Update progress
         setCachingProgress(prev => ({ ...prev, cached: Math.min(prev.cached + batchSize, prev.total) }));
       }
-      
+
       console.log('📧 All email bodies cached successfully!');
     } catch (error) {
       console.error('Error fetching emails:', error);
@@ -167,16 +167,16 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
   const preloadEmailBody = async (emailId: string) => {
     try {
       setPreloadingEmails(prev => new Set(prev).add(emailId));
-      
+
       // Use api utility - automatically routes to production server
       const emailDetails = await api.get(`/api/email/${emailId}`);
-      
+
       // Cache the email body
       setEmailBodies(prev => new Map(prev).set(emailId, emailDetails.body || ''));
-      
+
       // Also cache the full email object for instant access
       setEmailCache(prev => new Map(prev).set(emailId, emailDetails));
-      
+
       console.log(`📧 Cached email body for ${emailId}`);
     } catch (error) {
       console.error('Error preloading email body:', error);
@@ -196,14 +196,14 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
       // Fetch only new emails (since last refresh)
       const data = await api.get('/api/email/all');
       const newEmailList = data.emails || [];
-      
+
       // Update emails list
       setEmails(newEmailList);
-      
+
       // Only preload emails that aren't already cached
       const uncachedEmails = newEmailList.filter((email: Email) => !emailBodies.has(email.id));
       console.log(`📧 Refreshing: ${uncachedEmails.length} new emails to cache`);
-      
+
       for (const email of uncachedEmails) {
         preloadEmailBody(email.id);
       }
@@ -215,7 +215,7 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
     }
   };
 
-    const selectEmail = async (email: Email) => {
+  const selectEmail = async (email: Email) => {
     try {
       // Check if we have the full email cached
       if (emailCache.has(email.id)) {
@@ -223,12 +223,12 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
         const cachedEmail = emailCache.get(email.id);
         if (cachedEmail) {
           setSelectedEmail(cachedEmail);
-          
+
           // Mark as read if not already read
           if (!email.is_read) {
             await markAsRead(email.id);
             // Update local state to reflect read status
-            setEmails(prev => prev.map(e => 
+            setEmails(prev => prev.map(e =>
               e.id === email.id ? { ...e, is_read: true } : e
             ));
           }
@@ -241,12 +241,12 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
         console.log(`📧 Using cached email body for ${email.id}`);
         const cachedEmail = { ...email, body: emailBodies.get(email.id) };
         setSelectedEmail(cachedEmail);
-        
+
         // Mark as read if not already read
         if (!email.is_read) {
           await markAsRead(email.id);
           // Update local state to reflect read status
-          setEmails(prev => prev.map(e => 
+          setEmails(prev => prev.map(e =>
             e.id === email.id ? { ...e, is_read: true } : e
           ));
         }
@@ -256,18 +256,18 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
       // If not cached at all, fetch and cache it
       console.log(`📧 Fetching email body for ${email.id} (not cached)`);
       const emailDetails = await api.get(`/api/email/${email.id}`);
-      
+
       // Cache both the email body and full email object
       setEmailBodies(prev => new Map(prev).set(email.id, emailDetails.body || ''));
       setEmailCache(prev => new Map(prev).set(email.id, emailDetails));
-      
+
       setSelectedEmail(emailDetails);
-      
+
       // Mark as read if not already read
       if (!email.is_read) {
         await markAsRead(email.id);
         // Update local state to reflect read status
-        setEmails(prev => prev.map(e => 
+        setEmails(prev => prev.map(e =>
           e.id === email.id ? { ...e, is_read: true } : e
         ));
       }
@@ -283,10 +283,10 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
       await api.post(`/api/email/${emailId}/mark-read`, {});
 
       // Update local state immediately for better UX
-      setEmails(prev => prev.map(email => 
+      setEmails(prev => prev.map(email =>
         email.id === emailId ? { ...email, is_read: true } : email
       ));
-      
+
       // Update selected email if it's the same one
       if (selectedEmail?.id === emailId) {
         setSelectedEmail(prev => prev ? { ...prev, is_read: true } : null);
@@ -303,10 +303,10 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
       await api.post(`/api/email/${emailId}/mark-unread`, {});
 
       // Update local state immediately for better UX
-      setEmails(prev => prev.map(email => 
+      setEmails(prev => prev.map(email =>
         email.id === emailId ? { ...email, is_read: false } : email
       ));
-      
+
       // Update selected email if it's the same one
       if (selectedEmail?.id === emailId) {
         setSelectedEmail(prev => prev ? { ...prev, is_read: false } : null);
@@ -328,12 +328,12 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
 
       // Remove from local state
       setEmails(prev => prev.filter(email => email.id !== emailId));
-      
+
       // Clear selection if this was the selected email
       if (selectedEmail?.id === emailId) {
         setSelectedEmail(null);
       }
-      
+
       // Clear from cache
       setEmailBodies(prev => {
         const newCache = new Map(prev);
@@ -344,7 +344,7 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
       // Show success message
       setSuccessMessage('Email deleted successfully! 🗑️');
       setShowSuccessModal(true);
-      
+
       setTimeout(() => {
         setShowSuccessModal(false);
       }, 3000);
@@ -382,7 +382,7 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
 
     try {
       setSending(true);
-      
+
       // Use api utility - automatically routes to production server
       // Backend expects to_emails as array, not to_email as string
       const emailData = {
@@ -402,11 +402,11 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
       });
       setShowCompose(false);
       setError('');
-      
+
       // Show fancy success notification
       setSuccessMessage('Email sent successfully! 🎉');
       setShowSuccessModal(true);
-      
+
       // Auto-hide after 3 seconds
       setTimeout(() => {
         setShowSuccessModal(false);
@@ -427,7 +427,7 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
 
     try {
       setAddingAccount(true);
-      
+
       // Use api utility - automatically routes to production server
       await api.post('/api/email/accounts', newAccountData);
 
@@ -443,10 +443,10 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
       });
       setShowAddAccount(false);
       setError('');
-      
+
       // Refresh email accounts
       await fetchEmails();
-      
+
       alert('Email account added successfully!');
     } catch (error) {
       console.error('Error adding email account:', error);
@@ -458,16 +458,16 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
 
   const filteredEmails = emails.filter(email => {
     const matchesSearch = email.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         email.from.toLowerCase().includes(searchTerm.toLowerCase());
-    
+      email.from.toLowerCase().includes(searchTerm.toLowerCase());
+
     // Make account filtering case-insensitive and flexible
-    const matchesAccount = selectedAccount === 'all' || 
-                          email.account.toLowerCase() === selectedAccount.toLowerCase() ||
-                          email.account.toLowerCase().includes(selectedAccount.toLowerCase());
-    
+    const matchesAccount = selectedAccount === 'all' ||
+      email.account.toLowerCase() === selectedAccount.toLowerCase() ||
+      email.account.toLowerCase().includes(selectedAccount.toLowerCase());
+
     // Debug logging for all emails to see account values
     console.log(`Email filtering - Email: "${email.subject}", Account: "${email.account}", Selected: "${selectedAccount}", Matches: ${matchesAccount}`);
-    
+
     return matchesSearch && matchesAccount;
   });
 
@@ -488,7 +488,7 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-dark-bg border border-white/10 rounded-lg shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col">
-        
+
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-white/10">
           <div className="flex items-center space-x-4">
@@ -498,7 +498,7 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
               {emails.length} unread
             </span>
           </div>
-          
+
           <div className="flex items-center space-x-2">
             <button
               onClick={() => setShowAddAccount(true)}
@@ -507,7 +507,7 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
               <Mail className="h-4 w-4" />
               <span>Add Email</span>
             </button>
-            
+
             <button
               onClick={() => setShowCompose(true)}
               className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
@@ -515,7 +515,7 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
               <Send className="h-4 w-4" />
               <span>Compose</span>
             </button>
-            
+
             <button
               onClick={refreshEmails}
               disabled={refreshing}
@@ -523,7 +523,7 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
             >
               <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
             </button>
-            
+
             {onClose && (
               <button
                 onClick={onClose}
@@ -550,10 +550,10 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
         )}
 
         <div className="flex flex-1 overflow-hidden">
-          
+
           {/* Email List */}
           <div className="w-1/3 border-r border-white/10 flex flex-col">
-            
+
             {/* Search and Filters */}
             <div className="p-4 border-b border-white/10 space-y-3">
               <div className="relative">
@@ -566,7 +566,7 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
                   className="w-full bg-gray-200 border border-white/10 rounded-lg pl-10 pr-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-              
+
               {/* Account Filter */}
               <select
                 value={selectedAccount}
@@ -580,7 +580,7 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
                   </option>
                 ))}
               </select>
-              
+
               {/* Caching Progress */}
               {cachingProgress.total > 0 && (
                 <div className="bg-blue-500/20 border border-blue-500/30 rounded-lg p-3">
@@ -589,14 +589,14 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
                     <span>{cachingProgress.cached}/{cachingProgress.total}</span>
                   </div>
                   <div className="w-full bg-blue-500/30 rounded-full h-2">
-                    <div 
+                    <div
                       className="bg-blue-400 h-2 rounded-full transition-all duration-300"
                       style={{ width: `${(cachingProgress.cached / cachingProgress.total) * 100}%` }}
                     />
                   </div>
                 </div>
               )}
-              
+
               {/* Debug: Read/Unread Status */}
               <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-lg p-3">
                 <div className="text-sm text-yellow-300 mb-2">
@@ -628,27 +628,23 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
                   <div
                     key={email.id}
                     onClick={() => selectEmail(email)}
-                    className={`p-4 border-b border-white/5 cursor-pointer transition-colors hover:bg-white/5 ${
-                      selectedEmail?.id === email.id ? 'bg-blue-500/20 border-blue-500/30' : ''
-                    } ${email.is_read ? 'opacity-60' : ''}`}
+                    className={`p-4 border-b border-white/5 cursor-pointer transition-colors hover:bg-white/5 ${selectedEmail?.id === email.id ? 'bg-blue-500/20 border-blue-500/30' : ''
+                      } ${email.is_read ? 'opacity-60' : ''}`}
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center space-x-2">
                           {/* Read/Unread indicator */}
-                          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                            email.is_read ? 'bg-gray-500' : 'bg-blue-400'
-                          }`} />
-                          <p className={`font-medium truncate ${
-                            email.is_read ? 'text-gray-400' : 'text-white'
-                          }`}>{email.from}</p>
+                          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${email.is_read ? 'bg-gray-500' : 'bg-blue-400'
+                            }`} />
+                          <p className={`font-medium truncate ${email.is_read ? 'text-gray-400' : 'text-white'
+                            }`}>{email.from}</p>
                           {email.is_important && (
                             <AlertCircle className="h-4 w-4 text-red-400 flex-shrink-0" />
                           )}
                         </div>
-                        <p className={`text-sm font-medium truncate ml-4 ${
-                          email.is_read ? 'text-gray-500' : 'text-gray-200'
-                        }`}>{email.subject}</p>
+                        <p className={`text-sm font-medium truncate ml-4 ${email.is_read ? 'text-gray-500' : 'text-gray-200'
+                          }`}>{email.subject}</p>
                       </div>
                       <div className="text-right ml-2 flex-shrink-0">
                         <p className="text-xs text-gray-400">{formatDate(email.received_date)}</p>
@@ -658,17 +654,16 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
                       </div>
                     </div>
                     <div className="flex items-center justify-between ml-6">
-                      <p className={`text-sm truncate flex-1 ${
-                        email.is_read ? 'text-gray-500' : 'text-gray-300'
-                      }`}>{email.preview}</p>
-                      
+                      <p className={`text-sm truncate flex-1 ${email.is_read ? 'text-gray-500' : 'text-gray-300'
+                        }`}>{email.preview}</p>
+
                       {/* Preloading indicator */}
                       {preloadingEmails.has(email.id) && (
                         <div className="ml-2 p-1">
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400"></div>
                         </div>
                       )}
-                      
+
                       {/* Delete button for each email */}
                       <button
                         onClick={(e) => {
@@ -703,7 +698,7 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
                         {new Date(selectedEmail.received_date).toLocaleString()} • {selectedEmail.account}
                       </p>
                     </div>
-                    
+
                     <div className="flex items-center space-x-2 ml-4">
                       <button
                         onClick={() => replyToEmail(selectedEmail)}
@@ -712,7 +707,7 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
                         <Reply className="h-4 w-4" />
                         <span>Reply</span>
                       </button>
-                      
+
                       <button
                         onClick={() => forwardEmail(selectedEmail)}
                         className="bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg flex items-center space-x-2 transition-colors"
@@ -720,7 +715,7 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
                         <Forward className="h-4 w-4" />
                         <span>Forward</span>
                       </button>
-                      
+
                       {selectedEmail.is_read ? (
                         <button
                           onClick={() => markAsUnread(selectedEmail.id)}
@@ -738,7 +733,7 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
                           <span>Mark Read</span>
                         </button>
                       )}
-                      
+
                       <button
                         onClick={() => deleteEmail(selectedEmail.id)}
                         className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg flex items-center space-x-2 transition-colors"
@@ -807,7 +802,7 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
                     <p className="text-xs text-gray-400 mt-1">Loading email accounts...</p>
                   )}
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">To Email *</label>
                   <input
@@ -893,7 +888,7 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
                     placeholder="e.g., Customer Support"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">Email Address *</label>
                   <input
@@ -930,7 +925,7 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
                     className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">IMAP Port</label>
                   <input
@@ -952,7 +947,7 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
                     className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">SMTP Port</label>
                   <input
@@ -966,10 +961,10 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
 
               <div className="bg-blue-500/20 border border-blue-500/30 rounded-lg p-3">
                 <p className="text-blue-300 text-sm">
-                  <strong>Setup Instructions:</strong><br/>
-                  1. Enable 2-factor authentication on your Google account<br/>
-                  2. Generate an App Password: Google Account → Security → 2-Step Verification → App passwords<br/>
-                  3. Use the 16-character app password (not your regular password)<br/>
+                  <strong>Setup Instructions:</strong><br />
+                  1. Enable 2-factor authentication on your Google account<br />
+                  2. Generate an App Password: Google Account → Security → 2-Step Verification → App passwords<br />
+                  3. Use the 16-character app password (not your regular password)<br />
                   4. Default settings work for most Gmail accounts
                 </p>
               </div>
@@ -1003,11 +998,11 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
       {showSuccessModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           {/* Backdrop */}
-          <div 
+          <div
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             onClick={() => setShowSuccessModal(false)}
           />
-          
+
           {/* Modal */}
           <div className="relative bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-8 shadow-2xl transform transition-all duration-300 scale-100 animate-in slide-in-from-bottom-4">
             <div className="text-center">
@@ -1017,11 +1012,11 @@ export default function EmailManager({ isOpen, onClose }: EmailManagerProps) {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              
+
               {/* Message */}
               <h3 className="text-2xl font-bold text-white mb-2">Success!</h3>
               <p className="text-green-100 text-lg">{successMessage}</p>
-              
+
               {/* Auto-close indicator */}
               <div className="mt-6 w-full bg-white/20 rounded-full h-1">
                 <div className="bg-white h-1 rounded-full animate-pulse" style={{ animationDuration: '3s' }}></div>

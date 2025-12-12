@@ -23,6 +23,8 @@ class EmailRequest(BaseModel):
 
 class PasswordResetRequest(BaseModel):
     email: EmailStr
+    app_name: str = None  # Optional: App name for email branding
+    reset_url: str = None  # Optional: URL to password reset page
 
 class PasswordResetConfirm(BaseModel):
     token: str
@@ -136,7 +138,7 @@ StreamlineAI Team
     <html>
     <body style="font-family: Arial, sans-serif; background: #f5f5f5; padding: 20px;">
         <div style="max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
-            <h2 style="color: #00d4ff; text-align: center;">StreamlineAI Password Reset</h2>
+            <h2 style="color: #00d4ff; text-align: center;">{app_name} Password Reset</h2>
             
             <p>Hello <strong>{admin.full_name or admin.username}</strong>,</p>
             

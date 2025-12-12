@@ -244,6 +244,10 @@ class EmailService:
         
         # Build verification URL if provided, otherwise use code entry
         if verification_url:
+            # Ensure URL has protocol (http:// or https://)
+            if not verification_url.startswith(('http://', 'https://')):
+                verification_url = f"https://{verification_url}"
+            
             # If URL provided, append email and code as query params
             from urllib.parse import urlencode
             params = urlencode({'email': to_email, 'code': verification_code})

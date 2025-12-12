@@ -300,3 +300,89 @@ class TimeEntry(Base):
     # Relationships
     job = relationship("Job", back_populates="time_entries")
     admin = relationship("Admin")
+
+
+class AppIntegration(Base):
+    """Track connected applications and their permissions"""
+    __tablename__ = "app_integrations"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    app_id = Column(String(255), unique=True, nullable=False, index=True)  # Unique app identifier
+    app_name = Column(String(255), nullable=False)  # Human-readable app name
+    app_domain = Column(String(500), nullable=False)  # Allowed domain(s) for this app
+    app_url = Column(String(500), nullable=True)  # App's main URL
+    
+    # Configuration
+    description = Column(Text, nullable=True)  # App description
+    logo_url = Column(String(500), nullable=True)  # App logo URL
+    primary_color = Column(String(7), nullable=True)  # Hex color for branding
+    
+    # Permissions and access
+    permissions = Column(JSON, nullable=False, default=list)  # Array of permission strings
+    max_users = Column(Integer, nullable=True)  # Maximum users allowed for this app
+    is_public = Column(Boolean, default=False)  # Whether this app is publicly available
+    
+    # Security
+    api_key_hash = Column(String(255), nullable=True)  # Hashed API key for app authentication
+    webhook_url = Column(String(500), nullable=True)  # Webhook URL for app notifications
+    allowed_origins = Column(JSON, nullable=True)  # Array of allowed CORS origins
+    
+    # Status and metadata
+    status = Column(String(50), default='pending_approval', nullable=False, index=True)  # active, inactive, suspended, pending_approval
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=True)  # Admin who created this integration
+    approved_by = Column(Integer, ForeignKey("users.id"), nullable=True)  # Admin who approved this integration
+    approved_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    last_activity = Column(DateTime(timezone=True), nullable=True)
+
+
+class CrossAppSession(Base):
+    """Track cross-app authentication sessions"""
+    __tablename__ = "cross_app_sessions"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    app_id = Column(Integer, ForeignKey("app_integrations.id"), nullable=False, index=True)
+    session_token = Column(String(500), unique=True, nullable=False, index=True)  # JWT token
+    status = Column(String(50), default='active', nullable=False, index=True)  # active, expired, revoked
+    permissions = Column(JSON, nullable=False, default=list)  # Array of permissions for this session
+    
+    # Metadata
+    ip_address = Column(String(50), nullable=True)
+    user_agent = Column(Text, nullable=True)
+    app_user_id = Column(String(255), nullable=True)  # App-specific user ID
+    app_metadata = Column(JSON, nullable=True)  # App-specific metadata
+    
+    # Timestamps
+    expires_at = Column(DateTime(timezone=True), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    last_used_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # Relationships
+    user = relationship("User")
+    app = relationship("AppIntegration")
+
+
+class AppCreditUsage(Base):
+    """Track credit usage per app"""
+    __tablename__ = "app_credit_usage"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    app_id = Column(Integer, ForeignKey("app_integrations.id"), nullable=False, index=True)
+    credits_used = Column(Integer, default=0, nullable=False)
+    description = Column(Text, nullable=True)
+    app_user_id = Column(String(255), nullable=True)  # App-specific user ID
+    app_metadata = Column(JSON, nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # Relationships
+    user = relationship("User")
+    app = relationship("AppIntegration")

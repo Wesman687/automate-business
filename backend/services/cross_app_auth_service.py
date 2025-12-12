@@ -7,10 +7,10 @@ import hashlib
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
-from sqlalchemy import and_
+from sqlalchemy import and_, or_
 from fastapi import HTTPException, status
 
-from database.models import User
+from database.models import User, AppIntegration, CrossAppSession, AppCreditUsage
 from services.auth_service import AuthService
 from jose import jwt
 import os
@@ -24,11 +24,6 @@ SECRET_KEY = base64.b64decode(ENCRYPTION_KEY).decode('utf-8')
 ALGORITHM = "HS256"
 SESSION_TOKEN_EXPIRE_HOURS = 24
 
-# Simple in-memory storage for app integrations and sessions
-# In production, these should be in the database
-_app_integrations: Dict[str, Dict[str, Any]] = {}
-_cross_app_sessions: Dict[str, Dict[str, Any]] = {}
-
 class CrossAppAuthService:
     """Service for managing cross-app authentication and permissions"""
     
@@ -36,36 +31,22 @@ class CrossAppAuthService:
         self.db = db
         self.auth_service = AuthService(db)
     
-    def validate_app_integration(self, app_id: str) -> Optional[Dict[str, Any]]:
+    def validate_app_integration(self, app_id: str) -> Optional[AppIntegration]:
         """Validate that an app integration exists and is active"""
-        # For now, we'll allow any app_id that starts with 'app_'
-        # In production, this should check the database
-        if not app_id.startswith('app_'):
-            logger.warning(f"Invalid app_id format: {app_id}")
+        app = self.db.query(AppIntegration).filter(
+            and_(
+                AppIntegration.app_id == app_id,
+                AppIntegration.status == 'active'
+            )
+        ).first()
+        
+        if not app:
+            logger.warning(f"App integration not found or inactive: {app_id}")
             return None
         
-        # Check if app exists in memory (or allow all for now)
-        if app_id not in _app_integrations:
-            # Auto-create a basic integration for now
-            _app_integrations[app_id] = {
-                'app_id': app_id,
-                'app_name': app_id.replace('app_', '').replace('_', ' ').title(),
-                'app_domain': 'unknown',
-                'status': 'active',
-                'permissions': [
-                    'read_user_info',
-                    'read_credits',
-                    'purchase_credits',
-                    'consume_credits',
-                    'manage_subscriptions',
-                    'read_analytics'
-                ]
-            }
-        
-        app = _app_integrations[app_id]
-        if app.get('status') != 'active':
-            logger.warning(f"App integration not active: {app_id}")
-            return None
+        # Update last activity
+        app.last_activity = datetime.utcnow()
+        self.db.commit()
         
         return app
     
@@ -75,7 +56,9 @@ class CrossAppAuthService:
         email: str, 
         password: str,
         app_user_id: Optional[str] = None,
-        app_metadata: Optional[Dict[str, Any]] = None
+        app_metadata: Optional[Dict[str, Any]] = None,
+        ip_address: Optional[str] = None,
+        user_agent: Optional[str] = None
     ) -> Dict[str, Any]:
         """Authenticate a user for cross-app access"""
         
@@ -103,22 +86,62 @@ class CrossAppAuthService:
         if user and hasattr(user, 'credits'):
             credits = user.credits or 0
         
+        # Check user count limits
+        if app.max_users:
+            current_users = self.db.query(AppCreditUsage).filter(
+                AppCreditUsage.app_id == app.id
+            ).distinct(AppCreditUsage.user_id).count()
+            
+            if current_users >= app.max_users:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"App has reached user limit: {current_users}/{app.max_users}"
+                )
+        
         # Create session token
         session_token = self._create_session_token(
             user_id=user_data["user_id"],
             app_id=app_id,
-            permissions=app['permissions']
+            permissions=app.permissions or []
         )
         
-        # Store session
+        # Create session in database
         expires_at = datetime.utcnow() + timedelta(hours=SESSION_TOKEN_EXPIRE_HOURS)
-        _cross_app_sessions[session_token] = {
-            'user_id': user_data["user_id"],
-            'app_id': app_id,
-            'permissions': app['permissions'],
-            'expires_at': expires_at,
-            'created_at': datetime.utcnow()
-        }
+        session = CrossAppSession(
+            user_id=user_data["user_id"],
+            app_id=app.id,
+            session_token=session_token,
+            status='active',
+            permissions=app.permissions or [],
+            ip_address=ip_address,
+            user_agent=user_agent,
+            app_user_id=app_user_id,
+            app_metadata=app_metadata,
+            expires_at=expires_at
+        )
+        
+        self.db.add(session)
+        self.db.commit()
+        self.db.refresh(session)
+        
+        # Create or update app credit usage record
+        usage = self.db.query(AppCreditUsage).filter(
+            and_(
+                AppCreditUsage.user_id == user_data["user_id"],
+                AppCreditUsage.app_id == app.id
+            )
+        ).first()
+        
+        if not usage:
+            usage = AppCreditUsage(
+                user_id=user_data["user_id"],
+                app_id=app.id,
+                credits_used=0,
+                app_user_id=app_user_id,
+                app_metadata=app_metadata
+            )
+            self.db.add(usage)
+            self.db.commit()
         
         return {
             "session_token": session_token,
@@ -132,37 +155,50 @@ class CrossAppAuthService:
                 "credits": credits
             },
             "app_info": {
-                "app_id": app["app_id"],
-                "app_name": app["app_name"],
-                "app_domain": app["app_domain"]
+                "app_id": app.app_id,
+                "app_name": app.app_name,
+                "app_domain": app.app_domain
             },
-            "permissions": app["permissions"],
+            "permissions": app.permissions or [],
             "expires_at": expires_at
         }
     
     def validate_session_token(self, session_token: str, app_id: str) -> Dict[str, Any]:
         """Validate a session token"""
-        if session_token not in _cross_app_sessions:
+        # Get session from database
+        session = self.db.query(CrossAppSession).filter(
+            CrossAppSession.session_token == session_token
+        ).first()
+        
+        if not session:
             return {"valid": False, "error": "Invalid session token"}
         
-        session = _cross_app_sessions[session_token]
-        
         # Check expiration
-        if datetime.utcnow() > session['expires_at']:
-            del _cross_app_sessions[session_token]
+        if datetime.utcnow() > session.expires_at:
+            session.status = 'expired'
+            self.db.commit()
             return {"valid": False, "error": "Session token expired"}
         
+        # Check status
+        if session.status != 'active':
+            return {"valid": False, "error": f"Session is {session.status}"}
+        
         # Check app_id matches
-        if session['app_id'] != app_id:
+        app = self.db.query(AppIntegration).filter(AppIntegration.id == session.app_id).first()
+        if not app or app.app_id != app_id:
             return {"valid": False, "error": "App ID mismatch"}
         
+        # Update last used timestamp
+        session.last_used_at = datetime.utcnow()
+        self.db.commit()
+        
         # Get user info
-        user = self.db.query(User).filter(User.id == session['user_id']).first()
+        user = self.db.query(User).filter(User.id == session.user_id).first()
         if not user:
             return {"valid": False, "error": "User not found"}
         
         credits = 0
-        if user and hasattr(user, 'credits'):
+        if hasattr(user, 'credits'):
             credits = user.credits or 0
         
         return {
@@ -176,8 +212,8 @@ class CrossAppAuthService:
                 "is_customer": user.is_customer,
                 "credits": credits
             },
-            "permissions": session['permissions'],
-            "expires_at": session['expires_at']
+            "permissions": session.permissions or [],
+            "expires_at": session.expires_at
         }
     
     def _create_session_token(self, user_id: int, app_id: str, permissions: List[str]) -> str:
@@ -195,6 +231,57 @@ class CrossAppAuthService:
         
         token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
         return token
+    
+    def refresh_session_token(self, session_token: str, app_id: str) -> Dict[str, Any]:
+        """Refresh a session token by creating a new one"""
+        validation = self.validate_session_token(session_token, app_id)
+        if not validation.get("valid"):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=validation.get("error", "Invalid session token")
+            )
+        
+        # Get existing session
+        old_session = self.db.query(CrossAppSession).filter(
+            CrossAppSession.session_token == session_token
+        ).first()
+        
+        if not old_session:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Session not found"
+            )
+        
+        # Create new token
+        new_token = self._create_session_token(
+            user_id=validation["user"]["user_id"],
+            app_id=app_id,
+            permissions=validation["permissions"]
+        )
+        
+        expires_at = datetime.utcnow() + timedelta(hours=SESSION_TOKEN_EXPIRE_HOURS)
+        
+        # Create new session record
+        new_session = CrossAppSession(
+            user_id=validation["user"]["user_id"],
+            app_id=old_session.app_id,
+            session_token=new_token,
+            status='active',
+            permissions=validation["permissions"],
+            expires_at=expires_at
+        )
+        
+        # Mark old session as expired
+        old_session.status = 'expired'
+        
+        self.db.add(new_session)
+        self.db.commit()
+        
+        return {
+            "new_session_token": new_token,
+            "expires_at": expires_at,
+            "permissions": validation["permissions"]
+        }
     
     def check_credits(self, session_token: str, app_id: str, required_credits: Optional[int] = None) -> Dict[str, Any]:
         """Check user's credit balance"""
@@ -243,6 +330,17 @@ class CrossAppAuthService:
                 detail="User not found"
             )
         
+        # Get session to find app_id
+        session = self.db.query(CrossAppSession).filter(
+            CrossAppSession.session_token == session_token
+        ).first()
+        
+        if not session:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Session not found"
+            )
+        
         # Get current credits (if available)
         current_credits = 0
         if hasattr(user, 'credits'):
@@ -254,12 +352,38 @@ class CrossAppAuthService:
                 detail=f"Insufficient credits. Required: {credits}, Available: {current_credits}"
             )
         
-        # For now, just update the credits attribute if it exists
+        # Update credits (if user model has credits field)
         # In production, this should use the credit transaction system
         try:
             if hasattr(user, 'credits'):
                 user.credits = current_credits - credits
                 self.db.commit()
+            
+            # Update app credit usage record
+            usage = self.db.query(AppCreditUsage).filter(
+                and_(
+                    AppCreditUsage.user_id == user_id,
+                    AppCreditUsage.app_id == session.app_id
+                )
+            ).first()
+            
+            if usage:
+                usage.credits_used = (usage.credits_used or 0) + credits
+                usage.updated_at = datetime.utcnow()
+            else:
+                # Get app from session
+                app = self.db.query(AppIntegration).filter(AppIntegration.id == session.app_id).first()
+                if app:
+                    usage = AppCreditUsage(
+                        user_id=user_id,
+                        app_id=app.id,
+                        credits_used=credits,
+                        description=description or f"{service} usage"
+                    )
+                    self.db.add(usage)
+            
+            self.db.commit()
+            
         except Exception as e:
             self.db.rollback()
             logger.error(f"Error consuming credits: {e}")

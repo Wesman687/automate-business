@@ -46,13 +46,19 @@ async def authenticate_cross_app_user(
         ip_address = get_client_ip(req)
         user_agent = get_user_agent(req)
         
+        # Extract client information
+        ip_address = get_client_ip(req)
+        user_agent = get_user_agent(req)
+        
         # Authenticate user
         result = cross_app_service.authenticate_cross_app_user(
             app_id=request.app_id,
             email=request.email,
             password=request.password,
             app_user_id=request.app_user_id,
-            app_metadata=request.app_metadata
+            app_metadata=request.app_metadata,
+            ip_address=ip_address,
+            user_agent=user_agent
         )
         
         logger.info(f"Cross-app authentication successful for user {request.email} in app {request.app_id}")
@@ -119,19 +125,16 @@ async def refresh_cross_app_token(
                 detail=validation.get("error", "Invalid session token")
             )
         
-        # Create new token
-        new_token = cross_app_service._create_session_token(
-            user_id=validation["user"]["user_id"],
-            app_id=request.app_id,
-            permissions=validation["permissions"]
+        # Refresh token (creates new session in database)
+        refresh_result = cross_app_service.refresh_session_token(
+            session_token=request.session_token,
+            app_id=request.app_id
         )
         
-        expires_at = datetime.utcnow() + timedelta(hours=24)
-        
         return CrossAppTokenRefreshResponse(
-            new_session_token=new_token,
-            expires_at=expires_at,
-            permissions=validation["permissions"]
+            new_session_token=refresh_result["new_session_token"],
+            expires_at=refresh_result["expires_at"],
+            permissions=refresh_result["permissions"]
         )
         
     except HTTPException:
@@ -210,8 +213,19 @@ async def get_user_info(
                 detail=validation.get("error", "Invalid session token")
             )
         
-        # Get app info
-        app = cross_app_service.validate_app_integration(request.app_id)
+        # Get app info from session
+        from database.models import CrossAppSession, AppIntegration
+        session = db.query(CrossAppSession).filter(
+            CrossAppSession.session_token == request.session_token
+        ).first()
+        
+        if not session:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Session not found"
+            )
+        
+        app = db.query(AppIntegration).filter(AppIntegration.id == session.app_id).first()
         if not app:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -221,9 +235,9 @@ async def get_user_info(
         return CrossAppUserInfoResponse(
             user=validation["user"],
             app_info={
-                "app_id": app["app_id"],
-                "app_name": app["app_name"],
-                "app_domain": app["app_domain"]
+                "app_id": app.app_id,
+                "app_name": app.app_name,
+                "app_domain": app.app_domain
             },
             permissions=validation["permissions"]
         )

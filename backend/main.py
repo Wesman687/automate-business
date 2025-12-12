@@ -248,7 +248,8 @@ app.include_router(google_auth_router)
 # Include routers with /api prefix
 app.include_router(chat_router, prefix="/api")
 app.include_router(customers_router, prefix="/api")
-app.include_router(email_router, prefix="/api")
+app.include_router(email_router, prefix="/api")  # /api/email/*
+app.include_router(email_router)  # /email/* for backward compatibility
 app.include_router(share_router, prefix="/api")
 app.include_router(api_router, prefix="/api")
 app.include_router(financial_router, prefix="/api")

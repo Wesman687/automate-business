@@ -199,7 +199,7 @@ async def register(request: RegisterRequest, db: Session = Depends(get_db)):
 async def verify_email(request: VerifyEmailRequest, db: Session = Depends(get_db)):
     """Verify user email with verification code"""
     from models import User
-    from datetime import datetime
+    from datetime import datetime, timezone
     
     logger.info(f"📧 Email verification attempt for: {request.email}")
     
@@ -221,9 +221,16 @@ async def verify_email(request: VerifyEmailRequest, db: Session = Depends(get_db
         logger.warning(f"❌ Invalid verification code for {request.email}")
         raise HTTPException(status_code=400, detail="Invalid verification code")
     
-    # Check if code is expired
+    # Check if code is expired - use timezone-aware datetime
     if hasattr(user, 'verification_expires') and user.verification_expires:
-        if user.verification_expires < datetime.utcnow():
+        # Get current time in UTC (timezone-aware)
+        now_utc = datetime.now(timezone.utc)
+        # If verification_expires is timezone-naive, make it timezone-aware
+        expires = user.verification_expires
+        if expires.tzinfo is None:
+            expires = expires.replace(tzinfo=timezone.utc)
+        
+        if expires < now_utc:
             logger.warning(f"❌ Expired verification code for {request.email}")
             raise HTTPException(status_code=400, detail="Verification code expired. Please request a new one.")
     
@@ -262,7 +269,7 @@ async def resend_verification(request: ResendVerificationRequest, db: Session = 
     """Resend verification email"""
     from models import User
     from services.email_service import EmailService
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
     import random
     
     logger.info(f"📧 Resend verification request for: {request.email}")
@@ -277,7 +284,8 @@ async def resend_verification(request: ResendVerificationRequest, db: Session = 
     
     # Generate new verification code
     verification_code = str(random.randint(100000, 999999))
-    verification_expires = datetime.utcnow() + timedelta(hours=24)
+    # Use timezone-aware datetime
+    verification_expires = datetime.now(timezone.utc) + timedelta(hours=24)
     
     try:
         # Update verification code

@@ -227,17 +227,55 @@ class EmailService:
             attachments=attachments
         )
 
-    async def send_verification_email(self, to_email: str, customer_name: str, verification_code: str):
-        """Send email verification code to customer"""
+    async def send_verification_email(self, to_email: str, customer_name: str, verification_code: str, app_name: str = None, verification_url: str = None):
+        """Send email verification code to customer
+        
+        Args:
+            to_email: Recipient email address
+            customer_name: Customer's name
+            verification_code: 6-digit verification code
+            app_name: Name of the app (defaults to "StreamlineAI")
+            verification_url: URL to verification page (if None, will use code-only method)
+        """
         import asyncio
         
-        subject = "Verify Your StreamlineAI Account"
+        # Get app name from environment or use default
+        app_name = app_name or os.getenv('APP_NAME', 'StreamlineAI')
+        
+        # Build verification URL if provided, otherwise use code entry
+        if verification_url:
+            # If URL provided, append email and code as query params
+            from urllib.parse import urlencode
+            params = urlencode({'email': to_email, 'code': verification_code})
+            verify_link = f"{verification_url}?{params}"
+        else:
+            verify_link = None
+        
+        subject = f"Verify Your {app_name} Account"
         
         # Plain text version
-        body = f"""
+        if verify_link:
+            body = f"""
 Hello {customer_name},
 
-Thank you for creating your StreamlineAI account! To complete your registration, please use the following verification code:
+Thank you for creating your {app_name} account! To complete your registration, please click the link below:
+
+{verify_link}
+
+Or use this verification code: {verification_code}
+
+This code will expire in 24 hours.
+
+If you didn't create this account, please ignore this email.
+
+Best regards,
+The {app_name} Team
+        """
+        else:
+            body = f"""
+Hello {customer_name},
+
+Thank you for creating your {app_name} account! To complete your registration, please use the following verification code:
 
 {verification_code}
 
@@ -246,17 +284,72 @@ This code will expire in 24 hours.
 If you didn't create this account, please ignore this email.
 
 Best regards,
-The StreamlineAI Team
+The {app_name} Team
         """
         
         # HTML version
-        html_body = f"""
+        if verify_link:
+            html_body = f"""
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Verify Your StreamlineAI Account</title>
+    <title>Verify Your {app_name} Account</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+        .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }}
+        .content {{ background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }}
+        .verification-code {{ background: #667eea; color: white; padding: 20px; text-align: center; font-size: 24px; font-weight: bold; border-radius: 8px; margin: 20px 0; letter-spacing: 3px; }}
+        .verify-button {{ display: inline-block; background: #667eea; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 20px 0; }}
+        .verify-button:hover {{ background: #5568d3; }}
+        .code-section {{ background: #fff; padding: 20px; border-radius: 8px; margin: 20px 0; border: 2px dashed #667eea; text-align: center; }}
+        .footer {{ text-align: center; margin-top: 30px; color: #666; font-size: 14px; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚡ {app_name}</h1>
+            <p>Account Verification</p>
+        </div>
+        <div class="content">
+            <h2>Hello {customer_name},</h2>
+            <p>Thank you for creating your {app_name} account! To complete your registration, please click the button below:</p>
+            
+            <div style="text-align: center;">
+                <a href="{verify_link}" class="verify-button">Verify Email Address</a>
+            </div>
+            
+            <div class="code-section">
+                <p style="margin: 0 0 10px 0; color: #666; font-size: 14px;">Or enter this code manually:</p>
+                <div class="verification-code">
+                    {verification_code}
+                </div>
+            </div>
+            
+            <p><strong>This code will expire in 24 hours.</strong></p>
+            
+            <p>If you didn't create this account, please ignore this email.</p>
+            
+            <p>Best regards,<br>The {app_name} Team</p>
+        </div>
+        <div class="footer">
+            <p>© 2025 {app_name}. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
+        """
+        else:
+            html_body = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Your {app_name} Account</title>
     <style>
         body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
         .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
@@ -269,12 +362,12 @@ The StreamlineAI Team
 <body>
     <div class="container">
         <div class="header">
-            <h1>⚡ StreamlineAI</h1>
+            <h1>⚡ {app_name}</h1>
             <p>Account Verification</p>
         </div>
         <div class="content">
             <h2>Hello {customer_name},</h2>
-            <p>Thank you for creating your StreamlineAI account! To complete your registration, please use the following verification code:</p>
+            <p>Thank you for creating your {app_name} account! To complete your registration, please use the following verification code:</p>
             
             <div class="verification-code">
                 {verification_code}
@@ -284,10 +377,10 @@ The StreamlineAI Team
             
             <p>If you didn't create this account, please ignore this email.</p>
             
-            <p>Best regards,<br>The StreamlineAI Team</p>
+            <p>Best regards,<br>The {app_name} Team</p>
         </div>
         <div class="footer">
-            <p>© 2025 StreamlineAI. All rights reserved.</p>
+            <p>© 2025 {app_name}. All rights reserved.</p>
         </div>
     </div>
 </body>

@@ -7,6 +7,7 @@ from services.admin_service import AdminService
 from models import Admin
 from api.auth import get_current_user, get_current_super_admin
 import logging
+import os
 
 from utils.cookies import AUTH_COOKIE_NAME, build_auth_cookie_kwargs
 
@@ -142,6 +143,10 @@ async def register(request: RegisterRequest, db: Session = Depends(get_db)):
         try:
             import asyncio
             
+            # Get app name and verification URL from environment or request
+            app_name = os.getenv('APP_NAME', 'StreamlineAI')
+            verification_url = os.getenv('VERIFICATION_URL')  # e.g., https://whatnot.miracle-coins.com/verify-email
+            
             # Create a background task to send email
             async def send_email_task():
                 try:
@@ -149,7 +154,9 @@ async def register(request: RegisterRequest, db: Session = Depends(get_db)):
                     result = await email_service.send_verification_email(
                         to_email=request.email,
                         customer_name=request.name,
-                        verification_code=verification_code
+                        verification_code=verification_code,
+                        app_name=app_name,
+                        verification_url=verification_url
                     )
                     if result:
                         logger.info(f"✅ Verification email sent successfully to {request.email}")
@@ -278,10 +285,14 @@ async def resend_verification(request: ResendVerificationRequest, db: Session = 
         
         # Send verification email
         email_service = EmailService(db_session=db)
+        app_name = os.getenv('APP_NAME', 'StreamlineAI')
+        verification_url = os.getenv('VERIFICATION_URL')
         await email_service.send_verification_email(
             to_email=user.email,
             customer_name=user.name or "User",
-            verification_code=verification_code
+            verification_code=verification_code,
+            app_name=app_name,
+            verification_url=verification_url
         )
         
         logger.info(f"✅ Verification email resent to {request.email}")

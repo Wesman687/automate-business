@@ -36,6 +36,10 @@ class RegisterResponse(BaseModel):
     message: str
     user: dict
 
+class VerifyEmailRequest(BaseModel):
+    email: str
+    verification_code: str
+
 
 @router.post("/login")
 async def unified_login(request: LoginRequest, response: Response, 
@@ -70,10 +74,14 @@ async def unified_login(request: LoginRequest, response: Response,
 
 @router.post("/register")
 async def register(request: RegisterRequest, db: Session = Depends(get_db)):
-    """Register a new user account"""
+    """Register a new user account - sends verification email"""
     from models import User  # Use same import as other API files
+    from services.email_service import EmailService
+    from datetime import datetime, timedelta
+    import random
     
     auth_service = AuthService(db)
+    email_service = EmailService()
     logger.info(f"📝 Registration attempt for email: {request.email}")
     
     # Check if user already exists
@@ -89,13 +97,20 @@ async def register(request: RegisterRequest, db: Session = Depends(get_db)):
     # Hash password
     password_hash = auth_service.hash_password(request.password)
     
-    # Create new user
+    # Generate 6-digit verification code
+    verification_code = str(random.randint(100000, 999999))
+    verification_expires = datetime.utcnow() + timedelta(hours=24)
+    
+    # Create new user with pending status until email is verified
     new_user = User(
         email=request.email,
         password_hash=password_hash,
         name=request.name,
         user_type=request.user_type,
-        status="pending" if request.user_type == "admin" else "active"  # Admins need approval
+        status="pending",  # All users start as pending until email verified
+        email_verified=False,
+        verification_code=verification_code,
+        verification_expires=verification_expires
     )
     
     try:
@@ -103,22 +118,146 @@ async def register(request: RegisterRequest, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(new_user)
         
-        logger.info(f"✅ Registration successful for email: {request.email} (type: {request.user_type})")
+        # Send verification email
+        try:
+            await email_service.send_verification_email(
+                to_email=request.email,
+                customer_name=request.name,
+                verification_code=verification_code
+            )
+            logger.info(f"✅ Verification email sent to {request.email}")
+        except Exception as email_error:
+            logger.error(f"⚠️ Failed to send verification email: {str(email_error)}")
+            # Don't fail registration if email fails, but log it
+        
+        logger.info(f"✅ Registration successful for email: {request.email} (type: {request.user_type}) - verification email sent")
         
         return {
-            "message": "Registration successful" + (" (pending admin approval)" if request.user_type == "admin" else ""),
+            "message": "Registration successful. Please check your email for verification code.",
             "user": {
                 "id": new_user.id,
                 "email": new_user.email,
                 "name": new_user.name,
                 "user_type": new_user.user_type,
-                "status": new_user.status
+                "status": new_user.status,
+                "email_verified": False
             }
         }
     except Exception as e:
         db.rollback()
         logger.error(f"❌ Registration error: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
+
+
+@router.post("/verify-email")
+async def verify_email(request: VerifyEmailRequest, db: Session = Depends(get_db)):
+    """Verify user email with verification code"""
+    from models import User
+    from datetime import datetime
+    
+    logger.info(f"📧 Email verification attempt for: {request.email}")
+    
+    # Find user by email
+    user = db.query(User).filter(User.email.ilike(request.email)).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Check if already verified
+    if hasattr(user, 'email_verified') and user.email_verified:
+        raise HTTPException(status_code=400, detail="Email already verified")
+    
+    # Check verification code
+    if not hasattr(user, 'verification_code') or not user.verification_code:
+        raise HTTPException(status_code=400, detail="No verification code found. Please register again.")
+    
+    if user.verification_code != request.verification_code:
+        logger.warning(f"❌ Invalid verification code for {request.email}")
+        raise HTTPException(status_code=400, detail="Invalid verification code")
+    
+    # Check if code is expired
+    if hasattr(user, 'verification_expires') and user.verification_expires:
+        if user.verification_expires < datetime.utcnow():
+            logger.warning(f"❌ Expired verification code for {request.email}")
+            raise HTTPException(status_code=400, detail="Verification code expired. Please request a new one.")
+    
+    try:
+        # Mark email as verified and activate account
+        if hasattr(user, 'email_verified'):
+            user.email_verified = True
+        user.status = "active"  # Activate account
+        user.verification_code = None
+        if hasattr(user, 'verification_expires'):
+            user.verification_expires = None
+        
+        db.commit()
+        
+        logger.info(f"✅ Email verified successfully for {request.email}")
+        
+        return {
+            "message": "Email verified successfully. Your account is now active.",
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "name": user.name,
+                "user_type": user.user_type,
+                "status": user.status,
+                "email_verified": True
+            }
+        }
+    except Exception as e:
+        db.rollback()
+        logger.error(f"❌ Error verifying email: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to verify email: {str(e)}")
+
+
+@router.post("/resend-verification")
+async def resend_verification(email: str, db: Session = Depends(get_db)):
+    """Resend verification email"""
+    from models import User
+    from services.email_service import EmailService
+    from datetime import datetime, timedelta
+    import random
+    
+    logger.info(f"📧 Resend verification request for: {email}")
+    
+    user = db.query(User).filter(User.email.ilike(email)).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if hasattr(user, 'email_verified') and user.email_verified:
+        raise HTTPException(status_code=400, detail="Email already verified")
+    
+    # Generate new verification code
+    verification_code = str(random.randint(100000, 999999))
+    verification_expires = datetime.utcnow() + timedelta(hours=24)
+    
+    try:
+        # Update verification code
+        user.verification_code = verification_code
+        if hasattr(user, 'verification_expires'):
+            user.verification_expires = verification_expires
+        
+        db.commit()
+        
+        # Send verification email
+        email_service = EmailService()
+        await email_service.send_verification_email(
+            to_email=user.email,
+            customer_name=user.name or "User",
+            verification_code=verification_code
+        )
+        
+        logger.info(f"✅ Verification email resent to {email}")
+        
+        return {
+            "message": "Verification email sent successfully. Please check your email."
+        }
+    except Exception as e:
+        db.rollback()
+        logger.error(f"❌ Error resending verification: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to resend verification email: {str(e)}")
 
 
 @router.post("/logout")

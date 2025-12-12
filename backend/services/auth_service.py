@@ -56,6 +56,11 @@ class AuthService:
             print(f"❌ Authentication failed: User '{email}' is not active (status: {user.status})")
             return None
         
+        # Check if email is verified (if the field exists)
+        if hasattr(user, 'email_verified') and not user.email_verified:
+            print(f"❌ Authentication failed: User '{email}' email not verified")
+            return None
+        
         print(f"✅ Authentication successful for user '{email}' (type: {user.user_type})")
         
         return {

@@ -110,6 +110,9 @@ cors_origins = [
     "https://stream-lineai.com", 
     "https://www.stream-lineai.com",
     "https://server.stream-lineai.com",
+    # Whatnot app domain
+    "https://whatnot.miracle-coins.com",
+    "http://whatnot.miracle-coins.com",
     # Vercel deployment domains
     "https://automate-business.*.vercel.app",  # Any automate-business deployment
     "https://automate-dev.*.vercel.app",  # Any automate-dev deployment
@@ -135,6 +138,9 @@ def is_allowed_ip_range(origin: str) -> bool:
     allowed_patterns = [
         r"https?://67\.190\.222\.\d+",  # Matches 67.190.222.* 
         r"https?://67\.190\.222\.\d+:\d+",  # With port numbers
+        # Whatnot app domain
+        r"https?://whatnot\.miracle-coins\.com",  # Whatnot app
+        r"https?://.*\.miracle-coins\.com",  # Any miracle-coins subdomain
         # Vercel deployment patterns
         r"https://automate-business.*\.vercel\.app",  # Any automate-business deployment
         r"https://automate-dev.*\.vercel\.app",  # Any automate-dev deployment

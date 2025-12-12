@@ -26,6 +26,8 @@ class RegisterRequest(BaseModel):
     password: str
     name: str
     user_type: str = "customer"  # Default to customer, can be "customer" or "admin" (admin requires approval)
+    app_name: str = None  # Optional: App name for email branding (e.g., "Whatnot AutoPrint")
+    verification_url: str = None  # Optional: URL to verification page (e.g., "https://whatnot.miracle-coins.com/verify-email")
 
 
 class LoginResponse(BaseModel):
@@ -43,6 +45,8 @@ class VerifyEmailRequest(BaseModel):
 
 class ResendVerificationRequest(BaseModel):
     email: str
+    app_name: str = None  # Optional: App name for email branding
+    verification_url: str = None  # Optional: URL to verification page
 
 
 @router.post("/login")
@@ -143,9 +147,9 @@ async def register(request: RegisterRequest, db: Session = Depends(get_db)):
         try:
             import asyncio
             
-            # Get app name and verification URL from environment or request
-            app_name = os.getenv('APP_NAME', 'StreamlineAI')
-            verification_url = os.getenv('VERIFICATION_URL')  # e.g., https://whatnot.miracle-coins.com/verify-email
+            # Get app name and verification URL from request, fallback to environment variables
+            app_name = request.app_name or os.getenv('APP_NAME', 'StreamlineAI')
+            verification_url = request.verification_url or os.getenv('VERIFICATION_URL')
             
             # Create a background task to send email
             async def send_email_task():
@@ -285,8 +289,9 @@ async def resend_verification(request: ResendVerificationRequest, db: Session = 
         
         # Send verification email
         email_service = EmailService(db_session=db)
-        app_name = os.getenv('APP_NAME', 'StreamlineAI')
-        verification_url = os.getenv('VERIFICATION_URL')
+        # Get app name and verification URL from request, fallback to environment variables
+        app_name = request.app_name or os.getenv('APP_NAME', 'StreamlineAI')
+        verification_url = request.verification_url or os.getenv('VERIFICATION_URL')
         await email_service.send_verification_email(
             to_email=user.email,
             customer_name=user.name or "User",

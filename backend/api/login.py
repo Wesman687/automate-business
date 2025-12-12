@@ -40,6 +40,9 @@ class VerifyEmailRequest(BaseModel):
     email: str
     verification_code: str
 
+class ResendVerificationRequest(BaseModel):
+    email: str
+
 
 @router.post("/login")
 async def unified_login(request: LoginRequest, response: Response, 
@@ -244,16 +247,16 @@ async def verify_email(request: VerifyEmailRequest, db: Session = Depends(get_db
 
 
 @router.post("/resend-verification")
-async def resend_verification(email: str, db: Session = Depends(get_db)):
+async def resend_verification(request: ResendVerificationRequest, db: Session = Depends(get_db)):
     """Resend verification email"""
     from models import User
     from services.email_service import EmailService
     from datetime import datetime, timedelta
     import random
     
-    logger.info(f"📧 Resend verification request for: {email}")
+    logger.info(f"📧 Resend verification request for: {request.email}")
     
-    user = db.query(User).filter(User.email.ilike(email)).first()
+    user = db.query(User).filter(User.email.ilike(request.email)).first()
     
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -281,7 +284,7 @@ async def resend_verification(email: str, db: Session = Depends(get_db)):
             verification_code=verification_code
         )
         
-        logger.info(f"✅ Verification email resent to {email}")
+        logger.info(f"✅ Verification email resent to {request.email}")
         
         return {
             "message": "Verification email sent successfully. Please check your email."

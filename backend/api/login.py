@@ -71,11 +71,7 @@ async def unified_login(request: LoginRequest, response: Response,
 @router.post("/register")
 async def register(request: RegisterRequest, db: Session = Depends(get_db)):
     """Register a new user account"""
-    try:
-        from database.models import User
-    except ImportError:
-        # Fallback import path
-        from models import User
+    from models import User  # Use same import as other API files
     
     auth_service = AuthService(db)
     logger.info(f"📝 Registration attempt for email: {request.email}")

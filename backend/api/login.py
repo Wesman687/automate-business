@@ -118,16 +118,33 @@ async def register(request: RegisterRequest, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(new_user)
         
-        # Send verification email
+        # Send verification email (run in background to not block response)
         try:
-            await email_service.send_verification_email(
-                to_email=request.email,
-                customer_name=request.name,
-                verification_code=verification_code
-            )
-            logger.info(f"✅ Verification email sent to {request.email}")
+            import asyncio
+            from functools import partial
+            
+            # Create a background task to send email
+            async def send_email_task():
+                try:
+                    # The send_verification_email is async but calls sync send_email
+                    # So we can just await it
+                    result = await email_service.send_verification_email(
+                        to_email=request.email,
+                        customer_name=request.name,
+                        verification_code=verification_code
+                    )
+                    if result:
+                        logger.info(f"✅ Verification email sent to {request.email}")
+                    else:
+                        logger.warning(f"⚠️ Verification email send returned False for {request.email}")
+                except Exception as e:
+                    logger.error(f"❌ Error sending verification email: {str(e)}", exc_info=True)
+            
+            # Schedule email to be sent in background
+            asyncio.create_task(send_email_task())
+            logger.info(f"📧 Verification email task scheduled for {request.email}")
         except Exception as email_error:
-            logger.error(f"⚠️ Failed to send verification email: {str(email_error)}")
+            logger.error(f"⚠️ Failed to schedule verification email: {str(email_error)}", exc_info=True)
             # Don't fail registration if email fails, but log it
         
         logger.info(f"✅ Registration successful for email: {request.email} (type: {request.user_type}) - verification email sent")

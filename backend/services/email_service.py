@@ -204,6 +204,8 @@ class EmailService:
 
     async def send_verification_email(self, to_email: str, customer_name: str, verification_code: str):
         """Send email verification code to customer"""
+        import asyncio
+        
         subject = "Verify Your StreamlineAI Account"
         
         # Plain text version
@@ -267,13 +269,19 @@ The StreamlineAI Team
 </html>
         """
         
-        return self.send_email(
-            from_account='no-reply',
-            to_emails=[to_email],
-            subject=subject,
-            body=body,
-            html_body=html_body
+        # Run the sync send_email in a thread pool to not block
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None,
+            lambda: self.send_email(
+                from_account='no-reply',
+                to_emails=[to_email],
+                subject=subject,
+                body=body,
+                html_body=html_body
+            )
         )
+        return result
 
 # Global email service instance
 email_service = EmailService()

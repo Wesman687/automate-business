@@ -41,7 +41,7 @@ class EmailService:
         """Get email credentials from database first, then fallback to environment"""
         if self.db_session:
             try:
-                from database.models.email_account import EmailAccount
+                from models.email_account import EmailAccount
                 
                 # Try to find account in database by name or email
                 db_account = self.db_session.query(EmailAccount).filter(

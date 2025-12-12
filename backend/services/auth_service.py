@@ -2,7 +2,7 @@ from models import User, UserType  # Unified model only!
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
 from typing import Optional, Dict, Any
-import jwt
+from jose import jwt, JWTError
 import bcrypt
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
@@ -156,7 +156,7 @@ class AuthService:
             
             return user_data
             
-        except jwt.JWTError: # Changed from JWTError to jwt.JWTError
+        except JWTError:
             return None
     
     def get_user_from_token(self, token: str) -> Optional[dict]:

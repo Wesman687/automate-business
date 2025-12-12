@@ -228,6 +228,7 @@ app.add_middleware(
 # DONT INCLUDE /API PREFIX HERE
 app.include_router(contact_router)  # No prefix for contact form
 app.include_router(auth_router, prefix="/api")  # Auth endpoints at /api/auth/*
+app.include_router(auth_router)  # Also include at /auth/* for backward compatibility
 app.include_router(google_auth_router)
 
 # Include routers with /api prefix

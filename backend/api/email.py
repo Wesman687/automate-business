@@ -113,15 +113,24 @@ async def forgot_password(request: PasswordResetRequest, db: Session = Depends(g
         'used': False
     }
     
+    # Get app name and reset URL from request or environment
+    import os
+    app_name = request.app_name or os.getenv('APP_NAME', 'StreamlineAI')
+    reset_url = request.reset_url or os.getenv('RESET_PASSWORD_URL', 'https://stream-lineai.com/reset-password')
+    
+    # Ensure URL has protocol
+    if reset_url and not reset_url.startswith(('http://', 'https://')):
+        reset_url = f"https://{reset_url}"
+    
     # Create reset link
-    reset_link = f"https://stream-lineai.com/reset-password?token={reset_token}"
+    reset_link = f"{reset_url}?token={reset_token}"
     
     # Email content
-    email_subject = "Password Reset Request"
+    email_subject = f"{app_name} Password Reset Request"
     email_body = f"""
 Hello {admin.full_name or admin.username},
 
-You have requested to reset your password for your StreamlineAI admin account.
+You have requested to reset your password for your {app_name} admin account.
 
 Click the link below to reset your password:
 {reset_link}
@@ -131,7 +140,7 @@ This link will expire in 1 hour.
 If you did not request this password reset, please ignore this email.
 
 Best regards,
-StreamlineAI Team
+{app_name} Team
 """
     
     html_body = f"""
@@ -142,10 +151,15 @@ StreamlineAI Team
             
             <p>Hello <strong>{admin.full_name or admin.username}</strong>,</p>
             
-            <p>You have requested to reset your password for your StreamlineAI admin account.</p>
+            <p>You have requested to reset your password for your {app_name} admin account.</p>
             
             <div style="text-align: center; margin: 30px 0;">
-                <a href="{reset_link}" style="background: #00d4ff; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">Reset Password</a>
+                <a href="{reset_link}" style="display: inline-block; background-color: #00d4ff; color: #ffffff; text-decoration: none; padding: 15px 30px; border-radius: 5px; font-weight: bold; font-size: 16px;">Reset Password</a>
+            </div>
+            
+            <p style="color: #666; font-size: 12px; text-align: center; margin-top: 20px;">
+                If the button doesn't work, copy and paste this link into your browser:<br>
+                <span style="word-break: break-all; color: #00d4ff;">{reset_link}</span>
             </div>
             
             <p><strong>This link will expire in 1 hour.</strong></p>
@@ -156,8 +170,7 @@ StreamlineAI Team
             
             <p style="color: #666; font-size: 12px; text-align: center;">
                 Best regards,<br>
-                StreamlineAI Team<br>
-                <a href="https://stream-lineai.com">stream-lineai.com</a>
+                {app_name} Team
             </p>
         </div>
     </body>

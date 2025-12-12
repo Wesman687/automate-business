@@ -47,10 +47,20 @@ async def unified_login(request: LoginRequest, response: Response,
     auth_service = AuthService(db)
     logger.info(f"🔑 Login attempt for email: {request.email}")
     user_data = auth_service.authenticate_user(request.email, request.password)
+    
     if not user_data:
         logger.warning(f"❌ Login failed for email: {request.email}")
         logger.info(f"❌ Authentication failed: Invalid email or password for '{request.email}'")
         raise HTTPException(status_code=401, detail="Invalid email or password")
+    
+    # Check if email verification is required
+    if user_data.get("requires_verification"):
+        logger.info(f"📧 Login blocked: Email verification required for '{request.email}'")
+        raise HTTPException(
+            status_code=403,
+            detail="Email verification required",
+            headers={"X-Requires-Verification": "true", "X-User-Email": request.email}
+        )
 
     token = auth_service.create_access_token(user_data)
 

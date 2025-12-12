@@ -59,7 +59,12 @@ class AuthService:
         # Check if email is verified (if the field exists)
         if hasattr(user, 'email_verified') and not user.email_verified:
             print(f"❌ Authentication failed: User '{email}' email not verified")
-            return None
+            # Return special response indicating email verification needed
+            return {
+                "requires_verification": True,
+                "email": user.email,
+                "verification_code": None  # Don't expose the code
+            }
         
         print(f"✅ Authentication successful for user '{email}' (type: {user.user_type})")
         
@@ -71,7 +76,8 @@ class AuthService:
             "is_admin": user.is_admin,  # This uses the @property
             "is_customer": user.is_customer,  # This uses the @property
             "is_super_admin": user.is_super_admin if user.is_admin else False,
-            "permissions": self._get_permissions(user)
+            "permissions": self._get_permissions(user),
+            "requires_verification": False
         }
     
     def _get_permissions(self, user) -> list:

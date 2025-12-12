@@ -264,6 +264,8 @@ Thank you for creating your {app_name} account! To complete your registration, p
 
 Or use this verification code: {verification_code}
 
+(If the link doesn't work, copy and paste it into your browser)
+
 This code will expire in 24 hours.
 
 If you didn't create this account, please ignore this email.
@@ -318,8 +320,8 @@ The {app_name} Team
             <h2>Hello {customer_name},</h2>
             <p>Thank you for creating your {app_name} account! To complete your registration, please click the button below:</p>
             
-            <div style="text-align: center;">
-                <a href="{verify_link}" class="verify-button">Verify Email Address</a>
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="{verify_link}" style="display: inline-block; background-color: #667eea; color: #ffffff; text-decoration: none; padding: 15px 30px; border-radius: 8px; font-weight: bold; font-size: 16px;">Verify Email Address</a>
             </div>
             
             <div class="code-section">

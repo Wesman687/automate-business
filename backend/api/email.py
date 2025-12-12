@@ -221,16 +221,19 @@ async def reset_password(request: PasswordResetConfirm, db: Session = Depends(ge
     if len(request.new_password) < 8:
         raise HTTPException(status_code=400, detail="Password must be at least 8 characters long")
     
-    admin_service = AdminService(db)
+    from models import User
+    from services.auth_service import AuthService
     
     try:
-        # Update password
-        admin = admin_service.get_admin_by_id(token_data['admin_id'])
-        if not admin:
-            raise HTTPException(status_code=400, detail="Admin account not found")
+        # Update password using unified User model
+        user = db.query(User).filter(User.id == token_data['user_id']).first()
+        if not user:
+            raise HTTPException(status_code=400, detail="User account not found")
         
-        # Update password
-        admin_service.update_admin_password(admin.id, request.new_password)
+        # Hash and update password
+        auth_service = AuthService(db)
+        user.password_hash = auth_service.hash_password(request.new_password)
+        db.commit()
         
         # Mark token as used
         password_reset_tokens[request.token]['used'] = True
@@ -238,6 +241,7 @@ async def reset_password(request: PasswordResetConfirm, db: Session = Depends(ge
         return {"message": "Password reset successfully"}
         
     except Exception as e:
+        db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to reset password: {str(e)}")
 
 @router.get("/test")

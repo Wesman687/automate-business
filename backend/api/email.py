@@ -4,7 +4,7 @@ from pydantic import BaseModel, EmailStr
 from api.auth import get_current_admin
 from services.email_reader_service import EmailReaderService
 from services.email_service import email_service
-from services.admin_service import AdminService
+# Removed AdminService import - using unified User model instead
 from sqlalchemy.orm import Session
 from database import get_db
 import secrets
@@ -94,11 +94,11 @@ async def forgot_password(request: PasswordResetRequest, db: Session = Depends(g
     IMPORTANT: Email functionality only works on production server!
     In development, emails are logged but not actually sent.
     """
-    admin_service = AdminService(db)
+    from models import User
     
-    # Check if admin exists
-    admin = admin_service.get_admin_by_email(request.email)
-    if not admin:
+    # Check if user exists (works for all user types, not just admins)
+    user = db.query(User).filter(User.email.ilike(request.email)).first()
+    if not user:
         # For security, don't reveal if email exists or not
         return {"message": "If the email exists, a password reset link has been sent"}
     
@@ -128,9 +128,9 @@ async def forgot_password(request: PasswordResetRequest, db: Session = Depends(g
     # Email content
     email_subject = f"{app_name} Password Reset Request"
     email_body = f"""
-Hello {admin.full_name or admin.username},
+Hello {user.name or user.email},
 
-You have requested to reset your password for your {app_name} admin account.
+You have requested to reset your password for your {app_name} account.
 
 Click the link below to reset your password:
 {reset_link}
@@ -149,9 +149,9 @@ Best regards,
         <div style="max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
             <h2 style="color: #00d4ff; text-align: center;">{app_name} Password Reset</h2>
             
-            <p>Hello <strong>{admin.full_name or admin.username}</strong>,</p>
+            <p>Hello <strong>{user.name or user.email}</strong>,</p>
             
-            <p>You have requested to reset your password for your {app_name} admin account.</p>
+            <p>You have requested to reset your password for your {app_name} account.</p>
             
             <div style="text-align: center; margin: 30px 0;">
                 <a href="{reset_link}" style="display: inline-block; background-color: #00d4ff; color: #ffffff; text-decoration: none; padding: 15px 30px; border-radius: 5px; font-weight: bold; font-size: 16px;">Reset Password</a>

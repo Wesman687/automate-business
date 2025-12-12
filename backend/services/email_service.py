@@ -30,8 +30,13 @@ class EmailService:
         self.db_session = db_session
         
         # Email accounts (fallback to env vars if database not available)
-        self.no_reply_email = os.getenv('NO_REPLY_EMAIL')
-        self.no_reply_password = os.getenv('NO_REPLY_PASSWORD')
+        # Support PAUL_EMAIL/PAUL_PASSWORD as primary email account
+        paul_email = os.getenv('PAUL_EMAIL')
+        paul_password = os.getenv('PAUL_PASSWORD')
+        
+        # Use PAUL_EMAIL if available, otherwise fall back to NO_REPLY_EMAIL
+        self.no_reply_email = paul_email or os.getenv('NO_REPLY_EMAIL')
+        self.no_reply_password = paul_password or os.getenv('NO_REPLY_PASSWORD')
         
         self.sales_email = os.getenv('SALES_EMAIL')
         self.sales_password = os.getenv('SALES_PASSWORD')
@@ -127,7 +132,12 @@ class EmailService:
 
             # Create message
             message = MIMEMultipart('alternative')
-            message['From'] = from_email
+            # For no-reply account, use no-reply@stream-lineai.com as sender even if authenticating with different email
+            if from_account == 'no-reply':
+                sender_email = 'no-reply@stream-lineai.com'
+            else:
+                sender_email = from_email
+            message['From'] = sender_email
             message['To'] = ', '.join(to_emails)
             message['Subject'] = subject
             

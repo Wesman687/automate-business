@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { X, Link, Globe, Shield } from 'lucide-react';
-import { message } from 'antd';
-import { api } from '@/lib/https';
+import React, { useState } from "react";
+import { X, Link, Globe, Shield } from "lucide-react";
+import { message } from "antd";
+import { api } from "@/lib/https";
 
 interface CrossAppIntegrationModalProps {
   isOpen: boolean;
@@ -16,36 +16,80 @@ interface AppFormData {
   is_public: boolean;
 }
 
-const CrossAppIntegrationModal: React.FC<CrossAppIntegrationModalProps> = ({ isOpen, onClose }) => {
+const CrossAppIntegrationModal: React.FC<CrossAppIntegrationModalProps> = ({
+  isOpen,
+  onClose,
+}) => {
   const [formData, setFormData] = useState<AppFormData>({
-    app_name: '',
-    app_domain: '',
-    description: '',
+    app_name: "",
+    app_domain: "",
+    description: "",
     permissions: [
-      'read_user_info',
-      'read_credits', 
-      'purchase_credits',
-      'consume_credits',
-      'manage_subscriptions',
-      'read_analytics'
+      "read_user_info",
+      "read_credits",
+      "purchase_credits",
+      "consume_credits",
+      "manage_subscriptions",
+      "read_analytics",
     ],
-    is_public: true
+    is_public: true,
   });
 
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
 
   const availablePermissions = [
-    { id: 'read_user_info', label: 'Read User Info', description: 'Access basic user profile information', icon: Shield },
-    { id: 'read_credits', label: 'Read Credits', description: 'Check user credit balance', icon: Shield },
-    { id: 'purchase_credits', label: 'Purchase Credits', description: 'Allow users to buy credits', icon: Shield },
-    { id: 'consume_credits', label: 'Consume Credits', description: 'Use credits for services', icon: Shield },
-    { id: 'manage_subscriptions', label: 'Manage Subscriptions', description: 'Handle user subscriptions', icon: Shield },
-    { id: 'read_analytics', label: 'Read Analytics', description: 'Access usage analytics', icon: Shield }
+    {
+      id: "read_user_info",
+      label: "Read User Info",
+      description: "Access basic user profile information",
+      icon: Shield,
+    },
+    {
+      id: "read_credits",
+      label: "Read Credits",
+      description: "Check user credit balance",
+      icon: Shield,
+    },
+    {
+      id: "purchase_credits",
+      label: "Purchase Credits",
+      description: "Allow users to buy credits through your app",
+      icon: Shield,
+    },
+    {
+      id: "consume_credits",
+      label: "Consume Credits",
+      description: "Use shared credits for your app services",
+      icon: Shield,
+    },
+    {
+      id: "manage_subscriptions",
+      label: "Manage Subscriptions",
+      description: "Handle user subscriptions across apps",
+      icon: Shield,
+    },
+    {
+      id: "read_analytics",
+      label: "Read Analytics",
+      description: "Access usage analytics across connected apps",
+      icon: Shield,
+    },
+  ];
+
+  const connectedApps = [
+    {
+      id: 1,
+      name: "Video Converter",
+      domain: "converter.streamlineai.com",
+      status: "active",
+      credits_used: 15420,
+      last_active: "2 hours ago",
+    },
   ];
 
   const handleInputChange = (field: keyof AppFormData, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -53,18 +97,18 @@ const CrossAppIntegrationModal: React.FC<CrossAppIntegrationModalProps> = ({ isO
     setLoading(true);
 
     try {
-      const result = await api.post('/admin/cross-app/integrations', {
+      const result = await api.post("/admin/cross-app/integrations", {
         ...formData,
         app_url: `https://${formData.app_domain}`,
-        webhook_url: `https://${formData.app_domain}/apphook`
+        webhook_url: `https://${formData.app_domain}/apphook`,
       });
 
-      message.success('App integration created successfully!');
+      message.success("App integration created successfully!");
       message.info(`API Key: ${result.api_key} - Save this securely!`);
       setStep(2);
     } catch (error) {
-      console.error('Error creating integration:', error);
-      message.error('Error creating integration. Please try again.');
+      console.error("Error creating integration:", error);
+      message.error("Error creating integration. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -72,18 +116,18 @@ const CrossAppIntegrationModal: React.FC<CrossAppIntegrationModalProps> = ({ isO
 
   const resetForm = () => {
     setFormData({
-      app_name: '',
-      app_domain: '',
-      description: '',
+      app_name: "",
+      app_domain: "",
+      description: "",
       permissions: [
-        'read_user_info',
-        'read_credits', 
-        'purchase_credits',
-        'consume_credits',
-        'manage_subscriptions',
-        'read_analytics'
+        "read_user_info",
+        "read_credits",
+        "purchase_credits",
+        "consume_credits",
+        "manage_subscriptions",
+        "read_analytics",
       ],
-      is_public: true
+      is_public: true,
     });
     setStep(1);
   };
@@ -100,8 +144,12 @@ const CrossAppIntegrationModal: React.FC<CrossAppIntegrationModalProps> = ({ isO
               <Link className="h-6 w-6 text-electric-blue" />
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-gray-300">Create New App Integration</h2>
-              <p className="text-sm text-gray-500">Add a new app to your Stream-line AI ecosystem</p>
+              <h2 className="text-xl font-semibold text-gray-300">
+                Cross-App Integration Manager
+              </h2>
+              <p className="text-sm text-gray-500">
+                Manage applications that share authentication and credits
+              </p>
             </div>
           </div>
           <button
@@ -122,7 +170,7 @@ const CrossAppIntegrationModal: React.FC<CrossAppIntegrationModalProps> = ({ isO
                   <Globe className="h-5 w-5 text-electric-blue mr-2" />
                   App Details
                 </h3>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-400 mb-2">
                     App Name *
@@ -131,12 +179,14 @@ const CrossAppIntegrationModal: React.FC<CrossAppIntegrationModalProps> = ({ isO
                     type="text"
                     required
                     value={formData.app_name}
-                    onChange={(e) => handleInputChange('app_name', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("app_name", e.target.value)
+                    }
                     className="w-full px-3 py-2 bg-dark-bg border border-dark-border rounded-lg text-gray-300 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-electric-blue focus:border-transparent transition-all duration-200 hover:border-electric-blue/50"
                     placeholder="e.g., Scraper, Videos, etc."
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-400 mb-2">
                     App Domain *
@@ -145,12 +195,15 @@ const CrossAppIntegrationModal: React.FC<CrossAppIntegrationModalProps> = ({ isO
                     type="text"
                     required
                     value={formData.app_domain}
-                    onChange={(e) => handleInputChange('app_domain', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("app_domain", e.target.value)
+                    }
                     className="w-full px-3 py-2 bg-dark-bg border border-dark-border rounded-lg text-gray-300 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-electric-blue focus:border-transparent transition-all duration-200 hover:border-electric-blue/50"
                     placeholder="e.g., scraper.stream-lineai.com"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    This will be used as: https://{formData.app_domain || 'app'}.stream-lineai.com
+                    This will be used as: https://{formData.app_domain || "app"}
+                    .stream-lineai.com
                   </p>
                 </div>
 
@@ -160,7 +213,9 @@ const CrossAppIntegrationModal: React.FC<CrossAppIntegrationModalProps> = ({ isO
                   </label>
                   <textarea
                     value={formData.description}
-                    onChange={(e) => handleInputChange('description', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("description", e.target.value)
+                    }
                     rows={2}
                     className="w-full px-3 py-2 bg-dark-bg border border-dark-border rounded-lg text-gray-300 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-electric-blue focus:border-transparent transition-all duration-200 hover:border-electric-blue/50 resize-none"
                     placeholder="Brief description of what your app does..."
@@ -176,14 +231,22 @@ const CrossAppIntegrationModal: React.FC<CrossAppIntegrationModalProps> = ({ isO
                 </h3>
                 <div className="bg-dark-bg border border-dark-border rounded-lg p-4 hover:border-electric-blue/50 transition-all duration-200">
                   <p className="text-sm text-gray-400 mb-3">
-                    All permissions are automatically granted since these are your own apps.
+                    All permissions are automatically granted since these are
+                    your own apps.
                   </p>
                   <div className="grid grid-cols-1 gap-2">
                     {availablePermissions.map((permission) => (
-                      <div key={permission.id} className="flex items-center space-x-2 text-sm">
+                      <div
+                        key={permission.id}
+                        className="flex items-center space-x-2 text-sm"
+                      >
                         <div className="w-2 h-2 bg-neon-green rounded-full"></div>
-                        <span className="text-gray-300">{permission.label}</span>
-                        <span className="text-gray-500 text-xs">- {permission.description}</span>
+                        <span className="text-gray-300">
+                          {permission.label}
+                        </span>
+                        <span className="text-gray-500 text-xs">
+                          - {permission.description}
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -201,10 +264,12 @@ const CrossAppIntegrationModal: React.FC<CrossAppIntegrationModalProps> = ({ isO
                 </button>
                 <button
                   type="submit"
-                  disabled={loading || !formData.app_name || !formData.app_domain}
+                  disabled={
+                    loading || !formData.app_name || !formData.app_domain
+                  }
                   className="px-6 py-2 bg-electric-blue hover:bg-electric-blue/90 disabled:bg-gray-600 disabled:cursor-not-allowed text-black font-medium rounded-lg transition-all duration-200 hover:shadow-lg hover:shadow-electric-blue/30"
                 >
-                  {loading ? 'Creating...' : 'Create Integration'}
+                  {loading ? "Creating..." : "Create Integration"}
                 </button>
               </div>
             </form>
@@ -213,17 +278,29 @@ const CrossAppIntegrationModal: React.FC<CrossAppIntegrationModalProps> = ({ isO
             <div className="text-center py-8">
               <div className="mx-auto w-16 h-16 bg-neon-green/20 rounded-full flex items-center justify-center mb-4 border border-neon-green/30">
                 <div className="w-8 h-8 bg-neon-green rounded-full flex items-center justify-center">
-                  <svg className="w-5 h-5 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  <svg
+                    className="w-5 h-5 text-black"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
                   </svg>
                 </div>
               </div>
-              
-              <h3 className="text-xl font-semibold text-gray-300 mb-2">Integration Created Successfully!</h3>
+
+              <h3 className="text-xl font-semibold text-gray-300 mb-2">
+                Integration Created Successfully!
+              </h3>
               <p className="text-gray-500 mb-6">
                 Your app integration has been created and is ready to use.
               </p>
-              
+
               <div className="space-y-3">
                 <button
                   onClick={() => {
@@ -234,7 +311,7 @@ const CrossAppIntegrationModal: React.FC<CrossAppIntegrationModalProps> = ({ isO
                 >
                   Close
                 </button>
-                
+
                 <div className="text-sm text-gray-500">
                   <p>Need to manage integrations?</p>
                   <a

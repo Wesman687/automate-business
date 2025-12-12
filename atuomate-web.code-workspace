@@ -1,40 +1,19 @@
 {
-  "folders": [
-    {
-      "path": "frontend"
-    },
-    {
-      "path": "backend"
-    },
-    {
-      "path": "streamlineai-badge-npm"
-    },
-    {
-      "path": "Resources"
-    },
-    {
-      "path": ".git"
-    }
-  ],
-  "settings": {
-    // Workspace-level toggles that apply to both folders:
-    "git.autofetch": false,
-    "git.decorations.enabled": false,
-    "files.watcherExclude": {
-      "**/node_modules/**": true,
-      "**/.git/**": true,
-      "**/.next/**": true,
-      "**/dist/**": true,
-      "**/build/**": true,
-      "**/coverage/**": true
-    },
-    "search.exclude": {
-      "**/node_modules": true,
-      "**/.git": true,
-      "**/.next": true,
-      "**/dist": true,
-      "**/build": true,
-      "**/coverage": true
-    }
-  }
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "ai_docs"
+		}
+	],
+	"settings": {
+		"git.autorefresh": false,
+		"git.decorations.enabled": false,
+		"git.ignoreLimitWarning": true,
+		"typescript.tsserver.maxTsServerMemory": 4096,
+		"typescript.disableAutomaticTypeAcquisition": true,
+		"typescript.tsserver.experimental.enableProjectDiagnostics": false,
+		"markdown.updateLinksOnFileMove.enabled": "never"
+	}
 }

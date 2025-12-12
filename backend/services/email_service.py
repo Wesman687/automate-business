@@ -14,12 +14,17 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 email_logger = logging.getLogger('email')  # Dedicated email logger
 
+# PRODUCTION EMAIL SERVER - ALWAYS USE REGARDLESS OF ENVIRONMENT
+PRODUCTION_SMTP_SERVER = 'mail.stream-lineai.com'
+PRODUCTION_SMTP_PORT = 587
+
 class EmailService:
     def __init__(self, db_session=None):
         # ALWAYS use production email server - emails MUST be sent to server, never locally
-        self.smtp_server = os.getenv('SMTP_SERVER', 'mail.stream-lineai.com')
-        self.smtp_port = int(os.getenv('SMTP_PORT', 587))
-        self.use_tls = os.getenv('SMTP_USE_TLS', 'true').lower() == 'true'
+        # Force production email server regardless of environment
+        self.smtp_server = PRODUCTION_SMTP_SERVER  # Always production
+        self.smtp_port = PRODUCTION_SMTP_PORT
+        self.use_tls = True  # Always use TLS for production
         self.db_session = db_session
         
         # Email accounts (fallback to env vars if database not available)

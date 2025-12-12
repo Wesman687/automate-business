@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Dashboard from '@/components/Dashboard';
+import Dashboard from '@/components/admin/Dashboard';
 import { useUserStats } from '@/hooks/useUsers';
 import { Users, Shield, Crown, CreditCard } from 'lucide-react';
 

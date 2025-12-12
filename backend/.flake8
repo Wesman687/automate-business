@@ -1,23 +1,24 @@
 [flake8]
-# Very lenient linting configuration - focus on critical errors only
-max-line-length = 150
-max-complexity = 25
+# Moderate linting configuration
+max-line-length = 120
+max-complexity = 15
 
-# Ignore most error codes to make development easier
+# Ignore specific error codes that are too strict
 ignore = 
-    # All formatting and style issues
+    # Indentation (handled by formatters)
     E111, E114, E121, E125, E126, E127, E128,
+    # Whitespace (handled by formatters)  
     E201, E202, E203, E221, E222, E225, E226, E227, E228,
-    E271, E272, E273, E274, E275,
-    E301, E302, E303, E304, E305, E306, E307, E308, E309,
-    E401, E402, E501, E502, E731,
-    W291, W292, W293, W503, W504,
-    # Import and naming issues
-    F401, F403, F405, F811, F812, F821, F822, F823, F841,
-    # Complexity and design issues
-    C901, C902, C903,
-    # All other warnings
-    W, C
+    # Line length (we set to 120)
+    E501,
+    # Import formatting
+    E401, E402,
+    # Function definitions
+    E731,
+    # Trailing whitespace (handled by formatters)
+    W291, W292, W293,
+    # Line break rules (too strict)
+    W503, W504
 
 # Exclude directories
 exclude = 

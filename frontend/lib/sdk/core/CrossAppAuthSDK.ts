@@ -27,7 +27,13 @@ export class CrossAppAuthSDK {
 
   constructor(config: SDKConfig) {
     this.config = config;
+    // If apiBase is provided, use it as-is. Otherwise construct from domain.
+    // Note: apiBase should NOT include /api - the SDK will add it
     this.apiBase = config.apiBase || `https://api.${config.domain}`;
+    // Ensure apiBase doesn't end with /api to avoid double /api/api
+    if (this.apiBase.endsWith('/api')) {
+      this.apiBase = this.apiBase.slice(0, -4);
+    }
     
     this.state = {
       isAuthenticated: false,

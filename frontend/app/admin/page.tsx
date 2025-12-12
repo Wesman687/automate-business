@@ -1,31 +1,31 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { LogOut } from 'lucide-react'
-import { getApiUrl } from '@/lib/api'
-import AdminDashboard from '@/components/AdminDashboard'
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { LogOut } from "lucide-react";
+import { getApiUrl } from "@/lib/api";
+import Dashboard from "@/components/admin/Dashboard";
 
 export default function AdminPage() {
-  const [authLoading, setAuthLoading] = useState(true)
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const router = useRouter()
+  const [authLoading, setAuthLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     // DISABLED: Auth check completely disabled - JWT AuthProvider handles this
-    console.log('🔑 Admin: Auth check completely disabled');
+    console.log("🔑 Admin: Auth check completely disabled");
     setIsAuthenticated(true);
     setAuthLoading(false);
-  }, [])
+  }, []);
 
   // checkAuthentication function removed - using JWT AuthProvider instead
 
   const handleLogout = async () => {
     // DISABLED: Use localStorage clear instead of cookie-based logout
-    console.log('🔑 Admin: Logout disabled - clear localStorage instead');
-    localStorage.removeItem('admin_token');
-    router.push('/');
-  }
+    console.log("🔑 Admin: Logout disabled - clear localStorage instead");
+    localStorage.removeItem("admin_token");
+    router.push("/");
+  };
 
   if (authLoading) {
     return (
@@ -35,7 +35,7 @@ export default function AdminPage() {
           <p className="text-white">Checking authentication...</p>
         </div>
       </div>
-    )
+    );
   }
 
   if (!isAuthenticated) {
@@ -45,7 +45,7 @@ export default function AdminPage() {
           <p className="text-red-400">Redirecting to login...</p>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -76,8 +76,8 @@ export default function AdminPage() {
 
       {/* Main Dashboard Content */}
       <div className="container mx-auto px-6 pb-6">
-        <AdminDashboard />
+        <Dashboard />
       </div>
     </div>
-  )
+  );
 }

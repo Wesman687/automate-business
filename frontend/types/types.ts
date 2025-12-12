@@ -871,13 +871,27 @@ export interface Export {
 
 export interface AppIntegration {
   id: number;
+  app_id: string;  // Unique app identifier (e.g., "app_xxxxx")
   app_name: string;
-  api_key?: string;
-  api_secret?: string;
+  app_domain: string;
+  description?: string;
+  app_url?: string;
+  logo_url?: string;
+  primary_color?: string;
+  permissions?: string[];
+  max_users?: number;
+  is_public?: boolean;
+  api_key?: string;  // Only shown once after creation/regeneration
+  api_key_hash?: string;
   webhook_url?: string;
+  allowed_origins?: string[];
   status: AppStatus;
+  created_by?: number;
+  approved_by?: number;
+  approved_at?: string;
   created_at: string;
   updated_at: string;
+  last_activity?: string;
 }
 
 export interface CrossAppSession {

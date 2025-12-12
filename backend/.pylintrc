@@ -1,16 +1,36 @@
 [MASTER]
-# Very lenient configuration - disable almost everything for development
+# Disable overly strict checks but keep useful ones
 disable=
-    # Disable all checks except critical errors
-    all,
+    # Documentation (too strict for development)
+    missing-module-docstring,
+    missing-class-docstring,
+    missing-function-docstring,
     
-    # Only enable these critical checks
-    syntax-error,
-    undefined-variable,
-    import-error,
-    no-member,
-    attribute-defined-outside-init,
-    duplicate-code
+    # Formatting (handled by formatters)
+    line-too-long,
+    trailing-whitespace,
+    
+    # Import order (too finicky)
+    wrong-import-order,
+    ungrouped-imports,
+    
+    # Variable naming (too strict)
+    invalid-name,
+    
+    # F-string complaints that are not critical
+    f-string-without-interpolation,
+    
+    # Design patterns (too restrictive for rapid development)
+    too-few-public-methods,
+    
+    # Allow some flexibility in complexity
+    too-many-arguments,
+    too-many-locals,
+    too-many-branches,
+    too-many-statements,
+    
+    # Import location flexibility
+    import-outside-toplevel
 
 # Keep these enabled (important checks):
 # - syntax-error

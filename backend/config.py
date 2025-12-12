@@ -19,6 +19,11 @@ class Config:
     # Environment
     ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
     
+    # Email Configuration - ALWAYS USE PRODUCTION SERVER
+    EMAIL_SERVER = "mail.stream-lineai.com"  # Force production email server
+    EMAIL_PORT = 587
+    EMAIL_USE_TLS = True
+    
     # OpenAI
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
     

@@ -131,6 +131,14 @@ const CrossAppIntegrations: React.FC = () => {
 
   const columns = [
     {
+      title: 'APP ID',
+      dataIndex: 'app_id',
+      key: 'app_id',
+      render: (text: string) => (
+        <span className="text-gray-300 font-mono text-xs">{text || 'N/A'}</span>
+      ),
+    },
+    {
       title: 'APP NAME',
       dataIndex: 'app_name',
       key: 'app_name',
@@ -387,6 +395,33 @@ const CrossAppIntegrations: React.FC = () => {
           onFinish={handleEdit}
           className="dark-form"
         >
+          {selectedIntegration && (
+            <Form.Item
+              label={<span className="text-gray-400">App ID</span>}
+            >
+              <Input 
+                value={selectedIntegration.app_id}
+                disabled
+                className="dark-input bg-gray-800"
+                suffix={
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(selectedIntegration.app_id);
+                      message.success('App ID copied to clipboard!');
+                    }}
+                    className="text-electric-blue hover:text-electric-blue/80"
+                    title="Copy App ID"
+                  >
+                    <KeyOutlined />
+                  </button>
+                }
+              />
+              <div className="text-xs text-gray-500 mt-1">
+                This is your App ID. Use this in your SDK configuration.
+              </div>
+            </Form.Item>
+          )}
           <Form.Item
             name="app_name"
             label={<span className="text-gray-400">App Name</span>}

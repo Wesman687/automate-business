@@ -50,17 +50,26 @@ class EmailService:
                 ).filter(EmailAccount.is_active == True).first()
                 
                 if db_account:
-                    return db_account.email, db_account.password, db_account.smtp_server, db_account.smtp_port
+                    # Always use production SMTP server, but use account's email and password
+                    logger.info(f"📧 Found email account in DB: {db_account.email} (name: {db_account.name})")
+                    return db_account.email, db_account.password, PRODUCTION_SMTP_SERVER, PRODUCTION_SMTP_PORT
             except Exception as e:
-                logger.warning(f"Could not load account from database: {str(e)}")
+                logger.warning(f"Could not load account from database: {str(e)}", exc_info=True)
         
-        # Fallback to environment variables
+        # Fallback to environment variables - ALWAYS use production SMTP server
+        logger.info(f"📧 Using environment variables for {from_account} account")
         if from_account == 'tech':
-            return self.tech_email, self.tech_password, 'smtp.gmail.com', 587
+            if not self.tech_email or not self.tech_password:
+                raise ValueError(f"Tech email credentials not configured in environment variables")
+            return self.tech_email, self.tech_password, PRODUCTION_SMTP_SERVER, PRODUCTION_SMTP_PORT
         elif from_account == 'sales':
-            return self.sales_email, self.sales_password, 'smtp.gmail.com', 587
+            if not self.sales_email or not self.sales_password:
+                raise ValueError(f"Sales email credentials not configured in environment variables")
+            return self.sales_email, self.sales_password, PRODUCTION_SMTP_SERVER, PRODUCTION_SMTP_PORT
         elif from_account == 'no-reply':
-            return self.no_reply_email, self.no_reply_password, 'smtp.gmail.com', 587
+            if not self.no_reply_email or not self.no_reply_password:
+                raise ValueError(f"No-reply email credentials not configured in environment variables. Please set NO_REPLY_EMAIL and NO_REPLY_PASSWORD, or add an email account to the database.")
+            return self.no_reply_email, self.no_reply_password, PRODUCTION_SMTP_SERVER, PRODUCTION_SMTP_PORT
         else:
             raise ValueError(f"Unknown email account: {from_account}")
 
@@ -106,10 +115,13 @@ class EmailService:
             from_email, password, smtp_server, smtp_port = self._get_account_credentials(from_account)
             
             if not from_email or not password:
-                raise ValueError(f"Email credentials not found for account: {from_account}")
+                error_msg = f"Email credentials not found for account: {from_account}. Email: {from_email}, Password: {'***' if password else 'MISSING'}"
+                logger.error(f"❌ {error_msg}")
+                raise ValueError(error_msg)
             
             logger.info(f"📧 Sending email from {from_email} to {to_emails}")
             logger.info(f"   Using SMTP: {smtp_server}:{smtp_port}")
+            email_logger.info(f"📧 EMAIL_CREDENTIALS | From: {from_email} | SMTP: {smtp_server}:{smtp_port}")
 
             # Create message
             message = MIMEMultipart('alternative')
@@ -165,9 +177,10 @@ class EmailService:
             return True
             
         except Exception as e:
-            # Failure logging
-            email_logger.error(f"📧 EMAIL_SEND_FAILED | From: {from_account} | To: {', '.join(to_emails)} | Subject: {subject} | Error: {str(e)}")
-            logger.error(f"Failed to send email from {from_account}: {str(e)}")
+            # Failure logging with full details
+            error_details = f"From: {from_account} | To: {', '.join(to_emails)} | Subject: {subject} | Error: {str(e)}"
+            email_logger.error(f"📧 EMAIL_SEND_FAILED | {error_details}")
+            logger.error(f"❌ Failed to send email from {from_account}: {str(e)}", exc_info=True)
             return False
 
     def send_notification(self, subject: str, body: str, to_emails: List[str] = None):

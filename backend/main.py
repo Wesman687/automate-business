@@ -186,16 +186,20 @@ async def custom_cors_handler(request: Request, call_next):
         elif is_allowed_ip_range(origin):
             allowed = True
     
-    # Handle preflight requests (OPTIONS) before they reach the endpoint
-    if request.method == "OPTIONS" and allowed:
+    # Handle preflight requests (OPTIONS) - must respond with CORS headers if allowed
+    if request.method == "OPTIONS":
         from fastapi.responses import Response
-        response = Response()
-        response.headers["Access-Control-Allow-Origin"] = origin
-        response.headers["Access-Control-Allow-Credentials"] = "true"
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, PATCH, OPTIONS"
-        response.headers["Access-Control-Allow-Headers"] = "*"
-        response.headers["Access-Control-Max-Age"] = "86400"
-        return response
+        if allowed and origin:
+            response = Response(status_code=204)
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+            response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With, Accept"
+            response.headers["Access-Control-Max-Age"] = "86400"
+            return response
+        else:
+            # Return 403 for disallowed origins
+            return Response(status_code=403, content="CORS policy: Origin not allowed")
     
     response = await call_next(request)
     
@@ -204,7 +208,7 @@ async def custom_cors_handler(request: Request, call_next):
         response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Access-Control-Allow-Credentials"] = "true"
         response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, PATCH, OPTIONS"
-        response.headers["Access-Control-Allow-Headers"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With"
     
     return response
 

@@ -16,7 +16,8 @@ email_logger = logging.getLogger('email')  # Dedicated email logger
 
 # PRODUCTION EMAIL SERVER - ALWAYS USE REGARDLESS OF ENVIRONMENT
 # Can be overridden via SMTP_SERVER environment variable
-PRODUCTION_SMTP_SERVER = os.getenv('SMTP_SERVER', 'mail.stream-lineai.com')
+# Default to Gmail SMTP (most common for custom domain emails)
+PRODUCTION_SMTP_SERVER = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
 PRODUCTION_SMTP_PORT = int(os.getenv('SMTP_PORT', '587'))
 
 class EmailService:

@@ -20,8 +20,20 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+    name: str
+    user_type: str = "customer"  # Default to customer, can be "customer" or "admin" (admin requires approval)
+
+
 class LoginResponse(BaseModel):
     token: str
+    user: dict
+
+
+class RegisterResponse(BaseModel):
+    message: str
     user: dict
 
 
@@ -55,6 +67,59 @@ async def unified_login(request: LoginRequest, response: Response,
             "permissions": user_data["permissions"],
         },
     }
+
+@router.post("/register")
+async def register(request: RegisterRequest, db: Session = Depends(get_db)):
+    """Register a new user account"""
+    from database.models import User
+    
+    auth_service = AuthService(db)
+    logger.info(f"📝 Registration attempt for email: {request.email}")
+    
+    # Check if user already exists
+    existing_user = db.query(User).filter(User.email.ilike(request.email)).first()
+    if existing_user:
+        logger.warning(f"❌ Registration failed: Email already exists '{request.email}'")
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    # Validate user_type
+    if request.user_type not in ["customer", "admin"]:
+        raise HTTPException(status_code=400, detail="user_type must be 'customer' or 'admin'")
+    
+    # Hash password
+    password_hash = auth_service.hash_password(request.password)
+    
+    # Create new user
+    new_user = User(
+        email=request.email,
+        password_hash=password_hash,
+        name=request.name,
+        user_type=request.user_type,
+        status="pending" if request.user_type == "admin" else "active"  # Admins need approval
+    )
+    
+    try:
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+        
+        logger.info(f"✅ Registration successful for email: {request.email} (type: {request.user_type})")
+        
+        return {
+            "message": "Registration successful" + (" (pending admin approval)" if request.user_type == "admin" else ""),
+            "user": {
+                "id": new_user.id,
+                "email": new_user.email,
+                "name": new_user.name,
+                "user_type": new_user.user_type,
+                "status": new_user.status
+            }
+        }
+    except Exception as e:
+        db.rollback()
+        logger.error(f"❌ Registration error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
+
 
 @router.post("/logout")
 async def logout(response: Response, req: Request):

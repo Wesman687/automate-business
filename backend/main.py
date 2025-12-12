@@ -201,7 +201,21 @@ async def custom_cors_handler(request: Request, call_next):
             # Return 403 for disallowed origins
             return Response(status_code=403, content="CORS policy: Origin not allowed")
     
-    response = await call_next(request)
+    try:
+        response = await call_next(request)
+    except Exception as e:
+        # If there's an error, still add CORS headers if origin is allowed
+        from fastapi.responses import JSONResponse
+        response = JSONResponse(
+            status_code=500,
+            content={"detail": str(e)}
+        )
+        if allowed and origin:
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+            response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With"
+        return response
     
     # Add CORS headers to all responses from allowed origins
     if allowed and origin:

@@ -15,8 +15,9 @@ logger = logging.getLogger(__name__)
 email_logger = logging.getLogger('email')  # Dedicated email logger
 
 # PRODUCTION EMAIL SERVER - ALWAYS USE REGARDLESS OF ENVIRONMENT
-PRODUCTION_SMTP_SERVER = 'mail.stream-lineai.com'
-PRODUCTION_SMTP_PORT = 587
+# Can be overridden via SMTP_SERVER environment variable
+PRODUCTION_SMTP_SERVER = os.getenv('SMTP_SERVER', 'mail.stream-lineai.com')
+PRODUCTION_SMTP_PORT = int(os.getenv('SMTP_PORT', '587'))
 
 class EmailService:
     def __init__(self, db_session=None):

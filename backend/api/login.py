@@ -121,24 +121,22 @@ async def register(request: RegisterRequest, db: Session = Depends(get_db)):
         # Send verification email (run in background to not block response)
         try:
             import asyncio
-            from functools import partial
             
             # Create a background task to send email
             async def send_email_task():
                 try:
-                    # The send_verification_email is async but calls sync send_email
-                    # So we can just await it
+                    # The send_verification_email is async and runs sync send_email in executor
                     result = await email_service.send_verification_email(
                         to_email=request.email,
                         customer_name=request.name,
                         verification_code=verification_code
                     )
                     if result:
-                        logger.info(f"✅ Verification email sent to {request.email}")
+                        logger.info(f"✅ Verification email sent successfully to {request.email}")
                     else:
                         logger.warning(f"⚠️ Verification email send returned False for {request.email}")
                 except Exception as e:
-                    logger.error(f"❌ Error sending verification email: {str(e)}", exc_info=True)
+                    logger.error(f"❌ Error sending verification email to {request.email}: {str(e)}", exc_info=True)
             
             # Schedule email to be sent in background
             asyncio.create_task(send_email_task())
@@ -259,7 +257,7 @@ async def resend_verification(email: str, db: Session = Depends(get_db)):
         db.commit()
         
         # Send verification email
-        email_service = EmailService()
+        email_service = EmailService(db_session=db)
         await email_service.send_verification_email(
             to_email=user.email,
             customer_name=user.name or "User",

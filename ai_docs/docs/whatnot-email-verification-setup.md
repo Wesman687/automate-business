@@ -11,17 +11,11 @@ When users register, they receive a verification email with:
 
 ## Backend Configuration
 
-### Environment Variables
+### Environment Variables (Required for Email Sending)
 
-On your backend server, set these environment variables:
+On your backend server, set these environment variables for email credentials:
 
 ```bash
-# App name shown in emails
-export APP_NAME="Whatnot AutoPrint"
-
-# URL to your verification page (users will be redirected here)
-export VERIFICATION_URL="https://whatnot.miracle-coins.com/verify-email"
-
 # Email account credentials (for sending emails)
 export PAUL_EMAIL="paul@stream-lineai.com"
 export PAUL_PASSWORD="<your_gmail_app_password>"
@@ -30,6 +24,8 @@ export PAUL_PASSWORD="<your_gmail_app_password>"
 export SMTP_SERVER="smtp.gmail.com"
 export SMTP_PORT="587"
 ```
+
+**Note:** `APP_NAME` and `VERIFICATION_URL` can be passed in the registration request (see below), or set as environment variables as fallback defaults.
 
 **Important:** After setting these, restart your backend server.
 
@@ -279,6 +275,27 @@ const handleLogin = async (email: string, password: string) => {
 
 ## API Endpoints
 
+### Register User
+
+When registering a user, you can specify the app name and verification URL:
+
+```
+POST https://server.stream-lineai.com/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "password123",
+  "name": "User Name",
+  "app_name": "Whatnot AutoPrint",  // Optional: Customizes email branding
+  "verification_url": "https://whatnot.miracle-coins.com/verify-email"  // Optional: Link in email
+}
+```
+
+**If `app_name` and `verification_url` are not provided**, the system will use environment variables or defaults:
+- `app_name` defaults to "StreamlineAI" if not provided
+- `verification_url` is optional - if not provided, email will only show the code
+
 ### Verify Email
 ```
 POST https://server.stream-lineai.com/api/auth/verify-email
@@ -317,7 +334,9 @@ POST https://server.stream-lineai.com/api/auth/resend-verification
 Content-Type: application/json
 
 {
-  "email": "user@example.com"
+  "email": "user@example.com",
+  "app_name": "Whatnot AutoPrint",  // Optional: Customizes email branding
+  "verification_url": "https://whatnot.miracle-coins.com/verify-email"  // Optional: Link in email
 }
 ```
 
@@ -346,7 +365,9 @@ Content-Type: application/json
    {
      "email": "test@example.com",
      "password": "testpassword123",
-     "name": "Test User"
+     "name": "Test User",
+     "app_name": "Whatnot AutoPrint",
+     "verification_url": "https://whatnot.miracle-coins.com/verify-email"
    }
    ```
 
@@ -386,14 +407,16 @@ Content-Type: application/json
 PAUL_EMAIL=paul@stream-lineai.com
 PAUL_PASSWORD=<gmail_app_password>
 
-# Required for custom branding and links
-APP_NAME="Whatnot AutoPrint"
-VERIFICATION_URL="https://whatnot.miracle-coins.com/verify-email"
+# Optional - can be passed in registration request instead
+APP_NAME="Whatnot AutoPrint"  # Fallback default if not in request
+VERIFICATION_URL="https://whatnot.miracle-coins.com/verify-email"  # Fallback default if not in request
 
 # Optional (defaults shown)
 SMTP_SERVER=smtp.gmail.com
 SMTP_PORT=587
 ```
+
+**Note:** It's recommended to pass `app_name` and `verification_url` in each registration request so different apps can use different branding and verification pages.
 
 ## Next Steps
 

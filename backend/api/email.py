@@ -108,7 +108,7 @@ async def forgot_password(request: PasswordResetRequest, db: Session = Depends(g
     # Store token with expiration (1 hour)
     password_reset_tokens[reset_token] = {
         'email': request.email,
-        'admin_id': admin.id,
+        'user_id': user.id,
         'expires_at': time.time() + 3600,  # 1 hour
         'used': False
     }

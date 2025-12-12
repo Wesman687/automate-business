@@ -56,10 +56,17 @@ async def unified_login(request: LoginRequest, response: Response,
     # Check if email verification is required
     if user_data.get("requires_verification"):
         logger.info(f"📧 Login blocked: Email verification required for '{request.email}'")
-        raise HTTPException(
+        # Return specific response so frontend can redirect to verification page
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
             status_code=403,
-            detail="Email verification required",
-            headers={"X-Requires-Verification": "true", "X-User-Email": request.email}
+            content={
+                "error": "Email verification required",
+                "requires_verification": True,
+                "email": request.email,
+                "message": "Please verify your email address before logging in. Check your email for the verification code."
+            },
+            headers={"X-Requires-Verification": "true"}
         )
 
     token = auth_service.create_access_token(user_data)

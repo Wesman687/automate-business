@@ -5,7 +5,9 @@ This guide explains how to integrate your application with the Streamline AI aut
 ## Base URL
 
 **Production:** `https://server.stream-lineai.com`  
-**Development:** `http://localhost:8005`
+**Development (Local Backend):** `http://localhost:8005`
+
+**Note:** You can use the production auth server from your local development environment! Just point your app to `https://server.stream-lineai.com` instead of localhost.
 
 All endpoints are prefixed with `/api/auth`
 
@@ -397,12 +399,35 @@ async function handleApiRequest(url, options = {}) {
 ## CORS Configuration
 
 The auth server is configured to allow requests from:
-- `localhost` (all ports 3000-3005)
+- `localhost` (any port - for local development)
+- `127.0.0.1` (any port)
 - `https://stream-lineai.com`
 - `https://www.stream-lineai.com`
 - `https://server.stream-lineai.com`
+- `https://whatnot.miracle-coins.com`
+- `*.miracle-coins.com` (any subdomain)
 - Vercel deployment domains
 - Your IP address (67.190.222.*)
+
+**Using Production Auth from Local Development:**
+
+You can absolutely use the production auth server (`https://server.stream-lineai.com`) from your local development environment! This is useful when:
+- You want to test against real user data
+- You don't want to run the backend locally
+- You're developing a frontend that needs authentication
+
+**Example:**
+```javascript
+// In your local dev environment, use production URL
+const AUTH_BASE_URL = 'https://server.stream-lineai.com';
+
+// This will work from localhost:3000, localhost:5173, etc.
+const response = await fetch(`${AUTH_BASE_URL}/api/auth/login`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ email, password })
+});
+```
 
 If you need to add your domain, contact the backend administrator.
 

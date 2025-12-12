@@ -102,11 +102,11 @@ async def register(request: RegisterRequest, db: Session = Depends(get_db)):
     """Register a new user account - sends verification email"""
     from models import User  # Use same import as other API files
     from services.email_service import EmailService
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
     import random
     
     auth_service = AuthService(db)
-    email_service = EmailService()
+    email_service = EmailService(db_session=db)  # Pass db session for email account lookup
     logger.info(f"📝 Registration attempt for email: {request.email}")
     
     # Check if user already exists
@@ -124,7 +124,8 @@ async def register(request: RegisterRequest, db: Session = Depends(get_db)):
     
     # Generate 6-digit verification code
     verification_code = str(random.randint(100000, 999999))
-    verification_expires = datetime.utcnow() + timedelta(hours=24)
+    # Use timezone-aware datetime
+    verification_expires = datetime.now(timezone.utc) + timedelta(hours=24)
     
     # Create new user with pending status until email is verified
     new_user = User(

@@ -46,8 +46,8 @@ export default function DashboardPage() {
               <div className="text-sm text-gray-300">Admins</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-orange-400">{userStats.total_credits.toLocaleString()}</div>
-              <div className="text-sm text-gray-300">Total Credits</div>
+              <div className="text-2xl font-bold text-purple-400">{userStats.new_users_this_month}</div>
+              <div className="text-sm text-gray-300">New This Month</div>
             </div>
           </div>
         </div>

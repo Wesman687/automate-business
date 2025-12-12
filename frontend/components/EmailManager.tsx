@@ -19,6 +19,7 @@ interface Email {
 interface EmailManagerProps {
   isOpen: boolean;
   onClose: () => void;
+  selectedEmailId?: string;
 }
 
 interface ComposeData {

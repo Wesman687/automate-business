@@ -146,6 +146,22 @@ def is_allowed_ip_range(origin: str) -> bool:
             return True
     return False
 
+def is_localhost(origin: str) -> bool:
+    """Check if origin is localhost (any port)"""
+    import re
+    # Match localhost, 127.0.0.1, or ::1 with any port
+    localhost_patterns = [
+        r"https?://localhost(:\d+)?",
+        r"https?://127\.0\.0\.1(:\d+)?",
+        r"https?://::1(:\d+)?",
+        r"https?://\[::1\](:\d+)?",
+    ]
+    
+    for pattern in localhost_patterns:
+        if re.match(pattern, origin):
+            return True
+    return False
+
 
 async def custom_cors_handler(request: Request, call_next):
     """Custom CORS handler that supports IP ranges and handles preflight requests"""
@@ -156,6 +172,9 @@ async def custom_cors_handler(request: Request, call_next):
     if origin:
         # Check standard CORS origins
         if origin in cors_origins or "*" in cors_origins:
+            allowed = True
+        # Check if it's localhost (any port) - allow for local development
+        elif is_localhost(origin):
             allowed = True
         # Check IP range patterns
         elif is_allowed_ip_range(origin):
